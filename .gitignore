@@ -1,0 +1,17 @@
+# Node.js
+node_modules/
+npm-debug.log
+dist/
+build/
+
+# .env 文件
+.env
+
+# Prisma
+/prisma/migrations/
+
+# Vite
+/.vite/
+
+# TypeScript
+*.tsbuildinfo
