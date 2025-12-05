@@ -20,16 +20,23 @@ const ForgotPasswordPage = () => {
   };
 
   return (
-    <section>
-      <h2>Forgot Password</h2>
-      <form onSubmit={onSubmit} className="form">
-        <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" />
-        <button type="submit" disabled={mutation.status === "pending"}>
-          {mutation.status === "pending" ? "Sending..." : "Send Reset"}
-        </button>
-      </form>
-      {message && <p className="info">{message}</p>}
-    </section>
+    <div className="card bg-base-100 shadow-xl max-w-md mx-auto">
+      <div className="card-body">
+        <h2 className="card-title">Forgot Password</h2>
+        <form onSubmit={onSubmit} className="space-y-3">
+          <input
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Email"
+            className="input input-bordered w-full"
+          />
+          <button type="submit" className="btn btn-primary w-full" disabled={mutation.status === "pending"}>
+            {mutation.status === "pending" ? "Sending..." : "Send Reset"}
+          </button>
+        </form>
+        {message && <p className="text-info mt-2">{message}</p>}
+      </div>
+    </div>
   );
 };
 

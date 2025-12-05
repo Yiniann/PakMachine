@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import AppLayout from "./layouts/AppLayout";
 import AuthLayout from "./layouts/AuthLayout";
 import LandingLayout from "./layouts/LandingLayout";
+import AdminLayout from "./layouts/AdminLayout";
 import LandingPage from "./pages/landing/LandingPage";
 import LoginPage from "./pages/auth/LoginPage";
 import RegisterPage from "./pages/auth/RegisterPage";
@@ -31,7 +32,7 @@ const App = () => {
           <Route index element={<Navigate to="/app/home" replace />} />
           <Route path="home" element={<HomePage />} />
         </Route>
-        <Route path="/admin">
+        <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Navigate to="/admin/users" replace />} />
           <Route path="users" element={<AdminUsersPage />} />
         </Route>

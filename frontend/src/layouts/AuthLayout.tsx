@@ -4,16 +4,30 @@ import { useAuth } from "../components/useAuth";
 const AuthLayout = () => {
   const { token, logout } = useAuth();
   return (
-    <div className="app">
-      <nav className="nav">
-        <h1>PacMachine Auth</h1>
-        <div className="links">
-          <Link to="/">Landing</Link>
-          {token && <Link to="/app/home">App</Link>}
-          {token ? <button onClick={logout}>Logout</button> : null}
+    <div data-theme="light" className="min-h-screen bg-base-200">
+      <div className="navbar bg-base-100 shadow">
+        <div className="navbar-start">
+          <Link to="/" className="btn btn-ghost text-xl">
+            PacMachine Auth
+          </Link>
         </div>
-      </nav>
-      <main className="main">
+        <div className="navbar-end gap-2">
+          <Link to="/" className="btn btn-outline btn-sm">
+            Landing
+          </Link>
+          {token && (
+            <Link to="/app/home" className="btn btn-outline btn-sm">
+              App
+            </Link>
+          )}
+          {token ? (
+            <button onClick={logout} className="btn btn-error btn-sm text-white">
+              Logout
+            </button>
+          ) : null}
+        </div>
+      </div>
+      <main className="container mx-auto px-4 py-8">
         <Outlet />
       </main>
     </div>

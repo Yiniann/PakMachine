@@ -21,17 +21,30 @@ const RegisterPage = () => {
   };
 
   return (
-    <section>
-      <h2>Register</h2>
-      <form onSubmit={onSubmit} className="form">
-        <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" />
-        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" />
-        <button type="submit" disabled={mutation.status === "pending"}>
-          {mutation.status === "pending" ? "Registering..." : "Register"}
-        </button>
-      </form>
-      {message && <p className="info">{message}</p>}
-    </section>
+    <div className="card bg-base-100 shadow-xl max-w-md mx-auto">
+      <div className="card-body">
+        <h2 className="card-title">Register</h2>
+        <form onSubmit={onSubmit} className="space-y-3">
+          <input
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Email"
+            className="input input-bordered w-full"
+          />
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Password"
+            className="input input-bordered w-full"
+          />
+          <button type="submit" className="btn btn-primary w-full" disabled={mutation.status === "pending"}>
+            {mutation.status === "pending" ? "Registering..." : "Register"}
+          </button>
+        </form>
+        {message && <p className="text-info mt-2">{message}</p>}
+      </div>
+    </div>
   );
 };
 

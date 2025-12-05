@@ -21,22 +21,30 @@ const ResetPasswordPage = () => {
   };
 
   return (
-    <section>
-      <h2>Reset Password</h2>
-      <form onSubmit={onSubmit} className="form">
-        <input value={token} onChange={(e) => setToken(e.target.value)} placeholder="Token" />
-        <input
-          type="password"
-          value={newPassword}
-          onChange={(e) => setNewPassword(e.target.value)}
-          placeholder="New Password"
-        />
-        <button type="submit" disabled={mutation.status === "pending"}>
-          {mutation.status === "pending" ? "Resetting..." : "Reset"}
-        </button>
-      </form>
-      {message && <p className="info">{message}</p>}
-    </section>
+    <div className="card bg-base-100 shadow-xl max-w-md mx-auto">
+      <div className="card-body">
+        <h2 className="card-title">Reset Password</h2>
+        <form onSubmit={onSubmit} className="space-y-3">
+          <input
+            value={token}
+            onChange={(e) => setToken(e.target.value)}
+            placeholder="Token"
+            className="input input-bordered w-full"
+          />
+          <input
+            type="password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            placeholder="New Password"
+            className="input input-bordered w-full"
+          />
+          <button type="submit" className="btn btn-primary w-full" disabled={mutation.status === "pending"}>
+            {mutation.status === "pending" ? "Resetting..." : "Reset"}
+          </button>
+        </form>
+        {message && <p className="text-info mt-2">{message}</p>}
+      </div>
+    </div>
   );
 };
 
