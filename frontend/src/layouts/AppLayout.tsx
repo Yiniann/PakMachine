@@ -25,7 +25,7 @@ const AppLayout = () => {
           <div className="navbar-end gap-2 pr-4">
             {role === "admin" && (
               <Link to="/admin" className="btn btn-outline btn-sm">
-                管理
+                管理端
               </Link>
             )}
             {token && (

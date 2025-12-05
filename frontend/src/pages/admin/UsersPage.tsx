@@ -88,9 +88,9 @@ const UsersPage = () => {
       <div className="card bg-base-100 shadow-xl">
         <div className="card-body">
           <div className="flex items-center justify-between">
-            <h2 className="card-title">Users</h2>
+            <h2 className="card-title">用户列表</h2>
             <button className="btn btn-primary btn-sm" onClick={() => setCreateOpen(true)}>
-              Add User
+              添加用户
             </button>
           </div>
           {isLoading && <p className="loading loading-spinner loading-sm" />}
@@ -101,10 +101,10 @@ const UsersPage = () => {
                 <thead>
                   <tr>
                     <th>ID</th>
-                    <th>Email</th>
-                    <th>Role</th>
-                    <th>Created</th>
-                    <th>Actions</th>
+                    <th>邮箱</th>
+                    <th>权限组</th>
+                    <th>创建时间</th>
+                    <th>操作</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -112,7 +112,7 @@ const UsersPage = () => {
                     <tr key={u.id}>
                       <td>{u.id}</td>
                       <td>{u.email}</td>
-                      <td>{u.role}</td>
+                      <td>{u.role === "admin" ? "管理员" : "用户"}</td>
                       <td>{u.createdAtLabel}</td>
                       <td>
                         <button className="btn btn-xs" onClick={() => {
@@ -121,7 +121,7 @@ const UsersPage = () => {
                           setResetEmail(u.email);
                           setNewPassword("");
                         }}>
-                          Settings
+                          设置
                         </button>
                       </td>
                     </tr>
@@ -138,12 +138,12 @@ const UsersPage = () => {
       {createOpen && (
         <div className="modal modal-open">
           <div className="modal-box">
-            <h3 className="font-bold text-lg">Add User</h3>
+            <h3 className="font-bold text-lg">添加用户</h3>
             <form onSubmit={onCreate} className="grid gap-3 mt-4">
               <input
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="Email"
+                placeholder="邮箱"
                 className="input input-bordered w-full"
                 required
               />
@@ -151,39 +151,39 @@ const UsersPage = () => {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Password"
+                placeholder="密码"
                 className="input input-bordered w-full"
                 required
               />
+              <a>权限组：</a>
               <select value={role} onChange={(e) => setRole(e.target.value)} className="select select-bordered w-full">
-                <option value="user">user</option>
-                <option value="admin">admin</option>
+                <option value="user">用户</option>
+                <option value="admin">管理员</option>
               </select>
               <div className="modal-action">
                 <button type="button" className="btn" onClick={() => setCreateOpen(false)}>
-                  Cancel
+                  取消
                 </button>
                 <button type="submit" className="btn btn-primary" disabled={createUser.status === "pending"}>
-                  {createUser.status === "pending" ? "Creating..." : "Create"}
+                  {createUser.status === "pending" ? "创建中..." : "创建"}
                 </button>
               </div>
             </form>
-            {createError && <p className="text-error mt-2">Failed: {createError}</p>}
+            {createError && <p className="text-error mt-2">失败: {createError}</p>}
           </div>
         </div>
       )}
 
-      {/* Settings Modal */}
       {settingsUser && (
         <div className="modal modal-open">
           <div className="modal-box">
-            <h3 className="font-bold text-lg">Settings for {settingsUser.email}</h3>
-            <div className="space-y-3 mt-4">
+            <h3 className="font-bold text-lg">设置：{settingsUser.email}</h3>
+            <div className="mt-4 space-y-4">
               <div className="form-control">
                 <label className="label">
-                  <span className="label-text">Role</span>
+                  <span className="label-text">角色</span>
                 </label>
-                <div className="flex gap-2 items-center">
+                <div className="flex flex-wrap gap-2">
                   <select
                     className="select select-bordered select-sm"
                     value={roleEdit[settingsUser.email] ?? settingsUser.role}
@@ -194,8 +194,8 @@ const UsersPage = () => {
                       }))
                     }
                   >
-                    <option value="user">user</option>
-                    <option value="admin">admin</option>
+                    <option value="user">用户</option>
+                    <option value="admin">管理员</option>
                   </select>
                   <button
                     className="btn btn-sm btn-primary"
@@ -207,16 +207,16 @@ const UsersPage = () => {
                       })
                     }
                   >
-                    Save Role
+                    {updateRole.status === "pending" ? "更改中..." : "更改权限"}
                   </button>
                 </div>
               </div>
 
               <div className="form-control">
                 <label className="label">
-                  <span className="label-text">New Password</span>
+                  <span className="label-text">新密码</span>
                 </label>
-                <form onSubmit={onReset} className="flex gap-2">
+                <form onSubmit={onReset} className="flex flex-wrap gap-2">
                   <input
                     type="password"
                     value={newPassword}
@@ -224,28 +224,35 @@ const UsersPage = () => {
                       setNewPassword(e.target.value);
                       setResetEmail(settingsUser.email);
                     }}
-                    placeholder="New Password"
-                    className="input input-bordered w-full"
+                    placeholder="新密码"
+                    className="input input-bordered w-full md:w-auto flex-1"
                     required
                   />
                   <button type="submit" className="btn btn-primary" disabled={updatePassword.status === "pending"}>
-                    {updatePassword.status === "pending" ? "Updating..." : "Change"}
+                    {updatePassword.status === "pending" ? "更新中..." : "修改密码"}
                   </button>
                 </form>
               </div>
 
-              <div className="form-control">
-                <button
-                  className="btn btn-error text-white"
-                  disabled={deleteUser.status === "pending"}
-                  onClick={() => {
-                    deleteUser.mutate(settingsUser.id, {
-                      onSuccess: () => setSettingsUser(null),
-                    });
-                  }}
-                >
-                  Delete Account
-                </button>
+              <div className="divider my-1"></div>
+
+              <div className="collapse collapse-arrow border border-base-200 bg-base-100">
+                <input type="checkbox" />
+                <div className="collapse-title text-error font-medium">危险操作</div>
+                <div className="collapse-content">
+                  <button
+                    className="btn btn-error text-white"
+                    disabled={deleteUser.status === "pending"}
+                    onClick={() => {
+                      if (!window.confirm(`确认删除账号 ${settingsUser.email} 吗？该操作不可恢复。`)) return;
+                      deleteUser.mutate(settingsUser.id, {
+                        onSuccess: () => setSettingsUser(null),
+                      });
+                    }}
+                  >
+                    删除账号
+                  </button>
+                </div>
               </div>
             </div>
             <div className="modal-action">
@@ -256,11 +263,11 @@ const UsersPage = () => {
                   setNewPassword("");
                 }}
               >
-                Close
+                关闭
               </button>
             </div>
-            {updateError && <p className="text-error mt-2">Password update failed: {updateError}</p>}
-            {updateRoleError && <p className="text-error mt-2">Role update failed: {updateRoleError}</p>}
+            {updateError && <p className="text-error mt-2">修改密码失败: {updateError}</p>}
+            {updateRoleError && <p className="text-error mt-2">修改角色失败: {updateRoleError}</p>}
           </div>
         </div>
       )}

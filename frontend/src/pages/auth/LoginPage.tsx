@@ -1,5 +1,5 @@
 import { FormEvent, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useLoginMutation } from "../../features/auth/mutations";
 import { useAuth } from "../../components/useAuth";
 
@@ -9,8 +9,8 @@ const LoginPage = () => {
   const [message, setMessage] = useState<string | null>(null);
   const { login } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
-  const from = (location.state as any)?.from || "/app/home";
+  // 登录后统一跳到应用首页
+  const from = "/app/home";
 
   const mutation = useLoginMutation();
 

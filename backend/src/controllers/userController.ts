@@ -7,6 +7,11 @@ import prisma from "../lib/prisma";
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
 const TOKEN_EXPIRES_HOURS = 1;
 
+// Basic validators to keep payloads sane before touching the database
+const isValidEmail = (email: string) =>
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+const isValidPassword = (pwd: string) => typeof pwd === "string" && pwd.length >= 8;
+
 export const listUsers = async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const users = await prisma.user.findMany({ orderBy: { id: "asc" } });
@@ -22,6 +27,12 @@ export const adminCreateUser = async (req: Request, res: Response, next: NextFun
     const { email, password, role = "user" } = req.body ?? {};
     if (!email || !password) {
       return res.status(400).json({ error: "Email and password are required" });
+    }
+    if (!isValidEmail(email)) {
+      return res.status(400).json({ error: "Email format is invalid" });
+    }
+    if (!isValidPassword(password)) {
+      return res.status(400).json({ error: "Password must be at least 8 characters" });
     }
 
     const existing = await prisma.user.findUnique({ where: { email } });
@@ -76,6 +87,12 @@ export const adminUpdatePassword = async (req: Request, res: Response, next: Nex
     if (!email || !newPassword) {
       return res.status(400).json({ error: "Email and newPassword are required" });
     }
+    if (!isValidEmail(email)) {
+      return res.status(400).json({ error: "Email format is invalid" });
+    }
+    if (!isValidPassword(newPassword)) {
+      return res.status(400).json({ error: "Password must be at least 8 characters" });
+    }
 
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
@@ -95,6 +112,12 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
     const { email, password } = req.body;
     if (!email || !password) {
       return res.status(400).json({ error: "Email and password are required" });
+    }
+    if (!isValidEmail(email)) {
+      return res.status(400).json({ error: "Email format is invalid" });
+    }
+    if (!isValidPassword(password)) {
+      return res.status(400).json({ error: "Password must be at least 8 characters" });
     }
 
     const existing = await prisma.user.findUnique({ where: { email } });
@@ -173,6 +196,9 @@ export const resetPassword = async (req: Request, res: Response, next: NextFunct
     const { token, newPassword } = req.body;
     if (!token || !newPassword) {
       return res.status(400).json({ error: "Token and newPassword are required" });
+    }
+    if (!isValidPassword(newPassword)) {
+      return res.status(400).json({ error: "Password must be at least 8 characters" });
     }
 
     const user = await prisma.user.findFirst({

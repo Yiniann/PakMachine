@@ -30,7 +30,7 @@ const AdminLayout = () => {
           </div>
           <div className="navbar-end gap-2 pr-4">
             <Link to="/app/home" className="btn btn-outline btn-sm">
-              应用
+              客户端
             </Link>
             {token && (
               <button onClick={logout} className="btn btn-error btn-sm text-white">
