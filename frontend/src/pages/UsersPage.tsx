@@ -1,43 +1,22 @@
-import { useEffect, useState } from "react";
-import api from "../api/client";
-
-interface User {
-  id: number;
-  email: string;
-  role: string;
-  createdAt: string;
-  updatedAt: string;
-}
+import { useUsersQuery } from "../api/hooks";
 
 const UsersPage = () => {
-  const [users, setUsers] = useState<User[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await api.get<User[]>("/users");
-        setUsers(res.data);
-      } catch (err: any) {
-        setError(err?.response?.data?.error || "Failed to fetch users");
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
-  }, []);
+  const { data, error, isLoading } = useUsersQuery();
+  const errorMessage =
+    error && (error as any)?.response?.data?.error
+      ? (error as any).response.data.error
+      : error instanceof Error
+        ? error.message
+        : null;
 
   return (
     <section>
       <h2>Users</h2>
-      {loading && <p>Loading...</p>}
-      {error && <p className="error">{error}</p>}
-      {!loading && !error && (
+      {isLoading && <p>Loading...</p>}
+      {errorMessage && <p className="error">{errorMessage}</p>}
+      {!isLoading && !errorMessage && (
         <ul className="list">
-          {users.map((u) => (
+          {data?.map((u) => (
             <li key={u.id}>
               <strong>{u.email}</strong> — {u.role}
             </li>

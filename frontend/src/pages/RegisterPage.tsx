@@ -1,20 +1,23 @@
 import { FormEvent, useState } from "react";
-import api from "../api/client";
+import { useRegisterMutation } from "../api/hooks";
 
 const RegisterPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState<string | null>(null);
 
+  const mutation = useRegisterMutation();
+
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setMessage(null);
-    try {
-      await api.post("/users/register", { email, password });
-      setMessage("Registered");
-    } catch (err: any) {
-      setMessage(err?.response?.data?.error || "Registration failed");
-    }
+    mutation.mutate(
+      { email, password },
+      {
+        onSuccess: () => setMessage("Registered"),
+        onError: (err: any) => setMessage(err?.response?.data?.error || "Registration failed"),
+      },
+    );
   };
 
   return (
@@ -23,7 +26,9 @@ const RegisterPage = () => {
       <form onSubmit={onSubmit} className="form">
         <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" />
         <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" />
-        <button type="submit">Register</button>
+        <button type="submit" disabled={mutation.status === "pending"}>
+          {mutation.status === "pending" ? "Registering..." : "Register"}
+        </button>
       </form>
       {message && <p className="info">{message}</p>}
     </section>

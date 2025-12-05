@@ -1,4 +1,5 @@
 import { Link, Outlet, useLocation } from "react-router-dom";
+import { useAuth } from "../components/useAuth";
 
 const navLinks = [
   { to: "/app/users", label: "Users" },
@@ -8,6 +9,7 @@ const navLinks = [
 
 const AppLayout = () => {
   const { pathname } = useLocation();
+  const { token, logout } = useAuth();
   return (
     <div className="app">
       <nav className="nav">
@@ -18,6 +20,7 @@ const AppLayout = () => {
               {link.label}
             </Link>
           ))}
+          {token && <button onClick={logout}>Logout</button>}
         </div>
       </nav>
       <main className="main">
