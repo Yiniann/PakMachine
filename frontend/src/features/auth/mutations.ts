@@ -1,22 +1,6 @@
-import { useQuery, useMutation, UseMutationResult, UseQueryResult } from "@tanstack/react-query";
-import api from "./client";
-
-export interface User {
-  id: number;
-  email: string;
-  role: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export const useUsersQuery = (): UseQueryResult<User[], unknown> =>
-  useQuery({
-    queryKey: ["users"],
-    queryFn: async () => {
-      const res = await api.get<User[]>("/users");
-      return res.data;
-    },
-  });
+import { useMutation, UseMutationResult } from "@tanstack/react-query";
+import api from "../../api/client";
+import { User } from "../users/queries";
 
 export const useLoginMutation = (): UseMutationResult<
   { token: string; user: User },
@@ -26,7 +10,7 @@ export const useLoginMutation = (): UseMutationResult<
 > =>
   useMutation({
     mutationFn: async (variables) => {
-      const res = await api.post("/users/login", variables);
+      const res = await api.post("/auth/login", variables);
       return res.data;
     },
   });
@@ -39,7 +23,7 @@ export const useRegisterMutation = (): UseMutationResult<
 > =>
   useMutation({
     mutationFn: async (variables) => {
-      const res = await api.post("/users/register", variables);
+      const res = await api.post("/auth/register", variables);
       return res.data;
     },
   });
@@ -52,7 +36,7 @@ export const useForgotPasswordMutation = (): UseMutationResult<
 > =>
   useMutation({
     mutationFn: async (variables) => {
-      const res = await api.post("/users/forgot-password", variables);
+      const res = await api.post("/auth/forgot-password", variables);
       return res.data;
     },
   });
@@ -65,7 +49,7 @@ export const useResetPasswordMutation = (): UseMutationResult<
 > =>
   useMutation({
     mutationFn: async (variables) => {
-      const res = await api.post("/users/reset-password", variables);
+      const res = await api.post("/auth/reset-password", variables);
       return res.data;
     },
   });

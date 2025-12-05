@@ -1,4 +1,4 @@
-import { useUsersQuery } from "../api/hooks";
+import { useUsersQuery } from "../../features/users/queries";
 
 const UsersPage = () => {
   const { data, error, isLoading } = useUsersQuery();

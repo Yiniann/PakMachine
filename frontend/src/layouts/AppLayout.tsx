@@ -1,11 +1,7 @@
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../components/useAuth";
 
-const navLinks = [
-  { to: "/app/users", label: "Users" },
-  { to: "/auth/login", label: "Login" },
-  { to: "/auth/register", label: "Register" },
-];
+const navLinks = [{ to: "/app/home", label: "Home" }];
 
 const AppLayout = () => {
   const { pathname } = useLocation();

@@ -1,7 +1,7 @@
 import { FormEvent, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useLoginMutation } from "../api/hooks";
-import { useAuth } from "../components/useAuth";
+import { useLoginMutation } from "../../features/auth/mutations";
+import { useAuth } from "../../components/useAuth";
 
 const LoginPage = () => {
   const [email, setEmail] = useState("");
@@ -10,7 +10,7 @@ const LoginPage = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const from = (location.state as any)?.from || "/app/users";
+  const from = (location.state as any)?.from || "/app/home";
 
   const mutation = useLoginMutation();
 

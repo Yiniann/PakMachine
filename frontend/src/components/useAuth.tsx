@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 
 type AuthState = {
   token: string | null;
@@ -6,7 +6,9 @@ type AuthState = {
   logout: () => void;
 };
 
-export const useAuth = (): AuthState => {
+const AuthContext = createContext<AuthState | undefined>(undefined);
+
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem("token"));
 
   useEffect(() => {
@@ -20,5 +22,13 @@ export const useAuth = (): AuthState => {
   const login = (nextToken: string) => setToken(nextToken);
   const logout = () => setToken(null);
 
-  return { token, login, logout };
+  return <AuthContext.Provider value={{ token, login, logout }}>{children}</AuthContext.Provider>;
+};
+
+export const useAuth = (): AuthState => {
+  const ctx = useContext(AuthContext);
+  if (!ctx) {
+    throw new Error("useAuth must be used within AuthProvider");
+  }
+  return ctx;
 };

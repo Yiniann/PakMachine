@@ -1,33 +1,31 @@
 import { FormEvent, useState } from "react";
-import { useRegisterMutation } from "../api/hooks";
+import { useForgotPasswordMutation } from "../../features/auth/mutations";
 
-const RegisterPage = () => {
+const ForgotPasswordPage = () => {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [message, setMessage] = useState<string | null>(null);
 
-  const mutation = useRegisterMutation();
+  const mutation = useForgotPasswordMutation();
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setMessage(null);
     mutation.mutate(
-      { email, password },
+      { email },
       {
-        onSuccess: () => setMessage("Registered"),
-        onError: (err: any) => setMessage(err?.response?.data?.error || "Registration failed"),
+        onSuccess: (data) => setMessage(data.resetToken ? `Token: ${data.resetToken}` : data.message || "Requested"),
+        onError: (err: any) => setMessage(err?.response?.data?.error || "Request failed"),
       },
     );
   };
 
   return (
     <section>
-      <h2>Register</h2>
+      <h2>Forgot Password</h2>
       <form onSubmit={onSubmit} className="form">
         <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" />
-        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" />
         <button type="submit" disabled={mutation.status === "pending"}>
-          {mutation.status === "pending" ? "Registering..." : "Register"}
+          {mutation.status === "pending" ? "Sending..." : "Send Reset"}
         </button>
       </form>
       {message && <p className="info">{message}</p>}
@@ -35,4 +33,4 @@ const RegisterPage = () => {
   );
 };
 
-export default RegisterPage;
+export default ForgotPasswordPage;

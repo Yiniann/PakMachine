@@ -8,7 +8,7 @@ const LandingLayout = () => {
       <nav className="nav">
         <h1>PacMachine</h1>
         <div className="links">
-          {token && <Link to="/app/users">App</Link>}
+          {token && <Link to="/app/home">App</Link>}
           {!token && (
             <>
               <Link to="/auth/login">Login</Link>

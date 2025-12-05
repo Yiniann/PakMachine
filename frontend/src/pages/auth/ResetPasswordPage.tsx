@@ -1,5 +1,5 @@
 import { FormEvent, useState } from "react";
-import { useResetPasswordMutation } from "../api/hooks";
+import { useResetPasswordMutation } from "../../features/auth/mutations";
 
 const ResetPasswordPage = () => {
   const [token, setToken] = useState("");

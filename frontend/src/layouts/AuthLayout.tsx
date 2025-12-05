@@ -9,7 +9,7 @@ const AuthLayout = () => {
         <h1>PacMachine Auth</h1>
         <div className="links">
           <Link to="/">Landing</Link>
-          {token && <Link to="/app/users">App</Link>}
+          {token && <Link to="/app/home">App</Link>}
           {token ? <button onClick={logout}>Logout</button> : null}
         </div>
       </nav>
