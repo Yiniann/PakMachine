@@ -1,14 +1,14 @@
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../components/useAuth";
 
-const navLinks = [
-  { to: "/app/home", label: "Home" },
-  { to: "/admin/users", label: "Admin Users" },
-];
+const navLinks = [{ to: "/app/home", label: "主页" }];
 
 const AppLayout = () => {
   const { pathname } = useLocation();
-  const { token, logout } = useAuth();
+  const { token, role, logout } = useAuth();
+  const current = navLinks.find((link) => pathname.startsWith(link.to)) || null;
+  const title = current ? current.label : "应用";
+
   return (
     <div data-theme="light" className="drawer lg:drawer-open">
       <input id="app-drawer" type="checkbox" className="drawer-toggle sr-only" />
@@ -20,14 +20,17 @@ const AppLayout = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </label>
-            <Link to="/app/home" className="btn btn-ghost text-xl">
-              PacMachine
-            </Link>
+            <span className="text-lg font-semibold ml-2">{title}</span>
           </div>
           <div className="navbar-end gap-2 pr-4">
+            {role === "admin" && (
+              <Link to="/admin" className="btn btn-outline btn-sm">
+                管理
+              </Link>
+            )}
             {token && (
               <button onClick={logout} className="btn btn-error btn-sm text-white">
-                Logout
+                退出
               </button>
             )}
           </div>
@@ -39,13 +42,10 @@ const AppLayout = () => {
       <div className="drawer-side">
         <label htmlFor="app-drawer" aria-label="close sidebar" className="drawer-overlay"></label>
         <ul className="menu p-4 w-72 min-h-full bg-base-100 text-base-content">
-          <li className="menu-title">Navigation</li>
+          <li className="mb-2 px-2 text-xl font-bold">PacMachine</li>
           {navLinks.map((link) => (
             <li key={link.to}>
-              <Link
-                className={pathname === link.to ? "active" : ""}
-                to={link.to}
-              >
+              <Link className={pathname === link.to ? "active" : ""} to={link.to}>
                 {link.label}
               </Link>
             </li>

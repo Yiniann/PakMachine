@@ -1,5 +1,5 @@
-import { FormEvent, useState } from "react";
-import { useUsersQuery } from "../../features/users/queries";
+import { FormEvent, useMemo, useState } from "react";
+import { useUsersQuery, User } from "../../features/users/queries";
 import { useCreateUser, useDeleteUser, useUpdatePassword, useUpdateRole } from "../../features/users/mutations";
 
 const UsersPage = () => {
@@ -16,6 +16,8 @@ const UsersPage = () => {
   const [resetEmail, setResetEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [roleEdit, setRoleEdit] = useState<Record<string, string>>({});
+  const [createOpen, setCreateOpen] = useState(false);
+  const [settingsUser, setSettingsUser] = useState<User | null>(null);
 
   const errorMessage =
     error && (error as any)?.response?.data?.error
@@ -52,6 +54,7 @@ const UsersPage = () => {
           setEmail("");
           setPassword("");
           setRole("user");
+          setCreateOpen(false);
         },
       },
     );
@@ -59,52 +62,37 @@ const UsersPage = () => {
 
   const onReset = (e: FormEvent) => {
     e.preventDefault();
-    updatePassword.mutate({ email: resetEmail, newPassword }, {
-      onSuccess: () => {
-        setResetEmail("");
-        setNewPassword("");
+    updatePassword.mutate(
+      { email: resetEmail, newPassword },
+      {
+        onSuccess: () => {
+          setResetEmail("");
+          setNewPassword("");
+          setSettingsUser(null);
+        },
       },
-    });
+    );
   };
+
+  const formattedUsers = useMemo(
+    () =>
+      data?.map((u) => ({
+        ...u,
+        createdAtLabel: new Date(u.createdAt).toLocaleString(),
+      })) ?? [],
+    [data],
+  );
 
   return (
     <div className="space-y-4">
       <div className="card bg-base-100 shadow-xl">
         <div className="card-body">
-          <h2 className="card-title">Create User</h2>
-          <form onSubmit={onCreate} className="grid gap-3 md:grid-cols-2">
-            <input
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Email"
-              className="input input-bordered w-full"
-              required
-            />
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password"
-              className="input input-bordered w-full"
-              required
-            />
-            <select value={role} onChange={(e) => setRole(e.target.value)} className="select select-bordered w-full">
-              <option value="user">user</option>
-              <option value="admin">admin</option>
-            </select>
-            <div className="md:col-span-2">
-              <button type="submit" className="btn btn-primary w-full" disabled={createUser.status === "pending"}>
-                {createUser.status === "pending" ? "Creating..." : "Create"}
-              </button>
-            </div>
-          </form>
-          {createError && <p className="text-error mt-2">Failed: {createError}</p>}
-        </div>
-      </div>
-
-      <div className="card bg-base-100 shadow-xl">
-        <div className="card-body">
-          <h2 className="card-title">Users</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="card-title">Users</h2>
+            <button className="btn btn-primary btn-sm" onClick={() => setCreateOpen(true)}>
+              Add User
+            </button>
+          </div>
           {isLoading && <p className="loading loading-spinner loading-sm" />}
           {errorMessage && <p className="text-error">{errorMessage}</p>}
           {!isLoading && !errorMessage && (
@@ -115,57 +103,25 @@ const UsersPage = () => {
                     <th>ID</th>
                     <th>Email</th>
                     <th>Role</th>
+                    <th>Created</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {data?.map((u) => (
+                  {formattedUsers.map((u) => (
                     <tr key={u.id}>
                       <td>{u.id}</td>
                       <td>{u.email}</td>
+                      <td>{u.role}</td>
+                      <td>{u.createdAtLabel}</td>
                       <td>
-                        <div className="flex items-center gap-2">
-                          <select
-                            className="select select-bordered select-sm"
-                            value={roleEdit[u.email] ?? u.role}
-                            onChange={(e) =>
-                              setRoleEdit((prev) => ({
-                                ...prev,
-                                [u.email]: e.target.value,
-                              }))
-                            }
-                          >
-                            <option value="user">user</option>
-                            <option value="admin">admin</option>
-                          </select>
-                          <button
-                            className="btn btn-xs btn-primary"
-                            disabled={updateRole.status === "pending"}
-                            onClick={() =>
-                              updateRole.mutate({
-                                email: u.email,
-                                role: roleEdit[u.email] ?? u.role,
-                              })
-                            }
-                          >
-                            Save
-                          </button>
-                        </div>
-                      </td>
-                      <td className="flex flex-wrap gap-2">
-                        <button
-                          className="btn btn-xs btn-error"
-                          disabled={deleteUser.status === "pending"}
-                          onClick={() => deleteUser.mutate(u.id)}
-                        >
-                          Delete
-                        </button>
-                        <button
-                          className="btn btn-xs btn-outline"
-                          onClick={() => setResetEmail(u.email)}
-                          disabled={updatePassword.status === "pending"}
-                        >
-                          Reset Password
+                        <button className="btn btn-xs" onClick={() => {
+                          setSettingsUser(u);
+                          setRoleEdit({ [u.email]: u.role });
+                          setResetEmail(u.email);
+                          setNewPassword("");
+                        }}>
+                          Settings
                         </button>
                       </td>
                     </tr>
@@ -178,34 +134,136 @@ const UsersPage = () => {
         </div>
       </div>
 
-      <div className="card bg-base-100 shadow-xl">
-        <div className="card-body">
-          <h2 className="card-title">Reset Password</h2>
-          <form onSubmit={onReset} className="grid gap-3 md:grid-cols-2">
-            <input
-              value={resetEmail}
-              onChange={(e) => setResetEmail(e.target.value)}
-              placeholder="Email"
-              className="input input-bordered w-full"
-              required
-            />
-            <input
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="New Password"
-              className="input input-bordered w-full"
-              required
-            />
-            <div className="md:col-span-2">
-              <button type="submit" className="btn btn-primary w-full" disabled={updatePassword.status === "pending"}>
-                {updatePassword.status === "pending" ? "Updating..." : "Update Password"}
+      {/* Create User Modal */}
+      {createOpen && (
+        <div className="modal modal-open">
+          <div className="modal-box">
+            <h3 className="font-bold text-lg">Add User</h3>
+            <form onSubmit={onCreate} className="grid gap-3 mt-4">
+              <input
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Email"
+                className="input input-bordered w-full"
+                required
+              />
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Password"
+                className="input input-bordered w-full"
+                required
+              />
+              <select value={role} onChange={(e) => setRole(e.target.value)} className="select select-bordered w-full">
+                <option value="user">user</option>
+                <option value="admin">admin</option>
+              </select>
+              <div className="modal-action">
+                <button type="button" className="btn" onClick={() => setCreateOpen(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary" disabled={createUser.status === "pending"}>
+                  {createUser.status === "pending" ? "Creating..." : "Create"}
+                </button>
+              </div>
+            </form>
+            {createError && <p className="text-error mt-2">Failed: {createError}</p>}
+          </div>
+        </div>
+      )}
+
+      {/* Settings Modal */}
+      {settingsUser && (
+        <div className="modal modal-open">
+          <div className="modal-box">
+            <h3 className="font-bold text-lg">Settings for {settingsUser.email}</h3>
+            <div className="space-y-3 mt-4">
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text">Role</span>
+                </label>
+                <div className="flex gap-2 items-center">
+                  <select
+                    className="select select-bordered select-sm"
+                    value={roleEdit[settingsUser.email] ?? settingsUser.role}
+                    onChange={(e) =>
+                      setRoleEdit((prev) => ({
+                        ...prev,
+                        [settingsUser.email]: e.target.value,
+                      }))
+                    }
+                  >
+                    <option value="user">user</option>
+                    <option value="admin">admin</option>
+                  </select>
+                  <button
+                    className="btn btn-sm btn-primary"
+                    disabled={updateRole.status === "pending"}
+                    onClick={() =>
+                      updateRole.mutate({
+                        email: settingsUser.email,
+                        role: roleEdit[settingsUser.email] ?? settingsUser.role,
+                      })
+                    }
+                  >
+                    Save Role
+                  </button>
+                </div>
+              </div>
+
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text">New Password</span>
+                </label>
+                <form onSubmit={onReset} className="flex gap-2">
+                  <input
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => {
+                      setNewPassword(e.target.value);
+                      setResetEmail(settingsUser.email);
+                    }}
+                    placeholder="New Password"
+                    className="input input-bordered w-full"
+                    required
+                  />
+                  <button type="submit" className="btn btn-primary" disabled={updatePassword.status === "pending"}>
+                    {updatePassword.status === "pending" ? "Updating..." : "Change"}
+                  </button>
+                </form>
+              </div>
+
+              <div className="form-control">
+                <button
+                  className="btn btn-error text-white"
+                  disabled={deleteUser.status === "pending"}
+                  onClick={() => {
+                    deleteUser.mutate(settingsUser.id, {
+                      onSuccess: () => setSettingsUser(null),
+                    });
+                  }}
+                >
+                  Delete Account
+                </button>
+              </div>
+            </div>
+            <div className="modal-action">
+              <button
+                className="btn"
+                onClick={() => {
+                  setSettingsUser(null);
+                  setNewPassword("");
+                }}
+              >
+                Close
               </button>
             </div>
-          </form>
-          {updateError && <p className="text-error mt-2">Failed: {updateError}</p>}
+            {updateError && <p className="text-error mt-2">Password update failed: {updateError}</p>}
+            {updateRoleError && <p className="text-error mt-2">Role update failed: {updateRoleError}</p>}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

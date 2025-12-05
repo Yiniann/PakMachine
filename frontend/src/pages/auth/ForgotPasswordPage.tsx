@@ -22,16 +22,16 @@ const ForgotPasswordPage = () => {
   return (
     <div className="card bg-base-100 shadow-xl max-w-md mx-auto">
       <div className="card-body">
-        <h2 className="card-title">Forgot Password</h2>
+        <h2 className="card-title">忘记密码</h2>
         <form onSubmit={onSubmit} className="space-y-3">
           <input
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="Email"
+            placeholder="邮箱"
             className="input input-bordered w-full"
           />
           <button type="submit" className="btn btn-primary w-full" disabled={mutation.status === "pending"}>
-            {mutation.status === "pending" ? "Sending..." : "Send Reset"}
+            {mutation.status === "pending" ? "发送中..." : "发送重置"}
           </button>
         </form>
         {message && <p className="text-info mt-2">{message}</p>}

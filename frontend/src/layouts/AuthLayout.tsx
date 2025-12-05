@@ -13,16 +13,16 @@ const AuthLayout = () => {
         </div>
         <div className="navbar-end gap-2">
           <Link to="/" className="btn btn-outline btn-sm">
-            Landing
+            首页
           </Link>
           {token && (
             <Link to="/app/home" className="btn btn-outline btn-sm">
-              App
+              应用
             </Link>
           )}
           {token ? (
             <button onClick={logout} className="btn btn-error btn-sm text-white">
-              Logout
+              退出
             </button>
           ) : null}
         </div>

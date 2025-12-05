@@ -21,7 +21,8 @@ const LoginPage = () => {
       { email, password },
       {
         onSuccess: (data) => {
-          login(data.token);
+          login(data.token, data.user?.role);
+          localStorage.setItem("user_role", data.user?.role || "");
           setMessage("Logged in");
           navigate(from, { replace: true });
         },
@@ -35,23 +36,23 @@ const LoginPage = () => {
   return (
     <div className="card bg-base-100 shadow-xl max-w-md mx-auto">
       <div className="card-body">
-        <h2 className="card-title">Login</h2>
+        <h2 className="card-title">登录</h2>
         <form onSubmit={onSubmit} className="space-y-3">
           <input
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="Email"
+            placeholder="邮箱"
             className="input input-bordered w-full"
           />
           <input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Password"
+            placeholder="密码"
             className="input input-bordered w-full"
           />
           <button type="submit" className="btn btn-primary w-full" disabled={mutation.status === "pending"}>
-            {mutation.status === "pending" ? "Logging in..." : "Login"}
+            {mutation.status === "pending" ? "登录中..." : "登录"}
           </button>
         </form>
         {message && <p className="text-info mt-2">{message}</p>}

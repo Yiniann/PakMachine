@@ -10,6 +10,7 @@ import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/auth/ResetPasswordPage";
 import HomePage from "./pages/app/HomePage";
 import AdminUsersPage from "./pages/admin/UsersPage";
+import AdminHomePage from "./pages/admin/HomePage";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 const App = () => {
@@ -33,7 +34,7 @@ const App = () => {
           <Route path="home" element={<HomePage />} />
         </Route>
         <Route path="/admin" element={<AdminLayout />}>
-          <Route index element={<Navigate to="/admin/users" replace />} />
+          <Route index element={<AdminHomePage />} />
           <Route path="users" element={<AdminUsersPage />} />
         </Route>
       </Route>

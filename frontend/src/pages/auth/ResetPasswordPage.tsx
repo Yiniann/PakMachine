@@ -23,23 +23,23 @@ const ResetPasswordPage = () => {
   return (
     <div className="card bg-base-100 shadow-xl max-w-md mx-auto">
       <div className="card-body">
-        <h2 className="card-title">Reset Password</h2>
+        <h2 className="card-title">重置密码</h2>
         <form onSubmit={onSubmit} className="space-y-3">
           <input
             value={token}
             onChange={(e) => setToken(e.target.value)}
-            placeholder="Token"
+            placeholder="重置令牌"
             className="input input-bordered w-full"
           />
           <input
             type="password"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
-            placeholder="New Password"
+            placeholder="新密码"
             className="input input-bordered w-full"
           />
           <button type="submit" className="btn btn-primary w-full" disabled={mutation.status === "pending"}>
-            {mutation.status === "pending" ? "Resetting..." : "Reset"}
+            {mutation.status === "pending" ? "重置中..." : "重置"}
           </button>
         </form>
         {message && <p className="text-info mt-2">{message}</p>}

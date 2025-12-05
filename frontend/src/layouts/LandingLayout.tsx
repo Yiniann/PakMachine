@@ -14,22 +14,22 @@ const LandingLayout = () => {
         <div className="navbar-end gap-2">
           {token && (
             <Link to="/app/home" className="btn btn-outline btn-sm">
-              App
+              应用
             </Link>
           )}
           {!token && (
             <>
               <Link to="/auth/login" className="btn btn-primary btn-sm">
-                Login
+                登录
               </Link>
               <Link to="/auth/register" className="btn btn-outline btn-sm">
-                Register
+                注册
               </Link>
             </>
           )}
           {token && (
             <button onClick={logout} className="btn btn-error btn-sm text-white">
-              Logout
+              退出
             </button>
           )}
         </div>
