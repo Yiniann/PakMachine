@@ -1,5 +1,4 @@
 import { NextFunction, Request, Response } from "express";
-import { Prisma } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
@@ -10,15 +9,10 @@ const TOKEN_EXPIRES_HOURS = 1;
 
 export const listUsers = async (_req: Request, res: Response, next: NextFunction) => {
   try {
-    const users = await prisma.user.findMany({
-      orderBy: { id: "asc" },
-      select: { id: true, email: true, role: true, createdAt: true, updatedAt: true },
-    });
-    res.json(users);
+    const users = await prisma.user.findMany({ orderBy: { id: "asc" } });
+    const safe = users.map(({ password: _pw, resetToken, resetTokenExpires, ...rest }) => rest);
+    res.json(safe);
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      return res.status(409).json({ error: "Email already registered" });
-    }
     next(error);
   }
 };
@@ -36,12 +30,10 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
     }
 
     const hashed = await bcrypt.hash(password, 10);
-    const user = await prisma.user.create({
-      data: { email, password: hashed },
-      select: { id: true, email: true, role: true, createdAt: true, updatedAt: true },
-    });
+    const user = await prisma.user.create({ data: { email, password: hashed } });
+    const { password: _pw, resetToken, resetTokenExpires, ...rest } = user;
 
-    res.status(201).json(user);
+    res.status(201).json(rest);
   } catch (error) {
     next(error);
   }
@@ -64,14 +56,13 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
-    const token = jwt.sign({ sub: user.id, role: user.role, email: user.email }, JWT_SECRET, {
+    const token = jwt.sign({ sub: user.id, role: user.role, email: user.email, isAdmin: user.isAdmin }, JWT_SECRET, {
       expiresIn: "7d",
     });
 
-    res.json({
-      token,
-      user: { id: user.id, email: user.email, role: user.role, createdAt: user.createdAt, updatedAt: user.updatedAt },
-    });
+    const { password: _pw, resetToken, resetTokenExpires, ...rest } = user;
+
+    res.json({ token, user: rest });
   } catch (error) {
     next(error);
   }
