@@ -5,7 +5,6 @@ export interface User {
   id: number;
   email: string;
   role: string;
-  isAdmin: boolean;
   createdAt: string;
   updatedAt: string;
 }

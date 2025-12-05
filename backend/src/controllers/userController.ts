@@ -17,6 +17,79 @@ export const listUsers = async (_req: Request, res: Response, next: NextFunction
   }
 };
 
+export const adminCreateUser = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { email, password, role = "user" } = req.body ?? {};
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email and password are required" });
+    }
+
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing) {
+      return res.status(409).json({ error: "Email already exists" });
+    }
+
+    const hashed = await bcrypt.hash(password, 10);
+    const created = await prisma.user.create({
+      data: { email, password: hashed, role },
+    });
+    const { password: _pw, resetToken, resetTokenExpires, ...rest } = created;
+    res.status(201).json(rest);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const adminDeleteUser = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+      return res.status(400).json({ error: "Invalid user id" });
+    }
+    await prisma.user.delete({ where: { id } });
+    res.json({ message: "User deleted" });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const adminUpdateRole = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { email, role } = req.body ?? {};
+    if (!email) {
+      return res.status(400).json({ error: "Email is required" });
+    }
+    if (!role || (role !== "user" && role !== "admin")) {
+      return res.status(400).json({ error: "Role must be 'user' or 'admin'" });
+    }
+
+    await prisma.user.update({ where: { email }, data: { role: role as "user" | "admin" } });
+    res.json({ message: "Role updated" });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const adminUpdatePassword = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { email, newPassword } = req.body ?? {};
+    if (!email || !newPassword) {
+      return res.status(400).json({ error: "Email and newPassword are required" });
+    }
+
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+    await prisma.user.update({ where: { email }, data: { password: hashed } });
+    res.json({ message: "Password updated" });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const register = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { email, password } = req.body;
@@ -56,7 +129,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
-    const token = jwt.sign({ sub: user.id, role: user.role, email: user.email, isAdmin: user.isAdmin }, JWT_SECRET, {
+    const token = jwt.sign({ sub: user.id, role: user.role, email: user.email }, JWT_SECRET, {
       expiresIn: "7d",
     });
 
