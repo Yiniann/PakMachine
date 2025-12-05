@@ -1,4 +1,5 @@
 import { NextFunction, Request, Response } from "express";
+import { Prisma } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
@@ -15,6 +16,9 @@ export const listUsers = async (_req: Request, res: Response, next: NextFunction
     });
     res.json(users);
   } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return res.status(409).json({ error: "Email already registered" });
+    }
     next(error);
   }
 };
