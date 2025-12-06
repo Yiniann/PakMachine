@@ -4,13 +4,15 @@ import { useAuth } from "../components/useAuth";
 const navLinks = [
   { to: "/app", label: "主页" },
   { to: "/app/build", label: "前端构建" },
-  { to: "/app/downloads", label: "我的下载" },
+  { to: "/app/downloads", label: "构建下载" },
 ];
 
 const AppLayout = () => {
   const { pathname } = useLocation();
   const { token, role, logout } = useAuth();
-  const current = navLinks.find((link) => pathname.startsWith(link.to)) || null;
+  const sortedNav = navLinks.slice().sort((a, b) => b.to.length - a.to.length);
+  const current = sortedNav.find((link) => pathname === link.to || pathname.startsWith(`${link.to}/`)) || null;
+  const activeTo = current?.to;
   const title = current ? current.label : "应用";
 
   return (
@@ -47,13 +49,16 @@ const AppLayout = () => {
         <label htmlFor="app-drawer" aria-label="close sidebar" className="drawer-overlay"></label>
         <ul className="menu p-4 w-72 min-h-full bg-base-100 text-base-content">
           <li className="mb-2 px-2 text-xl font-bold">PacMachine</li>
-          {navLinks.map((link) => (
+          {navLinks.map((link) => {
+            const isActive = activeTo ? link.to === activeTo : pathname === link.to;
+            return (
             <li key={link.to}>
-              <Link className={pathname === link.to ? "active" : ""} to={link.to}>
+              <Link className={isActive ? "active" : ""} to={link.to}>
                 {link.label}
               </Link>
             </li>
-          ))}
+            );
+          })}
         </ul>
       </div>
     </div>
