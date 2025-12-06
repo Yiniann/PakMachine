@@ -140,7 +140,6 @@ const TemplateBuildPage = () => {
                   <tr>
                     <th></th>
                     <th>文件名</th>
-                    <th>大小</th>
                     <th>更新时间</th>
                   </tr>
                 </thead>
@@ -157,8 +156,7 @@ const TemplateBuildPage = () => {
                         />
                       </td>
                       <td className="whitespace-pre-wrap break-all">{item.filename}</td>
-                      <td>{(item.size / 1024 / 1024).toFixed(2)} MB</td>
-                      <td>{new Date(item.modifiedAt).toLocaleString()}</td>
+                      <td>{item.modifiedAt ? new Date(item.modifiedAt).toLocaleString() : "-"}</td>
                     </tr>
                   ))}
                 </tbody>

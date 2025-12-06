@@ -16,7 +16,12 @@ export const uploadTemplate = async (req: Request, res: Response, next: NextFunc
 
 export const listUploadedTemplates = async (_req: Request, res: Response, next: NextFunction) => {
   try {
-    res.json(listTemplates());
+    const templates = listTemplates();
+    const simplified = templates.map(({ filename, modifiedAt }) => ({
+      filename,
+      modifiedAt,
+    }));
+    res.json(simplified);
   } catch (err) {
     next(err);
   }

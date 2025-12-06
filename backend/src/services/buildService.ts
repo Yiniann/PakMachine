@@ -92,6 +92,19 @@ export const buildTemplate = async (prisma: PrismaClient, userId: number, filena
     },
   });
 
+  // 仅保留该用户最新的 2 个构建产物，删除更早的记录与文件
+  const extras = await prisma.buildArtifact.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+    skip: 2,
+  });
+  for (const extra of extras) {
+    if (extra.outputPath && fs.existsSync(extra.outputPath)) {
+      fs.unlinkSync(extra.outputPath);
+    }
+    await prisma.buildArtifact.delete({ where: { id: extra.id } });
+  }
+
   return {
     downloadPath: `uploads/builds/${outputName}`,
     artifactId: artifact.id,

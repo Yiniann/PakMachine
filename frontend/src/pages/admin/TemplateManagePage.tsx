@@ -91,7 +91,6 @@ const TemplateManagePage = () => {
                   <thead>
                     <tr>
                       <th>文件名</th>
-                      <th>大小</th>
                       <th>修改时间</th>
                       <th>操作</th>
                     </tr>
@@ -100,8 +99,7 @@ const TemplateManagePage = () => {
                     {templates.data.map((item) => (
                       <tr key={item.filename}>
                         <td className="whitespace-pre-wrap break-all">{item.filename}</td>
-                        <td>{(item.size / 1024 / 1024).toFixed(2)} MB</td>
-                        <td>{new Date(item.modifiedAt).toLocaleString()}</td>
+                        <td>{item.modifiedAt ? new Date(item.modifiedAt).toLocaleString() : "-"}</td>
                         <td className="space-y-2">
                           <div className="flex flex-wrap gap-2 items-center">
                             <button
