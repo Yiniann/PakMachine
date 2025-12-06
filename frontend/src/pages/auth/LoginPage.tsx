@@ -10,7 +10,7 @@ const LoginPage = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
   // 登录后统一跳到应用首页
-  const from = "/app/home";
+  const from = "/app";
 
   const mutation = useLoginMutation();
 

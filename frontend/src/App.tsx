@@ -10,6 +10,7 @@ import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
 import HomePage from "./pages/app/HomePage";
 import AdminUsersPage from "./pages/admin/UsersPage";
 import AdminHomePage from "./pages/admin/HomePage";
+import TemplateManagePage from "./pages/admin/TemplateManagePage";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 const App = () => {
@@ -29,12 +30,13 @@ const App = () => {
 
       <Route element={<ProtectedRoute />}>
         <Route path="/app" element={<AppLayout />}>
-          <Route index element={<Navigate to="/app/home" replace />} />
-          <Route path="home" element={<HomePage />} />
+          <Route index element={<HomePage />} />
+          <Route path="home" element={<Navigate to="/app" replace />} />
         </Route>
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<AdminHomePage />} />
           <Route path="users" element={<AdminUsersPage />} />
+          <Route path="templates" element={<TemplateManagePage />} />
         </Route>
       </Route>
 

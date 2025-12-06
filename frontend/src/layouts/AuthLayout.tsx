@@ -16,7 +16,7 @@ const AuthLayout = () => {
             首页
           </Link>
           {token && (
-            <Link to="/app/home" className="btn btn-outline btn-sm">
+            <Link to="/app" className="btn btn-outline btn-sm">
               应用
             </Link>
           )}

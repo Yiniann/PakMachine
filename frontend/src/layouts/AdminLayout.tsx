@@ -4,6 +4,7 @@ import { useAuth } from "../components/useAuth";
 const navLinks = [
   { to: "/admin", label: "首页" },
   { to: "/admin/users", label: "用户管理" },
+  { to: "/admin/templates", label: "模板管理" },
 ];
 
 const AdminLayout = () => {
@@ -29,7 +30,7 @@ const AdminLayout = () => {
             <span className="text-lg font-semibold ml-2">{title}</span>
           </div>
           <div className="navbar-end gap-2 pr-4">
-            <Link to="/app/home" className="btn btn-outline btn-sm">
+            <Link to="/app" className="btn btn-outline btn-sm">
               客户端
             </Link>
             {token && (

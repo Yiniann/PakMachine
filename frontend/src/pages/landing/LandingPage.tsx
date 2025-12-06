@@ -14,7 +14,7 @@ const LandingPage = () => {
             <Link to="/auth/login" className="btn btn-outline">
               登录
             </Link>
-            <Link to="/app/home" className="btn btn-neutral">
+            <Link to="/app" className="btn btn-neutral">
               查看应用
             </Link>
           </div>

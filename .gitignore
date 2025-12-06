@@ -15,3 +15,7 @@ build/
 
 # TypeScript
 *.tsbuildinfo
+
+# Uploads
+/backend/uploads/
+/uploads/
