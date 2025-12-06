@@ -4,6 +4,7 @@ import AdmZip from "adm-zip";
 import { execSync } from "child_process";
 import { uploadBaseDir } from "../middleware/upload";
 import { UploadError } from "./uploadService";
+import type { PrismaClient } from "@prisma/client";
 
 const buildBaseDir = path.resolve(uploadBaseDir, "../builds");
 fs.mkdirSync(buildBaseDir, { recursive: true });
@@ -17,7 +18,7 @@ const sanitizeName = (name: string) => {
 
 const getSafePath = (filename: string) => path.join(uploadBaseDir, sanitizeName(filename));
 
-export const buildTemplate = async (filename: string, envContent: string) => {
+export const buildTemplate = async (prisma: PrismaClient, userId: number, filename: string, envContent: string) => {
   const source = getSafePath(filename);
   if (!fs.existsSync(source)) {
     throw new UploadError("模板文件不存在", 404);
@@ -83,7 +84,16 @@ export const buildTemplate = async (filename: string, envContent: string) => {
   outZip.addLocalFolder(buildTarget);
   outZip.writeZip(outputPath);
 
+  const artifact = await prisma.buildArtifact.create({
+    data: {
+      userId,
+      sourceFilename: filename,
+      outputPath: outputPath,
+    },
+  });
+
   return {
     downloadPath: `uploads/builds/${outputName}`,
+    artifactId: artifact.id,
   };
 };

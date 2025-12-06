@@ -20,6 +20,8 @@ model User {
   // 打包相关关联
   buildJobs           BuildJob[]
   userTemplateConfigs UserTemplateConfig[]
+  buildProfile        BuildProfile?
+  buildArtifacts      BuildArtifact[]
 }
 
 /// 管理员上传的模板（一个 zip 文件）
@@ -65,4 +67,26 @@ model BuildJob {
 
   user     User     @relation(fields: [userId], references: [id])
   template Template @relation(fields: [templateId], references: [id])
+}
+
+/// 用户常用的构建配置（站点信息、IDHub、客户端下载链接等）
+model BuildProfile {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @unique
+  config    Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+/// 构建产物元数据，用于绑定下载权限
+model BuildArtifact {
+  id             Int      @id @default(autoincrement())
+  userId         Int
+  sourceFilename String
+  outputPath     String
+  createdAt      DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
 }

@@ -5,7 +5,7 @@ import path from "path";
 import { uploadBaseDir } from "./middleware/upload";
 
 const app = express();
-const uploadsRoot = path.resolve(uploadBaseDir, "..");
+const uploadsTemplates = uploadBaseDir;
 
 app.use(
   cors({
@@ -19,7 +19,7 @@ app.use(
   }),
 );
 app.use(express.json());
-app.use("/uploads", express.static(uploadsRoot));
+app.use("/uploads/templates", express.static(uploadsTemplates));
 app.use(routes);
 
 // Centralized error handler.

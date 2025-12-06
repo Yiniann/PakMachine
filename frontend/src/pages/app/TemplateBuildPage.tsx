@@ -1,11 +1,14 @@
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useTemplateFiles } from "../../features/uploads/queries";
 import { useBuildTemplate } from "../../features/uploads/build";
+import { useBuildProfile, useSaveBuildProfile } from "../../features/uploads/profile";
 import api from "../../api/client";
 
 const TemplateBuildPage = () => {
   const templates = useTemplateFiles();
   const buildMutation = useBuildTemplate();
+  const profileQuery = useBuildProfile();
+  const saveProfile = useSaveBuildProfile();
 
   const [selected, setSelected] = useState<string | null>(null);
   const [siteName, setSiteName] = useState("");
@@ -58,10 +61,56 @@ const TemplateBuildPage = () => {
       {
         onSuccess: (data) => {
           setMessage(data.message || "构建任务已提交");
+          saveProfile.mutate({
+            siteName,
+            siteLogo,
+            prodApiUrl,
+            enableIdhub,
+            idhubApiUrl,
+            idhubApiKey,
+            downloadIos,
+            downloadAndroid,
+            downloadWindows,
+            downloadMacos,
+          });
         },
         onError: (err: any) => setError(err?.response?.data?.error || "构建失败，请稍后再试"),
       },
     );
+  };
+
+  useEffect(() => {
+    if (profileQuery.data) {
+      const cfg: any = profileQuery.data;
+      setSiteName(cfg.siteName || cfg.VITE_SITE_NAME || "");
+      setSiteLogo(cfg.siteLogo || cfg.VITE_SITE_LOGO || "");
+      setProdApiUrl(cfg.prodApiUrl || cfg.VITE_PROD_API_URL || "");
+      setEnableIdhub(Boolean(cfg.enableIdhub ?? (cfg.VITE_ENABLE_IDHUB === "true" || cfg.VITE_ENABLE_IDHUB === true)));
+      setIdhubApiUrl(cfg.idhubApiUrl || cfg.VITE_IDHUB_API_URL || "");
+      setIdhubApiKey(cfg.idhubApiKey || cfg.VITE_IDHUB_API_KEY || "");
+      setDownloadIos(cfg.downloadIos || cfg.VITE_DOWNLOAD_IOS || "");
+      setDownloadAndroid(cfg.downloadAndroid || cfg.VITE_DOWNLOAD_ANDROID || "");
+      setDownloadWindows(cfg.downloadWindows || cfg.VITE_DOWNLOAD_WINDOWS || "");
+      setDownloadMacos(cfg.downloadMacos || cfg.VITE_DOWNLOAD_MACOS || "");
+    }
+  }, [profileQuery.data]);
+
+  const downloadArtifact = async () => {
+    if (!buildMutation.data?.artifactId) return;
+    try {
+      const res = await api.get(`/build/download/${buildMutation.data.artifactId}`, { responseType: "blob" });
+      const blobUrl = window.URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      const suggested =
+        buildMutation.data.downloadPath?.split("/").pop() ||
+        (selected ? selected.replace(/\.zip$/i, "") : "build") + ".zip";
+      a.download = suggested;
+      a.click();
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err: any) {
+      setError(err?.response?.data?.error || "下载失败，请确认已登录或稍后再试");
+    }
   };
 
   return (
@@ -213,15 +262,22 @@ const TemplateBuildPage = () => {
           </form>
           {message && <p className="text-success">{message}</p>}
           {error && <p className="text-error">{error}</p>}
-          {buildMutation.data?.downloadPath && (
-            <a
-              className="link"
-              href={`${api.defaults.baseURL?.replace(/\/$/, "")}/${buildMutation.data.downloadPath}`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              下载构建产物
-            </a>
+          {(buildMutation.data?.artifactId || buildMutation.data?.downloadPath) && (
+            <div className="flex items-center gap-2">
+              <button className="btn btn-link" type="button" onClick={downloadArtifact}>
+                下载构建产物
+              </button>
+              {!buildMutation.data?.artifactId && buildMutation.data?.downloadPath && (
+                <a
+                  className="link text-sm"
+                  href={`${api.defaults.baseURL?.replace(/\/$/, "")}/${buildMutation.data.downloadPath}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  备用链接
+                </a>
+              )}
+            </div>
           )}
         </div>
       </div>

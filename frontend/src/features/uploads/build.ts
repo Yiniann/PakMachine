@@ -9,6 +9,7 @@ export type BuildRequest = {
 export type BuildResponse = {
   message?: string;
   downloadPath?: string;
+  artifactId?: number;
 };
 
 export const useBuildTemplate = (): UseMutationResult<BuildResponse, unknown, BuildRequest, unknown> =>
