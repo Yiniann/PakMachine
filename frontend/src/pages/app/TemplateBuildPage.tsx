@@ -3,9 +3,10 @@ import { useTemplateFiles } from "../../features/uploads/queries";
 import { useBuildTemplate } from "../../features/uploads/build";
 import { useBuildProfile, useSaveBuildProfile } from "../../features/uploads/profile";
 import { useAuth } from "../../components/useAuth";
-import api from "../../api/client";
+import { useNavigate } from "react-router-dom";
 
 const TemplateBuildPage = () => {
+  const navigate = useNavigate();
   const { token } = useAuth();
   const templates = useTemplateFiles();
   const buildMutation = useBuildTemplate();
@@ -62,7 +63,7 @@ const TemplateBuildPage = () => {
       { filename: selected, envContent },
       {
         onSuccess: (data) => {
-          setMessage(data.message || "构建任务已提交");
+          setMessage(data.message || "构建成功，正在跳转到下载页...");
           saveProfile.mutate({
             siteName,
             siteLogo,
@@ -75,6 +76,7 @@ const TemplateBuildPage = () => {
             downloadWindows,
             downloadMacos,
           });
+          setTimeout(() => navigate("/app/downloads"), 600);
         },
         onError: (err: any) => setError(err?.response?.data?.error || "构建失败，请稍后再试"),
       },
@@ -96,34 +98,6 @@ const TemplateBuildPage = () => {
       setDownloadMacos(cfg.downloadMacos || cfg.VITE_DOWNLOAD_MACOS || "");
     }
   }, [profileQuery.data]);
-
-  const downloadArtifact = async () => {
-    if (!buildMutation.data?.artifactId) return;
-    try {
-      const res = await api.get(`/build/download/${buildMutation.data.artifactId}`, { responseType: "blob" });
-      const blobUrl = window.URL.createObjectURL(new Blob([res.data]));
-      const a = document.createElement("a");
-      a.href = blobUrl;
-      const suggested =
-        buildMutation.data.downloadPath?.split("/").pop() ||
-        (selected ? selected.replace(/\.zip$/i, "") : "build") + ".zip";
-      a.download = suggested;
-      a.click();
-      window.URL.revokeObjectURL(blobUrl);
-    } catch (err: any) {
-      const status = err?.response?.status;
-      const msg =
-        err?.response?.data?.error ||
-        (status === 401
-          ? "请先登录后再下载"
-          : status === 403
-            ? "无权下载此文件"
-            : status === 404
-              ? "文件不存在或已被清理"
-              : "下载失败，请稍后再试");
-      setError(msg);
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -248,7 +222,7 @@ const TemplateBuildPage = () => {
 
             <div className="flex flex-wrap gap-2 mt-2">
               <button className="btn btn-primary" type="submit" disabled={!canSubmit || buildMutation.status === "pending"}>
-                {buildMutation.status === "pending" ? "提交中..." : "开始构建"}
+                {buildMutation.status === "pending" ? "构建中..." : "开始构建"}
               </button>
               <button
                 className="btn btn-outline"
@@ -270,25 +244,9 @@ const TemplateBuildPage = () => {
               </button>
             </div>
           </form>
+          {buildMutation.status === "pending" && <progress className="progress progress-primary w-full" />}
           {message && <p className="text-success">{message}</p>}
           {error && <p className="text-error">{error}</p>}
-          {(buildMutation.data?.artifactId || buildMutation.data?.downloadPath) && (
-            <div className="flex items-center gap-2">
-              <button className="btn btn-link" type="button" onClick={downloadArtifact}>
-                下载构建产物
-              </button>
-              {!buildMutation.data?.artifactId && buildMutation.data?.downloadPath && (
-                <a
-                  className="link text-sm"
-                  href={`${api.defaults.baseURL?.replace(/\/$/, "")}/${buildMutation.data.downloadPath}`}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  备用链接
-                </a>
-              )}
-            </div>
-          )}
         </div>
       </div>
     </div>

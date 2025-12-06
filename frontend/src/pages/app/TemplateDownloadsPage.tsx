@@ -32,7 +32,7 @@ const TemplateDownloadsPage = () => {
     <div className="card bg-base-100 shadow-xl">
       <div className="card-body space-y-3">
         <h2 className="card-title">我的构建</h2>
-        {artifacts.isLoading && <p>加载中...</p>}
+        {artifacts.isLoading && <p>构建中，请稍等...</p>}
         {artifacts.error && <p className="text-error">加载失败</p>}
         {!artifacts.isLoading && artifacts.data && artifacts.data.length === 0 && <p>暂无构建记录</p>}
         {!artifacts.isLoading && artifacts.data && artifacts.data.length > 0 && (
