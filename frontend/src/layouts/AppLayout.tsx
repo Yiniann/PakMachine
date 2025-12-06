@@ -1,7 +1,10 @@
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../components/useAuth";
 
-const navLinks = [{ to: "/app", label: "主页" }];
+const navLinks = [
+  { to: "/app", label: "主页" },
+  { to: "/app/build", label: "前端构建" },
+];
 
 const AppLayout = () => {
   const { pathname } = useLocation();

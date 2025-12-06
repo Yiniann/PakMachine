@@ -11,7 +11,7 @@ export const useTemplateFiles = (): UseQueryResult<TemplateFile[]> =>
   useQuery({
     queryKey: ["templates"],
     queryFn: async () => {
-      const res = await api.get("/admin/upload-template");
+      const res = await api.get("/build/templates");
       return res.data;
     },
   });

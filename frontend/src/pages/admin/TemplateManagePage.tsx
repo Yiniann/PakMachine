@@ -2,7 +2,6 @@ import { FormEvent, useMemo, useRef, useState } from "react";
 import { useUploadTemplate, useDeleteTemplate, useRenameTemplate } from "../../features/uploads/mutations";
 import { useTemplateFiles } from "../../features/uploads/queries";
 
-const MAX_SIZE = 50 * 1024 * 1024;
 const allowed = [".zip", ".tar.gz", ".tgz", ".tar", ".gz"];
 
 const TemplateManagePage = () => {
@@ -19,11 +18,7 @@ const TemplateManagePage = () => {
   const renameMutation = useRenameTemplate();
   const templates = useTemplateFiles();
 
-  const tooBig = useMemo(() => (file ? file.size > MAX_SIZE : false), [file]);
-  const totalSizeMB = useMemo(
-    () => (templates.data ? templates.data.reduce((sum, item) => sum + item.size, 0) / 1024 / 1024 : 0),
-    [templates.data],
-  );
+  const tooBig = false;
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -56,7 +51,7 @@ const TemplateManagePage = () => {
         <div className="card bg-base-100 shadow-xl lg:col-span-1">
           <div className="card-body space-y-3">
             <h2 className="card-title">上传模板</h2>
-            <p className="text-sm text-base-content/70">支持 zip / tar.gz / tgz，大小不超过 50MB。</p>
+            <p className="text-sm text-base-content/70">支持 zip / tar.gz / tgz。</p>
             <form onSubmit={onSubmit} className="space-y-3">
               <input
                 type="file"
@@ -70,7 +65,7 @@ const TemplateManagePage = () => {
                   选择了：{file.name}（{(file.size / 1024 / 1024).toFixed(1)} MB）
                 </div>
               )}
-              {tooBig && <p className="text-error text-sm">文件超过 50MB 限制</p>}
+              {tooBig && <p className="text-error text-sm">文件超过限制</p>}
               <button type="submit" className="btn btn-primary w-full" disabled={mutation.status === "pending"}>
                 {mutation.status === "pending" ? "上传中..." : "开始上传"}
               </button>

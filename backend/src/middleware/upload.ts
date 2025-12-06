@@ -8,7 +8,7 @@ export const uploadBaseDir =
   path.resolve(__dirname, "../../../uploads/templates");
 fs.mkdirSync(uploadBaseDir, { recursive: true });
 
-export const MAX_TEMPLATE_SIZE = 50 * 1024 * 1024;
+export const MAX_TEMPLATE_SIZE = undefined as unknown as number; // 不限制大小
 const allowedSuffixes = [".zip", ".tar.gz", ".tgz"];
 
 const storage = multer.diskStorage({
@@ -31,7 +31,7 @@ const storage = multer.diskStorage({
 
 export const templateUpload = multer({
   storage,
-  limits: { fileSize: MAX_TEMPLATE_SIZE, files: 1 },
+  limits: { files: 1 },
   fileFilter: (_req, file, cb) => {
     const lower = file.originalname.toLowerCase();
     const ok = allowedSuffixes.some((suf) => lower.endsWith(suf));
