@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { buildTemplatePackage, downloadBuildArtifact, getBuildProfile, listUploadedTemplates, saveBuildProfile } from "../controllers/uploadController";
+import { buildTemplatePackage, downloadBuildArtifact, getBuildProfile, listUploadedTemplates, listUserArtifacts, saveBuildProfile } from "../controllers/uploadController";
 import { authenticate } from "../middleware/auth";
 import { UploadError } from "../services/uploadService";
 
@@ -11,6 +11,7 @@ router.post("/", buildTemplatePackage);
 router.get("/profile", getBuildProfile);
 router.put("/profile", saveBuildProfile);
 router.get("/download/:id", downloadBuildArtifact);
+router.get("/artifacts", listUserArtifacts);
 
 // Error handler to surface build/upload errors
 router.use((err: unknown, _req: import("express").Request, res: import("express").Response, next: import("express").NextFunction) => {

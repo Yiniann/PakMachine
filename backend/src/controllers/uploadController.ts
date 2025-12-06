@@ -122,3 +122,24 @@ export const downloadBuildArtifact = async (req: Request, res: Response, next: N
     next(err);
   }
 };
+
+export const listUserArtifacts = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const user = (req as any).user;
+    if (!user?.sub) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    const artifacts = await prisma.buildArtifact.findMany({
+      where: { userId: Number(user.sub) },
+      orderBy: { id: "desc" },
+    });
+    const data = artifacts.map((a) => ({
+      id: a.id,
+      sourceFilename: a.sourceFilename,
+      createdAt: a.createdAt,
+    }));
+    res.json(data);
+  } catch (err) {
+    next(err);
+  }
+};

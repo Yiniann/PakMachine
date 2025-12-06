@@ -2,9 +2,11 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useTemplateFiles } from "../../features/uploads/queries";
 import { useBuildTemplate } from "../../features/uploads/build";
 import { useBuildProfile, useSaveBuildProfile } from "../../features/uploads/profile";
+import { useAuth } from "../../components/useAuth";
 import api from "../../api/client";
 
 const TemplateBuildPage = () => {
+  const { token } = useAuth();
   const templates = useTemplateFiles();
   const buildMutation = useBuildTemplate();
   const profileQuery = useBuildProfile();
@@ -109,7 +111,17 @@ const TemplateBuildPage = () => {
       a.click();
       window.URL.revokeObjectURL(blobUrl);
     } catch (err: any) {
-      setError(err?.response?.data?.error || "下载失败，请确认已登录或稍后再试");
+      const status = err?.response?.status;
+      const msg =
+        err?.response?.data?.error ||
+        (status === 401
+          ? "请先登录后再下载"
+          : status === 403
+            ? "无权下载此文件"
+            : status === 404
+              ? "文件不存在或已被清理"
+              : "下载失败，请稍后再试");
+      setError(msg);
     }
   };
 

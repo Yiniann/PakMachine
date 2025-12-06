@@ -12,6 +12,7 @@ import AdminUsersPage from "./pages/admin/UsersPage";
 import AdminHomePage from "./pages/admin/HomePage";
 import TemplateManagePage from "./pages/admin/TemplateManagePage";
 import TemplateBuildPage from "./pages/app/TemplateBuildPage";
+import TemplateDownloadsPage from "./pages/app/TemplateDownloadsPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 const App = () => {
@@ -34,6 +35,7 @@ const App = () => {
           <Route index element={<HomePage />} />
           <Route path="home" element={<Navigate to="/app" replace />} />
           <Route path="build" element={<TemplateBuildPage />} />
+          <Route path="downloads" element={<TemplateDownloadsPage />} />
         </Route>
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<AdminHomePage />} />

@@ -4,6 +4,7 @@ import { useAuth } from "../components/useAuth";
 const navLinks = [
   { to: "/app", label: "主页" },
   { to: "/app/build", label: "前端构建" },
+  { to: "/app/downloads", label: "我的下载" },
 ];
 
 const AppLayout = () => {
