@@ -47,8 +47,23 @@ const AppLayout = () => {
       </div>
       <div className="drawer-side">
         <label htmlFor="app-drawer" aria-label="close sidebar" className="drawer-overlay"></label>
-        <ul className="menu p-4 w-72 min-h-full bg-base-100 text-base-content">
-          <li className="mb-2 px-2 text-xl font-bold">PacMachine</li>
+        <ul className="menu p-4 w-64 min-h-full bg-base-100 text-base-content">
+          <li className="mb-2 px-2 text-xl font-bold">
+            <span
+              role="button"
+              tabIndex={0}
+              className="cursor-pointer select-none w-auto hover:bg-transparent focus:bg-transparent active:bg-transparent text-inherit"
+              onClick={() => (window.location.href = "/app")}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  window.location.href = "/app";
+                }
+              }}
+            >
+              PacMachine
+            </span>
+          </li>
           {navLinks.map((link) => {
             const isActive = activeTo ? link.to === activeTo : pathname === link.to;
             return (

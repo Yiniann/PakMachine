@@ -30,9 +30,6 @@ const AdminLayout = () => {
             <span className="text-lg font-semibold ml-2">{title}</span>
           </div>
           <div className="navbar-end gap-2 pr-4">
-            <Link to="/app" className="btn btn-outline btn-sm">
-              客户端
-            </Link>
             {token && (
               <button onClick={logout} className="btn btn-error btn-sm text-white">
                 退出
@@ -47,7 +44,22 @@ const AdminLayout = () => {
       <div className="drawer-side">
         <label htmlFor="admin-drawer" aria-label="close sidebar" className="drawer-overlay"></label>
         <ul className="menu p-4 w-72 min-h-full bg-base-100 text-base-content">
-          <li className="mb-2 px-2 text-xl font-bold">PacMachine</li>
+          <li className="mb-2 px-2 text-xl font-bold">
+            <span
+              role="button"
+              tabIndex={0}
+              className="cursor-pointer select-none w-auto hover:bg-transparent focus:bg-transparent active:bg-transparent text-inherit"
+              onClick={() => (window.location.href = "/app")}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  window.location.href = "/app";
+                }
+              }}
+            >
+              PacMachine
+            </span>
+          </li>
           {navLinks.map((link) => (
             <li key={link.to}>
               <Link className={pathname === link.to ? "active" : ""} to={link.to}>
