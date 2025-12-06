@@ -6,11 +6,23 @@ import prisma from "../lib/prisma";
 
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
 const TOKEN_EXPIRES_HOURS = 1;
+const RESET_URL_BASE = process.env.PASSWORD_RESET_BASE_URL || "http://localhost:5173/auth/reset";
 
 // Basic validators to keep payloads sane before touching the database
 const isValidEmail = (email: string) =>
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 const isValidPassword = (pwd: string) => typeof pwd === "string" && pwd.length >= 8;
+
+const buildResetUrl = (token: string) => {
+  try {
+    const url = new URL(RESET_URL_BASE);
+    url.searchParams.set("token", token);
+    return url.toString();
+  } catch {
+    // Fallback for malformed base URLs; still return something usable for copy/paste.
+    return `${RESET_URL_BASE}?token=${encodeURIComponent(token)}`;
+  }
+};
 
 export const listUsers = async (_req: Request, res: Response, next: NextFunction) => {
   try {
@@ -166,13 +178,17 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
 
 export const forgotPassword = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { email } = req.body;
+    const { email } = req.body ?? {};
     if (!email) {
       return res.status(400).json({ error: "Email is required" });
+    }
+    if (!isValidEmail(email)) {
+      return res.status(400).json({ error: "Email format is invalid" });
     }
 
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
+      // Avoid leaking whether the email exists.
       return res.status(200).json({ message: "If that email exists, a reset link has been generated" });
     }
 
@@ -184,8 +200,18 @@ export const forgotPassword = async (req: Request, res: Response, next: NextFunc
       data: { resetToken: token, resetTokenExpires: expires },
     });
 
-    // 在实际场景中应通过邮件发送 token，此处直接返回便于测试。
-    res.json({ resetToken: token, expiresAt: expires });
+    const payload: Record<string, unknown> = {
+      message: "If that email exists, a reset link has been generated",
+      expiresAt: expires,
+      resetUrl: buildResetUrl(token),
+    };
+
+    // Return the raw token for local/dev usage; in production links are enough.
+    if (process.env.NODE_ENV !== "production") {
+      payload.resetToken = token;
+    }
+
+    res.json(payload);
   } catch (error) {
     next(error);
   }

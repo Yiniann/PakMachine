@@ -1,5 +1,5 @@
 import { FormEvent, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useLoginMutation } from "../../features/auth/mutations";
 import { useAuth } from "../../components/useAuth";
 
@@ -55,6 +55,11 @@ const LoginPage = () => {
             {mutation.status === "pending" ? "登录中..." : "登录"}
           </button>
         </form>
+        <div className="flex items-center justify-between text-sm">
+          <Link className="link" to="/auth/forgot">
+            忘记密码？
+          </Link>
+        </div>
         {message && <p className="text-info mt-2">{message}</p>}
       </div>
     </div>
