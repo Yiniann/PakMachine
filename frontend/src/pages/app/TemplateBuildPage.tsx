@@ -3,6 +3,7 @@ import { useTemplateFiles } from "../../features/uploads/queries";
 import { useBuildTemplate } from "../../features/uploads/build";
 import { useBuildJob } from "../../features/uploads/jobs";
 import { useBuildProfile, useSaveBuildProfile } from "../../features/uploads/profile";
+import { useSiteName } from "../../features/uploads/siteName";
 import { useAuth } from "../../components/useAuth";
 import { useNavigate } from "react-router-dom";
 
@@ -15,6 +16,7 @@ const TemplateBuildPage = () => {
   const jobQuery = useBuildJob(jobId ?? undefined);
   const profileQuery = useBuildProfile();
   const saveProfile = useSaveBuildProfile();
+  const siteNameQuery = useSiteName();
 
   const [selected, setSelected] = useState<string | null>(null);
   const [siteName, setSiteName] = useState("");
@@ -61,6 +63,10 @@ const TemplateBuildPage = () => {
       setError("请先选择一个模板文件");
       return;
     }
+    if (!siteName.trim()) {
+      setError("请先在主页设置站点名称");
+      return;
+    }
     const envContent = buildEnvContent();
     buildMutation.mutate(
       { filename: selected, envContent },
@@ -70,7 +76,6 @@ const TemplateBuildPage = () => {
           if (data.jobId) setJobId(data.jobId);
           setError(null);
           saveProfile.mutate({
-            siteName,
             siteLogo,
             prodApiUrl,
             enableIdhub,
@@ -88,9 +93,12 @@ const TemplateBuildPage = () => {
   };
 
   useEffect(() => {
+    setSiteName(siteNameQuery.data?.siteName || "");
+  }, [siteNameQuery.data?.siteName]);
+
+  useEffect(() => {
     if (profileQuery.data) {
       const cfg: any = profileQuery.data;
-      setSiteName(cfg.siteName || cfg.VITE_SITE_NAME || "");
       setSiteLogo(cfg.siteLogo || cfg.VITE_SITE_LOGO || "");
       setProdApiUrl(cfg.prodApiUrl || cfg.VITE_PROD_API_URL || "");
       setEnableIdhub(Boolean(cfg.enableIdhub ?? (cfg.VITE_ENABLE_IDHUB === "true" || cfg.VITE_ENABLE_IDHUB === true)));
@@ -164,7 +172,14 @@ const TemplateBuildPage = () => {
               <div className="md:col-span-2 font-semibold text-base">站点信息</div>
               <label className="form-control">
                 <span className="label-text">站点名称*</span>
-                <input className="input input-bordered" value={siteName} onChange={(e) => setSiteName(e.target.value)} required />
+                <input
+                  className="input input-bordered"
+                  value={siteName}
+                  readOnly
+                  disabled={siteNameQuery.isLoading}
+                  placeholder={siteNameQuery.isLoading ? "加载中..." : "请先在主页设置站点名称"}
+                />
+                {!siteName && !siteNameQuery.isLoading && <span className="text-error text-sm">请前往主页先设置站点名称</span>}
               </label>
               <label className="form-control">
                 <span className="label-text">站点 Logo 链接</span>
@@ -243,7 +258,7 @@ const TemplateBuildPage = () => {
                 className="btn btn-outline"
                 type="button"
                 onClick={() => {
-                  setSiteName("");
+                  setSiteName(siteNameQuery.data?.siteName || "");
                   setSiteLogo("");
                   setEnableIdhub(false);
                   setIdhubApiUrl("");

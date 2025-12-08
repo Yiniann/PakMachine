@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { buildTemplateJobStatus, buildTemplatePackage, downloadBuildArtifact, getBuildProfile, listUploadedTemplates, listUserArtifacts, saveBuildProfile } from "../controllers/uploadController";
+import { getSiteName, setSiteName } from "../controllers/profileController";
 import { authenticate } from "../middleware/auth";
 import { UploadError } from "../services/uploadService";
 
@@ -11,6 +12,8 @@ router.post("/", buildTemplatePackage);
 router.get("/job/:id", buildTemplateJobStatus);
 router.get("/profile", getBuildProfile);
 router.put("/profile", saveBuildProfile);
+router.get("/site-name", getSiteName);
+router.post("/site-name", setSiteName);
 router.get("/download/:id", downloadBuildArtifact);
 router.get("/artifacts", listUserArtifacts);
 

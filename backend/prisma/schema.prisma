@@ -12,6 +12,7 @@ model User {
   email              String    @unique
   password           String
   role               String    @default("user") // "user" | "admin"
+  siteName           String?
   resetToken         String?
   resetTokenExpires  DateTime?
   createdAt          DateTime  @default(now())
