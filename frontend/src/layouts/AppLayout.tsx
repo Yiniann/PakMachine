@@ -1,15 +1,19 @@
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../components/useAuth";
+import { usePublicSettings } from "../features/settings/publicSettings";
 
 const navLinks = [
   { to: "/app", label: "主页" },
   { to: "/app/build", label: "前端构建" },
   { to: "/app/downloads", label: "构建下载" },
+  { to: "/app/settings", label: "用户设置" },
 ];
 
 const AppLayout = () => {
   const { pathname } = useLocation();
   const { token, role, logout } = useAuth();
+  const publicSettings = usePublicSettings();
+  const siteTitle = publicSettings.data?.siteName || "PacMachine";
   const sortedNav = navLinks.slice().sort((a, b) => b.to.length - a.to.length);
   const current = sortedNav.find((link) => pathname === link.to || pathname.startsWith(`${link.to}/`)) || null;
   const activeTo = current?.to;
@@ -61,7 +65,7 @@ const AppLayout = () => {
                 }
               }}
             >
-              PacMachine
+              {siteTitle}
             </span>
           </li>
           {navLinks.map((link) => {

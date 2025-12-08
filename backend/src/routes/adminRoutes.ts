@@ -8,6 +8,7 @@ import {
   adminUpdateRole,
   listUsers,
 } from "../controllers/userController";
+import { getSystemSettings, updateSystemSettings } from "../controllers/systemSettingsController";
 import { removeTemplate, renameUploadedTemplate, uploadTemplate } from "../controllers/uploadController";
 import { authenticate, requireAdmin } from "../middleware/auth";
 import { templateUploadHandler } from "../middleware/upload";
@@ -23,6 +24,8 @@ router.patch("/changePwd", adminUpdatePassword);
 router.patch("/changeRole", adminUpdateRole);
 router.patch("/resetSiteName", adminResetSiteName);
 router.patch("/resetBuildQuota", adminResetBuildQuota);
+router.get("/settings", getSystemSettings);
+router.put("/settings", updateSystemSettings);
 router.post("/upload-template", templateUploadHandler, uploadTemplate);
 router.delete("/upload-template/:filename", removeTemplate);
 router.patch("/upload-template/:filename", renameUploadedTemplate);

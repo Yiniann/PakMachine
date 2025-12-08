@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import prisma from "../lib/prisma";
+import { loadSettings } from "./systemSettingsController";
 
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
 const TOKEN_EXPIRES_HOURS = 1;
@@ -160,6 +161,11 @@ export const adminResetBuildQuota = async (req: Request, res: Response, next: Ne
 
 export const register = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const sys = loadSettings();
+    if (sys.allowRegister === false) {
+      return res.status(403).json({ error: "注册已关闭" });
+    }
+
     const { email, password } = req.body;
     if (!email || !password) {
       return res.status(400).json({ error: "Email and password are required" });
@@ -181,6 +187,35 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
     const { password: _pw, resetToken, resetTokenExpires, ...rest } = user;
 
     res.status(201).json(rest);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const changePassword = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userCtx = (req as any).user;
+    if (!userCtx?.sub) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    const { currentPassword, newPassword } = req.body ?? {};
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: "缺少当前密码或新密码" });
+    }
+    if (!isValidPassword(newPassword)) {
+      return res.status(400).json({ error: "密码长度至少 8 位" });
+    }
+    const user = await prisma.user.findUnique({ where: { id: Number(userCtx.sub) } });
+    if (!user) {
+      return res.status(404).json({ error: "用户不存在" });
+    }
+    const ok = await bcrypt.compare(currentPassword, user.password);
+    if (!ok) {
+      return res.status(401).json({ error: "当前密码不正确" });
+    }
+    const hashed = await bcrypt.hash(newPassword, 10);
+    await prisma.user.update({ where: { id: user.id }, data: { password: hashed } });
+    res.json({ message: "密码已更新" });
   } catch (error) {
     next(error);
   }

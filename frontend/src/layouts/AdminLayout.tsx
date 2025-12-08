@@ -1,15 +1,19 @@
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../components/useAuth";
+import { usePublicSettings } from "../features/settings/publicSettings";
 
 const navLinks = [
   { to: "/admin", label: "首页" },
   { to: "/admin/users", label: "用户管理" },
   { to: "/admin/templates", label: "模板管理" },
+  { to: "/admin/settings", label: "系统设置" },
 ];
 
 const AdminLayout = () => {
   const { pathname } = useLocation();
   const { token, logout } = useAuth();
+  const publicSettings = usePublicSettings();
+  const siteTitle = publicSettings.data?.siteName || "PacMachine";
   const current =
     navLinks
       .slice()
@@ -57,7 +61,7 @@ const AdminLayout = () => {
                 }
               }}
             >
-              PacMachine
+              {siteTitle}
             </span>
           </li>
           {navLinks.map((link) => (

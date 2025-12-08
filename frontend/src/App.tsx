@@ -11,8 +11,10 @@ import HomePage from "./pages/app/HomePage";
 import AdminUsersPage from "./pages/admin/UsersPage";
 import AdminHomePage from "./pages/admin/HomePage";
 import TemplateManagePage from "./pages/admin/TemplateManagePage";
+import SystemSettingsPage from "./pages/admin/SystemSettingsPage";
 import TemplateBuildPage from "./pages/app/TemplateBuildPage";
 import TemplateDownloadsPage from "./pages/app/TemplateDownloadsPage";
+import UserSettingsPage from "./pages/app/UserSettingsPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 const App = () => {
@@ -36,11 +38,13 @@ const App = () => {
           <Route path="home" element={<Navigate to="/app" replace />} />
           <Route path="build" element={<TemplateBuildPage />} />
           <Route path="downloads" element={<TemplateDownloadsPage />} />
+          <Route path="settings" element={<UserSettingsPage />} />
         </Route>
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<AdminHomePage />} />
           <Route path="users" element={<AdminUsersPage />} />
           <Route path="templates" element={<TemplateManagePage />} />
+          <Route path="settings" element={<SystemSettingsPage />} />
         </Route>
       </Route>
 

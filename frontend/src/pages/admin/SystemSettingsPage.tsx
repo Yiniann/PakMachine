@@ -1,0 +1,77 @@
+import { FormEvent, useEffect, useState } from "react";
+import { useSystemSettings, useUpdateSystemSettings } from "../../features/settings/systemSettings";
+
+const SystemSettingsPage = () => {
+  const settingsQuery = useSystemSettings();
+  const updateSettings = useUpdateSystemSettings();
+
+  const [siteName, setSiteName] = useState("");
+  const [allowRegister, setAllowRegister] = useState(true);
+  const [message, setMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (settingsQuery.data) {
+      setSiteName(settingsQuery.data.siteName || "");
+      setAllowRegister(settingsQuery.data.allowRegister ?? true);
+    }
+  }, [settingsQuery.data]);
+
+  const onSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    setMessage(null);
+    updateSettings.mutate(
+      { siteName, allowRegister },
+      {
+        onSuccess: () => setMessage("设置已保存"),
+        onError: () => setMessage("保存失败"),
+      },
+    );
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="card bg-base-100 shadow-xl">
+        <div className="card-body space-y-3">
+          <h2 className="card-title">系统设置</h2>
+          {settingsQuery.isLoading && <p>加载中...</p>}
+          {settingsQuery.error && <p className="text-error">加载失败</p>}
+          {!settingsQuery.isLoading && (
+            <form className="space-y-4" onSubmit={onSubmit}>
+              <label className="form-control">
+                <span className="label-text">站点名称</span>
+                <input
+                  className="input input-bordered"
+                  value={siteName}
+                  onChange={(e) => setSiteName(e.target.value)}
+                  placeholder="用于展示的站点名称"
+                />
+              </label>
+
+              <label className="form-control">
+                <span className="label-text">注册开放</span>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    className="toggle"
+                    checked={allowRegister}
+                    onChange={(e) => setAllowRegister(e.target.checked)}
+                  />
+                  <span className="text-sm text-base-content/70">{allowRegister ? "允许注册" : "关闭注册"}</span>
+                </div>
+              </label>
+
+              <div className="flex gap-2">
+                <button className="btn btn-primary" type="submit" disabled={updateSettings.status === "pending"}>
+                  {updateSettings.status === "pending" ? "保存中..." : "保存设置"}
+                </button>
+                {message && <span className="text-sm text-base-content/70">{message}</span>}
+              </div>
+            </form>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default SystemSettingsPage;
