@@ -1,8 +1,8 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { useTemplateFiles } from "../../features/uploads/queries";
-import { useBuildTemplate } from "../../features/uploads/build";
-import { useBuildProfile, useSaveBuildProfile } from "../../features/uploads/profile";
-import { useSiteName } from "../../features/uploads/siteName";
+import { useTemplateFiles } from "../../features/builds/queries";
+import { useBuildTemplate } from "../../features/builds/build";
+import { useBuildProfile, useSaveBuildProfile } from "../../features/builds/profile";
+import { useSiteName } from "../../features/builds/siteName";
 import { useAuth } from "../../components/useAuth";
 import { useNavigate } from "react-router-dom";
 

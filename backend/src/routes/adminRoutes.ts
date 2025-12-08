@@ -9,7 +9,7 @@ import {
   listUsers,
 } from "../controllers/userController";
 import { getSystemSettings, updateSystemSettings } from "../controllers/systemSettingsController";
-import { removeTemplate, renameUploadedTemplate, uploadTemplate } from "../controllers/uploadController";
+import { removeTemplate, renameUploadedTemplate, uploadTemplate } from "../controllers/buildController";
 import { authenticate, requireAdmin } from "../middleware/auth";
 import { templateUploadHandler } from "../middleware/upload";
 import { UploadError } from "../services/uploadService";

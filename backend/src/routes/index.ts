@@ -9,6 +9,6 @@ const router = Router();
 router.use("/auth", authRoutes);
 router.use("/admin", adminRoutes);
 router.use("/build", buildRoutes);
-router.get("/settings", getPublicSystemSettings);
+router.get("/comm/config", getPublicSystemSettings);
 
 export default router;

@@ -1,4 +1,4 @@
-import { useArtifacts } from "../../features/uploads/artifacts";
+import { useArtifacts } from "../../features/builds/artifacts";
 import api from "../../api/client";
 
 const TemplateDownloadsPage = () => {

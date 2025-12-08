@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from "express";
 import { deleteTemplate, handleTemplateUpload, listTemplates, renameTemplate } from "../services/uploadService";
-import { buildTemplate } from "../services/buildService";
 import prisma from "../lib/prisma";
 import fs from "fs";
 import path from "path";

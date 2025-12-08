@@ -9,7 +9,7 @@ export const usePublicSettings = (): UseQueryResult<PublicSettings> =>
   useQuery({
     queryKey: ["public-settings"],
     queryFn: async () => {
-      const res = await api.get("/settings");
+      const res = await api.get("/comm/config");
       return res.data as PublicSettings;
     },
     staleTime: 5 * 60 * 1000,

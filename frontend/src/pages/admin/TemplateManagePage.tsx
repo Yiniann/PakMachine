@@ -1,6 +1,6 @@
 import { FormEvent, useMemo, useRef, useState } from "react";
-import { useUploadTemplate, useDeleteTemplate, useRenameTemplate } from "../../features/uploads/mutations";
-import { useTemplateFiles } from "../../features/uploads/queries";
+import { useUploadTemplate, useDeleteTemplate, useRenameTemplate } from "../../features/builds/mutations";
+import { useTemplateFiles } from "../../features/builds/queries";
 
 const allowed = [".zip", ".tar.gz", ".tgz", ".tar", ".gz"];
 

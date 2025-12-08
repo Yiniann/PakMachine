@@ -8,7 +8,7 @@ import {
   listUserArtifacts,
   listUserBuildJobs,
   saveBuildProfile,
-} from "../controllers/uploadController";
+} from "../controllers/buildController";
 import { getBuildQuota } from "../controllers/quotaController";
 import { getSiteName, setSiteName } from "../controllers/profileController";
 import { authenticate } from "../middleware/auth";

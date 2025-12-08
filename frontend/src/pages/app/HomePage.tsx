@@ -1,18 +1,16 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { useSiteName, useSetSiteName } from "../../features/uploads/siteName";
-import { useBuildJob, useBuildJobs } from "../../features/uploads/jobs";
+import { useSiteName, useSetSiteName } from "../../features/builds/siteName";
+import { useBuildJob, useBuildJobs } from "../../features/builds/jobs";
+import { useBuildQuota } from "../../features/builds/quota";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useAuth } from "../../components/useAuth";
-import api from "../../api/client";
 
 const HomePage = () => {
   const siteNameQuery = useSiteName();
   const setSiteNameMutation = useSetSiteName();
   const jobsQuery = useBuildJobs();
+  const quotaQuery = useBuildQuota();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { token } = useAuth();
-  const [quotaLeft, setQuotaLeft] = useState<number | null>(null);
   const [cachedSiteName, setCachedSiteName] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [message, setMessage] = useState<string | null>(null);
@@ -53,18 +51,6 @@ const HomePage = () => {
       },
     );
   };
-
-  useEffect(() => {
-    if (!token) return;
-    api
-      .get("/build/quota")
-      .then((res) => {
-        const data = res.data as { left?: number; used?: number; limit?: number };
-        if (typeof data.left === "number") setQuotaLeft(data.left);
-        else if (typeof data.used === "number" && typeof data.limit === "number") setQuotaLeft(Math.max(data.limit - data.used, 0));
-      })
-      .catch(() => setQuotaLeft(null));
-  }, [token]);
 
   useEffect(() => {
     if (siteName) {
@@ -109,10 +95,10 @@ const HomePage = () => {
                  <span className="text-xs text-base-content/60">如需更改站点名请联系管理员</span>
               </div>
               <div className="flex flex-wrap items-center gap-3 text-sm text-base-content/70">
-                {quotaLeft !== null && (
+                {quotaQuery.data && (
                   <div className="flex items-center gap-1">
                     <span className="font-semibold">今日剩余</span>
-                    <span className="badge badge-outline">{quotaLeft} / 2</span>
+                    <span className="badge badge-outline">{quotaQuery.data.left} / {quotaQuery.data.limit}</span>
                     <span className="text-xs text-base-content/60">打包次数每日刷新</span>
                   </div>
                 )}
