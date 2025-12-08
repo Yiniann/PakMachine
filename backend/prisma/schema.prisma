@@ -19,7 +19,6 @@ model User {
 
   // 打包相关关联
   buildJobs           BuildJob[]
-  userTemplateConfigs UserTemplateConfig[]
   buildProfile        BuildProfile?
   buildArtifacts      BuildArtifact[]
 }
@@ -33,40 +32,20 @@ model Template {
   envSchema   String?          // JSON: ["VITE_API_URL","VITE_TITLE", ...]
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
-
-  buildJobs           BuildJob[]
-  userTemplateConfigs UserTemplateConfig[]
-}
-
-/// 某个用户对某个模板的一份“当前 env 配置”（用于下次自动带出）
-model UserTemplateConfig {
-  id         Int      @id @default(autoincrement())
-  userId     Int
-  templateId Int
-  envJson    String   // JSON: {"VITE_API_URL":"...","VITE_TITLE":"..."}
-
-  updatedAt  DateTime @updatedAt
-  createdAt  DateTime @default(now())
-
-  user     User     @relation(fields: [userId], references: [id])
-  template Template @relation(fields: [templateId], references: [id])
-
-  @@unique([userId, templateId])
 }
 
 /// 每一次打包任务（独立 env + 独立产物文件）
 model BuildJob {
   id           Int      @id @default(autoincrement())
   userId       Int
-  templateId   Int
+  filename     String
   status       String   // "pending" | "running" | "success" | "failed"
-  envJson      String   // 本次打包使用的 env 快照 JSON
-  artifactPath String?  // 构建出来的 zip 文件路径
-  log          String?  // 构建日志 / 错误信息（可选）
+  envJson      String   @db.LongText // 本次打包使用的 env 快照 JSON
+  artifactId   Int?
+  message      String?  @db.Text // 构建日志 / 错误信息（可选）
   createdAt    DateTime @default(now())
 
-  user     User     @relation(fields: [userId], references: [id])
-  template Template @relation(fields: [templateId], references: [id])
+  user User @relation(fields: [userId], references: [id])
 }
 
 /// 用户常用的构建配置（站点信息、IDHub、客户端下载链接等）

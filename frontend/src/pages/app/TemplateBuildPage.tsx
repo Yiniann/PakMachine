@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useTemplateFiles } from "../../features/uploads/queries";
 import { useBuildTemplate } from "../../features/uploads/build";
+import { useBuildJob } from "../../features/uploads/jobs";
 import { useBuildProfile, useSaveBuildProfile } from "../../features/uploads/profile";
 import { useAuth } from "../../components/useAuth";
 import { useNavigate } from "react-router-dom";
@@ -10,6 +11,8 @@ const TemplateBuildPage = () => {
   const { token } = useAuth();
   const templates = useTemplateFiles();
   const buildMutation = useBuildTemplate();
+  const [jobId, setJobId] = useState<number | null>(null);
+  const jobQuery = useBuildJob(jobId ?? undefined);
   const profileQuery = useBuildProfile();
   const saveProfile = useSaveBuildProfile();
 
@@ -63,7 +66,9 @@ const TemplateBuildPage = () => {
       { filename: selected, envContent },
       {
         onSuccess: (data) => {
-          setMessage(data.message || "构建成功，正在跳转到下载页...");
+          setMessage(data.message || "构建已加入队列，正在处理...");
+          if (data.jobId) setJobId(data.jobId);
+          setError(null);
           saveProfile.mutate({
             siteName,
             siteLogo,
@@ -76,7 +81,6 @@ const TemplateBuildPage = () => {
             downloadWindows,
             downloadMacos,
           });
-          setTimeout(() => navigate("/app/downloads"), 600);
         },
         onError: (err: any) => setError(err?.response?.data?.error || "构建失败，请稍后再试"),
       },
@@ -98,6 +102,17 @@ const TemplateBuildPage = () => {
       setDownloadMacos(cfg.downloadMacos || cfg.VITE_DOWNLOAD_MACOS || "");
     }
   }, [profileQuery.data]);
+
+  useEffect(() => {
+    if (!jobQuery.data) return;
+    if (jobQuery.data.status === "success" && jobQuery.data.artifactId) {
+      setMessage("构建完成，正在跳转到下载页");
+      setTimeout(() => navigate("/app/downloads"), 600);
+    }
+    if (jobQuery.data.status === "failed") {
+      setError(jobQuery.data.message || "构建失败");
+    }
+  }, [jobQuery.data, navigate]);
 
   return (
     <div className="space-y-6">
@@ -244,7 +259,9 @@ const TemplateBuildPage = () => {
               </button>
             </div>
           </form>
-          {buildMutation.status === "pending" && <progress className="progress progress-primary w-full" />}
+          {(buildMutation.status === "pending" || jobQuery.isFetching) && (
+            <progress className="progress progress-primary w-full" />
+          )}
           {message && <p className="text-success">{message}</p>}
           {error && <p className="text-error">{error}</p>}
         </div>

@@ -61,8 +61,15 @@ export const buildTemplatePackage = async (req: Request, res: Response, next: Ne
     if (!user?.sub) {
       return res.status(401).json({ error: "Unauthorized" });
     }
-    const payload = await buildTemplate(prisma, Number(user.sub), filename, envContent);
-    res.json({ message: "构建成功", downloadPath: payload.downloadPath, artifactId: payload.artifactId });
+    const job = await prisma.buildJob.create({
+      data: {
+        userId: Number(user.sub),
+        filename,
+        envJson: envContent,
+        status: "pending",
+      },
+    });
+    res.json({ message: "已加入构建队列", jobId: job.id });
   } catch (err) {
     next(err);
   }
@@ -123,6 +130,33 @@ export const downloadBuildArtifact = async (req: Request, res: Response, next: N
       return res.status(404).json({ error: "文件已不存在" });
     }
     return res.download(artifact.outputPath, path.basename(artifact.outputPath));
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const buildTemplateJobStatus = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const user = (req as any).user;
+    if (!user?.sub) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+      return res.status(400).json({ error: "Invalid id" });
+    }
+    const job = await prisma.buildJob.findUnique({ where: { id } });
+    if (!job || job.userId !== Number(user.sub)) {
+      return res.status(404).json({ error: "Job not found" });
+    }
+    res.json({
+      id: job.id,
+      status: job.status,
+      message: job.message,
+      artifactId: job.artifactId,
+      filename: job.filename,
+      createdAt: job.createdAt,
+    });
   } catch (err) {
     next(err);
   }

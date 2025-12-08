@@ -3,6 +3,7 @@ import cors from "cors";
 import routes from "./routes";
 import path from "path";
 import { uploadBaseDir } from "./middleware/upload";
+import { startBuildWorker } from "./services/buildWorker";
 
 const app = express();
 const uploadsTemplates = uploadBaseDir;
@@ -21,6 +22,7 @@ app.use(
 app.use(express.json());
 app.use("/uploads/templates", express.static(uploadsTemplates));
 app.use(routes);
+startBuildWorker();
 
 // Centralized error handler.
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
