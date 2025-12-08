@@ -7,6 +7,7 @@ export interface User {
   role: string;
   createdAt: string;
   updatedAt: string;
+  siteName?: string | null;
 }
 
 export const useUsersQuery = (): UseQueryResult<User[], unknown> =>

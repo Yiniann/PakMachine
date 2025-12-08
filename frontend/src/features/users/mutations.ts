@@ -45,3 +45,14 @@ export const useUpdateRole = (): UseMutationResult<{ message: string }, unknown,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
   });
 };
+
+export const useResetSiteName = (): UseMutationResult<{ message: string }, unknown, { email: string }, unknown> => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ email }) => {
+      const res = await api.patch<{ message: string }>(`/admin/resetSiteName`, { email });
+      return res.data;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
+  });
+};

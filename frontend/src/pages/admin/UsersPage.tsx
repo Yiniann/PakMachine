@@ -1,6 +1,6 @@
 import { FormEvent, useMemo, useState } from "react";
 import { useUsersQuery, User } from "../../features/users/queries";
-import { useCreateUser, useDeleteUser, useUpdatePassword, useUpdateRole } from "../../features/users/mutations";
+import { useCreateUser, useDeleteUser, useResetSiteName, useUpdatePassword, useUpdateRole } from "../../features/users/mutations";
 
 const UsersPage = () => {
   const { data, error, isLoading } = useUsersQuery();
@@ -8,6 +8,7 @@ const UsersPage = () => {
   const deleteUser = useDeleteUser();
   const updatePassword = useUpdatePassword();
   const updateRole = useUpdateRole();
+  const resetSiteName = useResetSiteName();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -43,6 +44,12 @@ const UsersPage = () => {
       ? roleErr.response.data.error
       : updateRole.error instanceof Error
         ? updateRole.error.message
+        : null;
+  const resetSiteNameError =
+    resetSiteName.error && (resetSiteName.error as any)?.response?.data?.error
+      ? (resetSiteName.error as any).response.data.error
+      : resetSiteName.error instanceof Error
+        ? resetSiteName.error.message
         : null;
 
   const onCreate = (e: FormEvent) => {
@@ -179,6 +186,26 @@ const UsersPage = () => {
           <div className="modal-box">
             <h3 className="font-bold text-lg">设置：{settingsUser.email}</h3>
             <div className="mt-4 space-y-4">
+               <div className="form-control">
+                <label className="label">
+                  <span className="label-text">站点名称</span>
+                </label>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="badge badge-outline">{settingsUser.siteName ?? "未设置"}</span>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline"
+                    disabled={resetSiteName.status === "pending"}
+                    onClick={() => {
+                      if (!window.confirm(`确定要重置 ${settingsUser.email} 的站点名吗？用户需重新设置。`)) return;
+                      resetSiteName.mutate({ email: settingsUser.email });
+                    }}
+                  >
+                    {resetSiteName.status === "pending" ? "重置中..." : "重置站点名"}
+                  </button>
+                </div>
+                <p className="text-xs text-base-content/70 mt-1">重置后，用户下次登录需要重新填写站点名称。</p>
+              </div>
               <div className="form-control">
                 <label className="label">
                   <span className="label-text">角色</span>
@@ -234,6 +261,7 @@ const UsersPage = () => {
                 </form>
               </div>
 
+
               <div className="divider my-1"></div>
 
               <div className="collapse collapse-arrow border border-base-200 bg-base-100">
@@ -268,6 +296,7 @@ const UsersPage = () => {
             </div>
             {updateError && <p className="text-error mt-2">修改密码失败: {updateError}</p>}
             {updateRoleError && <p className="text-error mt-2">修改角色失败: {updateRoleError}</p>}
+            {resetSiteNameError && <p className="text-error mt-2">重置站点名失败: {resetSiteNameError}</p>}
           </div>
         </div>
       )}
