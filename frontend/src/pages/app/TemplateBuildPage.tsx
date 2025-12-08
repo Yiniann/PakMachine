@@ -26,15 +26,21 @@ const TemplateBuildPage = () => {
   const [downloadWindows, setDownloadWindows] = useState("");
   const [downloadMacos, setDownloadMacos] = useState("");
   const [prodApiUrl, setProdApiUrl] = useState("");
+  const [allowedClientOrigins, setAllowedClientOrigins] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [allowedOriginsError, setAllowedOriginsError] = useState<string | null>(null);
+
+  const parseOrigins = (value: string) => value.split(",").map((item) => item.trim()).filter(Boolean);
 
   const canSubmit = useMemo(() => {
     if (!selected) return false;
     if (!siteName.trim()) return false;
     if (enableIdhub && (!idhubApiUrl.trim() || !idhubApiKey.trim())) return false;
+    if (allowedOriginsError) return false;
+    if (parseOrigins(allowedClientOrigins).length > 4) return false;
     return true;
-  }, [selected, siteName, enableIdhub, idhubApiUrl, idhubApiKey]);
+  }, [selected, siteName, enableIdhub, idhubApiUrl, idhubApiKey, allowedOriginsError, allowedClientOrigins]);
 
   const buildEnvContent = () => {
     const lines = [
@@ -44,6 +50,7 @@ const TemplateBuildPage = () => {
       `VITE_IDHUB_API_URL=${idhubApiUrl.trim()}`,
       `VITE_IDHUB_API_KEY=${idhubApiKey.trim()}`,
       `VITE_PROD_API_URL=${prodApiUrl.trim()}`,
+      `VITE_ALLOWED_CLIENT_ORIGINS=${allowedClientOrigins.trim()}`,
       `VITE_DOWNLOAD_IOS=${downloadIos.trim()}`,
       `VITE_DOWNLOAD_ANDROID=${downloadAndroid.trim()}`,
       `VITE_DOWNLOAD_WINDOWS=${downloadWindows.trim()}`,
@@ -80,6 +87,7 @@ const TemplateBuildPage = () => {
             enableIdhub,
             idhubApiUrl,
             idhubApiKey,
+            allowedClientOrigins,
             downloadIos,
             downloadAndroid,
             downloadWindows,
@@ -103,6 +111,8 @@ const TemplateBuildPage = () => {
       setEnableIdhub(Boolean(cfg.enableIdhub ?? (cfg.VITE_ENABLE_IDHUB === "true" || cfg.VITE_ENABLE_IDHUB === true)));
       setIdhubApiUrl(cfg.idhubApiUrl || cfg.VITE_IDHUB_API_URL || "");
       setIdhubApiKey(cfg.idhubApiKey || cfg.VITE_IDHUB_API_KEY || "");
+      setAllowedClientOrigins(cfg.allowedClientOrigins || cfg.VITE_ALLOWED_CLIENT_ORIGINS || "");
+      setAllowedOriginsError(null);
       setDownloadIos(cfg.downloadIos || cfg.VITE_DOWNLOAD_IOS || "");
       setDownloadAndroid(cfg.downloadAndroid || cfg.VITE_DOWNLOAD_ANDROID || "");
       setDownloadWindows(cfg.downloadWindows || cfg.VITE_DOWNLOAD_WINDOWS || "");
@@ -171,18 +181,34 @@ const TemplateBuildPage = () => {
               </label>
               <label className="form-control">
                 <span className="label-text">站点 Logo 链接</span>
-                <input className="input input-bordered" value={siteLogo} onChange={(e) => setSiteLogo(e.target.value)} placeholder="https://example.com/logo.png" />
+                <input className="input input-bordered" value={siteLogo} onChange={(e) => setSiteLogo(e.target.value)} placeholder="支持url或者本地图片" />
               </label>
+
               <label className="form-control md:col-span-2">
+                <span className="label-text">前端域名（多个域名用逗号分隔，最多 4 个）</span>
+                <input
+                  className="input input-bordered"
+                  value={allowedClientOrigins}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setAllowedClientOrigins(value);
+                    const origins = parseOrigins(value);
+                    setAllowedOriginsError(origins.length > 4 ? "最多只能填写 4 个域名" : null);
+                  }}
+                  placeholder="请输入完整域名，如 https://xxx.xxx.com, https://yyy.yyy.com"
+                />
+                {allowedOriginsError && <span className="text-error text-xs">{allowedOriginsError}</span>}
+              </label>
+            </div>
+                          <label className="form-control md:col-span-2">
                 <span className="label-text">后端 API 地址</span>
                 <input
                   className="input input-bordered"
                   value={prodApiUrl}
                   onChange={(e) => setProdApiUrl(e.target.value)}
-                  placeholder="https://api.example.com"
+                  placeholder="/api/v1/"
                 />
               </label>
-            </div>
 
             <div className="space-y-3">
               <div className="font-semibold text-base">IDHub</div>
@@ -201,7 +227,7 @@ const TemplateBuildPage = () => {
                       className="input input-bordered"
                       value={idhubApiUrl}
                       onChange={(e) => setIdhubApiUrl(e.target.value)}
-                      placeholder="https://idhub.example.com/api"
+                      placeholder="/idhub-api/"
                       required={enableIdhub}
                     />
                   </label>
@@ -251,6 +277,8 @@ const TemplateBuildPage = () => {
                   setEnableIdhub(false);
                   setIdhubApiUrl("");
                   setIdhubApiKey("");
+                  setAllowedClientOrigins("");
+                  setAllowedOriginsError(null);
                   setDownloadIos("");
                   setDownloadAndroid("");
                   setDownloadWindows("");
