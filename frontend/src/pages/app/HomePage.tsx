@@ -1,13 +1,31 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useSiteName, useSetSiteName } from "../../features/uploads/siteName";
+import { useBuildJob, useBuildJobs } from "../../features/uploads/jobs";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 const HomePage = () => {
   const siteNameQuery = useSiteName();
   const setSiteNameMutation = useSetSiteName();
+  const jobsQuery = useBuildJobs();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [input, setInput] = useState("");
   const [message, setMessage] = useState<string | null>(null);
 
   const siteName = siteNameQuery.data?.siteName || null;
+  const jobIdParam = searchParams.get("jobId");
+  const jobId = jobIdParam ? Number(jobIdParam) : undefined;
+  const activeJobQuery = useBuildJob(jobId);
+
+  const activeJobStatusLabel = useMemo(() => {
+    if (!activeJobQuery.data) return null;
+    const s = activeJobQuery.data.status;
+    if (s === "pending") return "等待中";
+    if (s === "running") return "构建中";
+    if (s === "success") return "已完成";
+    if (s === "failed") return "失败";
+    return s;
+  }, [activeJobQuery.data]);
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -23,6 +41,22 @@ const HomePage = () => {
       },
     );
   };
+
+  useEffect(() => {
+    if (!jobId) return;
+    const status = activeJobQuery.data?.status;
+    if (!status) return;
+    if (status === "success" || status === "failed") {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("jobId");
+        return next;
+      });
+      if (status === "success") {
+        navigate("/app/downloads");
+      }
+    }
+  }, [jobId, activeJobQuery.data?.status, navigate, setSearchParams]);
 
   return (
     <div className="space-y-4">
@@ -65,6 +99,51 @@ const HomePage = () => {
             </div>
           )}
           {message && <p className="text-info">{message}</p>}
+        </div>
+      </div>
+
+      {jobId && (
+        <div className="alert bg-base-100 flex flex-col sm:flex-row sm:items-center gap-2">
+          <span>当前构建任务 ID：{jobId}</span>
+          <span className="badge badge-outline">{activeJobStatusLabel ?? "获取状态中..."}</span>
+          {activeJobQuery.data?.status === "failed" && (
+            <span className="text-error text-sm">{activeJobQuery.data.message || "构建失败"}</span>
+          )}
+          {activeJobQuery.isFetching && <span className="loading loading-spinner loading-xs" />}
+        </div>
+      )}
+
+      <div className="card bg-base-100 shadow-xl">
+        <div className="card-body space-y-3">
+          <h3 className="card-title">构建队列</h3>
+          {jobsQuery.isLoading && <p>加载队列...</p>}
+          {jobsQuery.error && <p className="text-error">加载失败</p>}
+          {!jobsQuery.isLoading && jobsQuery.data && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {(() => {
+                const jobs = jobsQuery.data ?? [];
+                const pending = jobs.filter((j) => j.status === "pending").length;
+                const running = jobs.filter((j) => j.status === "running").length;
+                const success = jobs.filter((j) => j.status === "success").length;
+                const failed = jobs.filter((j) => j.status === "failed").length;
+                const cards = [
+                  { label: "等待中", value: pending, color: "bg-warning/20 text-warning-content" },
+                  { label: "构建中", value: running, color: "bg-info/20 text-info-content" },
+                  { label: "已完成", value: success, color: "bg-success/20 text-success-content" },
+                  { label: "失败", value: failed, color: "bg-error/20 text-error-content" },
+                ];
+                if (jobs.length === 0) {
+                  return <p className="col-span-full">暂无任务</p>;
+                }
+                return cards.map((c) => (
+                  <div key={c.label} className={`stat shadow-sm ${c.color}`}>
+                    <div className="stat-title">{c.label}</div>
+                    <div className="stat-value text-3xl">{c.value}</div>
+                  </div>
+                ));
+              })()}
+            </div>
+          )}
         </div>
       </div>
     </div>

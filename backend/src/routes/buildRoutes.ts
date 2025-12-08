@@ -1,5 +1,14 @@
 import { Router } from "express";
-import { buildTemplateJobStatus, buildTemplatePackage, downloadBuildArtifact, getBuildProfile, listUploadedTemplates, listUserArtifacts, saveBuildProfile } from "../controllers/uploadController";
+import {
+  buildTemplateJobStatus,
+  buildTemplatePackage,
+  downloadBuildArtifact,
+  getBuildProfile,
+  listUploadedTemplates,
+  listUserArtifacts,
+  listUserBuildJobs,
+  saveBuildProfile,
+} from "../controllers/uploadController";
 import { getSiteName, setSiteName } from "../controllers/profileController";
 import { authenticate } from "../middleware/auth";
 import { UploadError } from "../services/uploadService";
@@ -16,6 +25,7 @@ router.get("/site-name", getSiteName);
 router.post("/site-name", setSiteName);
 router.get("/download/:id", downloadBuildArtifact);
 router.get("/artifacts", listUserArtifacts);
+router.get("/jobs", listUserBuildJobs);
 
 // Error handler to surface build/upload errors
 router.use((err: unknown, _req: import("express").Request, res: import("express").Response, next: import("express").NextFunction) => {

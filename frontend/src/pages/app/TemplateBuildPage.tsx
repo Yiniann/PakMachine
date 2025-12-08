@@ -1,7 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useTemplateFiles } from "../../features/uploads/queries";
 import { useBuildTemplate } from "../../features/uploads/build";
-import { useBuildJob } from "../../features/uploads/jobs";
 import { useBuildProfile, useSaveBuildProfile } from "../../features/uploads/profile";
 import { useSiteName } from "../../features/uploads/siteName";
 import { useAuth } from "../../components/useAuth";
@@ -12,8 +11,6 @@ const TemplateBuildPage = () => {
   const { token } = useAuth();
   const templates = useTemplateFiles();
   const buildMutation = useBuildTemplate();
-  const [jobId, setJobId] = useState<number | null>(null);
-  const jobQuery = useBuildJob(jobId ?? undefined);
   const profileQuery = useBuildProfile();
   const saveProfile = useSaveBuildProfile();
   const siteNameQuery = useSiteName();
@@ -73,7 +70,9 @@ const TemplateBuildPage = () => {
       {
         onSuccess: (data) => {
           setMessage(data.message || "构建已加入队列，正在处理...");
-          if (data.jobId) setJobId(data.jobId);
+          if (data.jobId) {
+            navigate(`/app?jobId=${data.jobId}`);
+          }
           setError(null);
           saveProfile.mutate({
             siteLogo,
@@ -110,17 +109,6 @@ const TemplateBuildPage = () => {
       setDownloadMacos(cfg.downloadMacos || cfg.VITE_DOWNLOAD_MACOS || "");
     }
   }, [profileQuery.data]);
-
-  useEffect(() => {
-    if (!jobQuery.data) return;
-    if (jobQuery.data.status === "success" && jobQuery.data.artifactId) {
-      setMessage("构建完成，正在跳转到下载页");
-      setTimeout(() => navigate("/app/downloads"), 600);
-    }
-    if (jobQuery.data.status === "failed") {
-      setError(jobQuery.data.message || "构建失败");
-    }
-  }, [jobQuery.data, navigate]);
 
   return (
     <div className="space-y-6">
@@ -274,9 +262,7 @@ const TemplateBuildPage = () => {
               </button>
             </div>
           </form>
-          {(buildMutation.status === "pending" || jobQuery.isFetching) && (
-            <progress className="progress progress-primary w-full" />
-          )}
+          {buildMutation.status === "pending" && <progress className="progress progress-primary w-full" />}
           {message && <p className="text-success">{message}</p>}
           {error && <p className="text-error">{error}</p>}
         </div>

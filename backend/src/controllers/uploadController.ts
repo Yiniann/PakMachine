@@ -182,3 +182,30 @@ export const listUserArtifacts = async (req: Request, res: Response, next: NextF
     next(err);
   }
 };
+
+export const listUserBuildJobs = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const user = (req as any).user;
+    if (!user?.sub) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    const limit = Number(req.query.limit) || 10;
+    const jobs = await prisma.buildJob.findMany({
+      where: { userId: Number(user.sub) },
+      orderBy: { id: "desc" },
+      take: Math.min(limit, 20),
+    });
+    res.json(
+      jobs.map((j) => ({
+        id: j.id,
+        status: j.status,
+        message: j.message,
+        artifactId: j.artifactId,
+        filename: j.filename,
+        createdAt: j.createdAt,
+      })),
+    );
+  } catch (err) {
+    next(err);
+  }
+};
