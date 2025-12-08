@@ -56,3 +56,14 @@ export const useResetSiteName = (): UseMutationResult<{ message: string }, unkno
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
   });
 };
+
+export const useResetBuildQuota = (): UseMutationResult<{ message: string }, unknown, { email: string }, unknown> => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ email }) => {
+      const res = await api.patch<{ message: string }>(`/admin/resetBuildQuota`, { email });
+      return res.data;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
+  });
+};

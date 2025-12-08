@@ -13,6 +13,8 @@ model User {
   password           String
   role               String    @default("user") // "user" | "admin"
   siteName           String?
+  buildQuotaUsed     Int       @default(0) // 当天已使用的构建次数
+  buildQuotaDate     DateTime?
   resetToken         String?
   resetTokenExpires  DateTime?
   createdAt          DateTime  @default(now())

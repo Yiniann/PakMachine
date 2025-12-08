@@ -62,8 +62,9 @@ export const buildTemplate = async (prisma: PrismaClient, userId: number, filena
       fs.rmSync(nodeModules, { recursive: true, force: true });
     }
     const hasLock = fs.existsSync(path.join(projectDir, "package-lock.json"));
-    execSync(hasLock ? "npm ci" : "npm install", { cwd: projectDir, stdio: "inherit" });
-    execSync("npm run build", { cwd: projectDir, stdio: "inherit" });
+    const timeoutMs = 10 * 60 * 1000; // 10 minutes safety timeout
+    execSync(hasLock ? "npm ci" : "npm install", { cwd: projectDir, stdio: "inherit", timeout: timeoutMs });
+    execSync("npm run build", { cwd: projectDir, stdio: "inherit", timeout: timeoutMs });
     const distDir = fs.existsSync(path.join(projectDir, "dist"))
       ? path.join(projectDir, "dist")
       : fs.existsSync(path.join(projectDir, "build"))

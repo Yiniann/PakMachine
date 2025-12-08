@@ -1,6 +1,13 @@
 import { FormEvent, useMemo, useState } from "react";
 import { useUsersQuery, User } from "../../features/users/queries";
-import { useCreateUser, useDeleteUser, useResetSiteName, useUpdatePassword, useUpdateRole } from "../../features/users/mutations";
+import {
+  useCreateUser,
+  useDeleteUser,
+  useResetBuildQuota,
+  useResetSiteName,
+  useUpdatePassword,
+  useUpdateRole,
+} from "../../features/users/mutations";
 
 const UsersPage = () => {
   const { data, error, isLoading } = useUsersQuery();
@@ -9,6 +16,7 @@ const UsersPage = () => {
   const updatePassword = useUpdatePassword();
   const updateRole = useUpdateRole();
   const resetSiteName = useResetSiteName();
+  const resetBuildQuota = useResetBuildQuota();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -51,6 +59,12 @@ const UsersPage = () => {
       : resetSiteName.error instanceof Error
         ? resetSiteName.error.message
         : null;
+  const resetQuotaError =
+    resetBuildQuota.error && (resetBuildQuota.error as any)?.response?.data?.error
+      ? (resetBuildQuota.error as any).response.data.error
+      : resetBuildQuota.error instanceof Error
+        ? resetBuildQuota.error.message
+        : null;
 
   const onCreate = (e: FormEvent) => {
     e.preventDefault();
@@ -89,6 +103,14 @@ const UsersPage = () => {
       })) ?? [],
     [data],
   );
+
+  const getQuotaLeft = (u: User) => {
+    const limit = 2;
+    if (!u.buildQuotaDate) return limit;
+    const isToday = new Date(u.buildQuotaDate).toDateString() === new Date().toDateString();
+    const used = u.buildQuotaUsed ?? 0;
+    return isToday ? Math.max(limit - used, 0) : limit;
+  };
 
   return (
     <div className="space-y-4">
@@ -186,7 +208,7 @@ const UsersPage = () => {
           <div className="modal-box">
             <h3 className="font-bold text-lg">设置：{settingsUser.email}</h3>
             <div className="mt-4 space-y-4">
-               <div className="form-control">
+              <div className="form-control">
                 <label className="label">
                   <span className="label-text">站点名称</span>
                 </label>
@@ -198,13 +220,48 @@ const UsersPage = () => {
                     disabled={resetSiteName.status === "pending"}
                     onClick={() => {
                       if (!window.confirm(`确定要重置 ${settingsUser.email} 的站点名吗？用户需重新设置。`)) return;
-                      resetSiteName.mutate({ email: settingsUser.email });
+                      resetSiteName.mutate(
+                        { email: settingsUser.email },
+                        {
+                          onSuccess: () => {
+                            setSettingsUser((prev) => (prev ? { ...prev, siteName: null } : prev));
+                          },
+                        },
+                      );
                     }}
                   >
                     {resetSiteName.status === "pending" ? "重置中..." : "重置站点名"}
                   </button>
                 </div>
                 <p className="text-xs text-base-content/70 mt-1">重置后，用户下次登录需要重新填写站点名称。</p>
+              </div>
+
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text">今日构建次数</span>
+                </label>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="badge badge-outline">剩余 {getQuotaLeft(settingsUser)} / 2</span>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline"
+                    disabled={resetBuildQuota.status === "pending"}
+                    onClick={() => {
+                      if (!window.confirm(`确定重置 ${settingsUser.email} 的今日构建次数？`)) return;
+                      resetBuildQuota.mutate(
+                        { email: settingsUser.email },
+                        {
+                          onSuccess: () => {
+                            setSettingsUser((prev) => (prev ? { ...prev, buildQuotaUsed: 0, buildQuotaDate: null } : prev));
+                          },
+                        },
+                      );
+                    }}
+                  >
+                    {resetBuildQuota.status === "pending" ? "重置中..." : "重置次数"}
+                  </button>
+                </div>
+                <p className="text-xs text-base-content/70 mt-1">每日上限 2 次，重置后计数清零。</p>
               </div>
               <div className="form-control">
                 <label className="label">
@@ -297,6 +354,7 @@ const UsersPage = () => {
             {updateError && <p className="text-error mt-2">修改密码失败: {updateError}</p>}
             {updateRoleError && <p className="text-error mt-2">修改角色失败: {updateRoleError}</p>}
             {resetSiteNameError && <p className="text-error mt-2">重置站点名失败: {resetSiteNameError}</p>}
+            {resetQuotaError && <p className="text-error mt-2">重置次数失败: {resetQuotaError}</p>}
           </div>
         </div>
       )}

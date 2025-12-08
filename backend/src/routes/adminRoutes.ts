@@ -1,5 +1,13 @@
 import { Router } from "express";
-import { adminCreateUser, adminDeleteUser, adminResetSiteName, adminUpdatePassword, adminUpdateRole, listUsers } from "../controllers/userController";
+import {
+  adminCreateUser,
+  adminDeleteUser,
+  adminResetBuildQuota,
+  adminResetSiteName,
+  adminUpdatePassword,
+  adminUpdateRole,
+  listUsers,
+} from "../controllers/userController";
 import { removeTemplate, renameUploadedTemplate, uploadTemplate } from "../controllers/uploadController";
 import { authenticate, requireAdmin } from "../middleware/auth";
 import { templateUploadHandler } from "../middleware/upload";
@@ -14,6 +22,7 @@ router.delete("/deleteUser/:id", adminDeleteUser);
 router.patch("/changePwd", adminUpdatePassword);
 router.patch("/changeRole", adminUpdateRole);
 router.patch("/resetSiteName", adminResetSiteName);
+router.patch("/resetBuildQuota", adminResetBuildQuota);
 router.post("/upload-template", templateUploadHandler, uploadTemplate);
 router.delete("/upload-template/:filename", removeTemplate);
 router.patch("/upload-template/:filename", renameUploadedTemplate);

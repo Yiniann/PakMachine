@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE `User` ADD COLUMN `buildQuotaDate` DATETIME(3) NULL,
+    ADD COLUMN `buildQuotaUsed` INTEGER NOT NULL DEFAULT 0;

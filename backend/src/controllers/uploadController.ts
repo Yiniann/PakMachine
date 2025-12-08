@@ -61,16 +61,46 @@ export const buildTemplatePackage = async (req: Request, res: Response, next: Ne
     if (!user?.sub) {
       return res.status(401).json({ error: "Unauthorized" });
     }
-    const job = await prisma.buildJob.create({
-      data: {
-        userId: Number(user.sub),
-        filename,
-        envJson: envContent,
-        status: "pending",
-      },
+
+    const job = await prisma.$transaction(async (tx) => {
+      const dbUser: any = await tx.user.findUnique({
+        where: { id: Number(user.sub) },
+      });
+      if (!dbUser) {
+        throw new Error("User not found");
+      }
+
+      const now = new Date();
+      const isSameDay = dbUser.buildQuotaDate && new Date(dbUser.buildQuotaDate).toDateString() === now.toDateString();
+      const used = isSameDay ? dbUser.buildQuotaUsed || 0 : 0;
+      if (used >= 2) {
+        throw Object.assign(new Error("今日构建次数已用完（每日最多 2 次）"), { statusCode: 429, quotaLeft: 0, quotaUsed: used });
+      }
+
+      await tx.user.update({
+        where: { id: Number(user.sub) },
+        data: { buildQuotaUsed: used + 1, buildQuotaDate: now } as any,
+      });
+
+      return tx.buildJob.create({
+        data: {
+          userId: Number(user.sub),
+          filename,
+          envJson: envContent,
+          status: "pending",
+        },
+      });
     });
     res.json({ message: "已加入构建队列", jobId: job.id });
   } catch (err) {
+    // surfacing custom quota error
+    if ((err as any)?.statusCode === 429) {
+      return res.status(429).json({
+        error: (err as Error).message,
+        quotaLeft: (err as any).quotaLeft ?? 0,
+        quotaUsed: (err as any).quotaUsed ?? 2,
+      });
+    }
     next(err);
   }
 };
@@ -195,6 +225,7 @@ export const listUserBuildJobs = async (req: Request, res: Response, next: NextF
       orderBy: { id: "desc" },
       take: Math.min(limit, 20),
     });
+
     res.json(
       jobs.map((j) => ({
         id: j.id,

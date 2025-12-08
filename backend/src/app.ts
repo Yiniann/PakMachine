@@ -17,6 +17,7 @@ app.use(
       "http://localhost:5176",
     ],
     credentials: true,
+    exposedHeaders: ["x-build-quota-used", "x-build-quota-left"],
   }),
 );
 app.use(express.json());

@@ -8,6 +8,8 @@ export interface User {
   createdAt: string;
   updatedAt: string;
   siteName?: string | null;
+  buildQuotaUsed?: number | null;
+  buildQuotaDate?: string | null;
 }
 
 export const useUsersQuery = (): UseQueryResult<User[], unknown> =>

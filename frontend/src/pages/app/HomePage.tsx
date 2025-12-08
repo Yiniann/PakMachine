@@ -2,6 +2,8 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useSiteName, useSetSiteName } from "../../features/uploads/siteName";
 import { useBuildJob, useBuildJobs } from "../../features/uploads/jobs";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useAuth } from "../../components/useAuth";
+import api from "../../api/client";
 
 const HomePage = () => {
   const siteNameQuery = useSiteName();
@@ -9,13 +11,22 @@ const HomePage = () => {
   const jobsQuery = useBuildJobs();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { token } = useAuth();
+  const [quotaLeft, setQuotaLeft] = useState<number | null>(null);
+  const [cachedSiteName, setCachedSiteName] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [message, setMessage] = useState<string | null>(null);
 
   const siteName = siteNameQuery.data?.siteName || null;
+  const loadingSiteName = siteNameQuery.isPending; // 只在首个请求未返回时认为 loading，避免阻塞展示
+  const fetchedSiteName = siteNameQuery.isSuccess || siteNameQuery.isError;
+  const displaySiteName = cachedSiteName || siteName;
   const jobIdParam = searchParams.get("jobId");
   const jobId = jobIdParam ? Number(jobIdParam) : undefined;
   const activeJobQuery = useBuildJob(jobId);
+  const derivedActiveJob =
+    jobsQuery.data?.find((j) => j.status === "pending" || j.status === "running") ?? null;
+  const hasActiveJob = Boolean(jobId) || Boolean(derivedActiveJob);
 
   const activeJobStatusLabel = useMemo(() => {
     if (!activeJobQuery.data) return null;
@@ -35,12 +46,31 @@ const HomePage = () => {
       {
         onSuccess: (data) => {
           setMessage(`站点名称已设置为：${data.siteName}`);
+          setCachedSiteName(data.siteName);
           siteNameQuery.refetch();
         },
         onError: (err: any) => setMessage(err?.response?.data?.error || "设置失败"),
       },
     );
   };
+
+  useEffect(() => {
+    if (!token) return;
+    api
+      .get("/build/quota")
+      .then((res) => {
+        const data = res.data as { left?: number; used?: number; limit?: number };
+        if (typeof data.left === "number") setQuotaLeft(data.left);
+        else if (typeof data.used === "number" && typeof data.limit === "number") setQuotaLeft(Math.max(data.limit - data.used, 0));
+      })
+      .catch(() => setQuotaLeft(null));
+  }, [token]);
+
+  useEffect(() => {
+    if (siteName) {
+      setCachedSiteName(siteName);
+    }
+  }, [siteName]);
 
   useEffect(() => {
     if (!jobId) return;
@@ -61,55 +91,74 @@ const HomePage = () => {
   return (
     <div className="space-y-4">
       <div className="card bg-base-100 shadow-xl">
-        <div className="card-body space-y-3">
-          <h2 className="card-title">主题打包机</h2>
-          <p className="text-base-content/70">
-            欢迎使用主题打包机！这是一个帮助您轻松打包和管理网站主题的工具。请首先设置您的站点名称，以便我们为您提供个性化的服务。
-          </p>
+        <div className="card-body space-y-4">
+          <div className="flex flex-col gap-2">
+            <h2 className="card-title">主题打包机</h2>
+            <p className="text-base-content/70">
+              设置站点名，提交打包，完成后在“构建下载”获取仅与你账号绑定的产物。
+            </p>
+          </div>
 
-          {siteNameQuery.isLoading && <p>加载站点名称...</p>}
-          {siteName ? (
-            <>
-              <div className="alert flex flex-col sm:flex-row sm:items-center gap-2">
+          {loadingSiteName && !displaySiteName && <p>加载站点名称...</p>}
+
+          {(displaySiteName || hasActiveJob) ? (
+            <div className="bg-base-200/60 rounded-box p-4 space-y-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <span className="font-semibold">站点名称</span>
-                <span className="badge badge-lg badge-outline">{siteName}</span>
+                <span className="badge badge-lg badge-outline">{displaySiteName || "已设置"}</span>
+                 <span className="text-xs text-base-content/60">如需更改站点名请联系管理员</span>
               </div>
-              <p className="text-xs text-base-content/70">如需更改站点名请联系管理员</p>
-            </>
+              <div className="flex flex-wrap items-center gap-3 text-sm text-base-content/70">
+                {quotaLeft !== null && (
+                  <div className="flex items-center gap-1">
+                    <span className="font-semibold">今日剩余</span>
+                    <span className="badge badge-outline">{quotaLeft} / 2</span>
+                    <span className="text-xs text-base-content/60">打包次数每日刷新</span>
+                  </div>
+                )}
+              </div>
+            </div>
           ) : (
-            <div className="space-y-2">
+            <div className="bg-base-200/60 rounded-box p-4 space-y-3">
               <div className="alert">
                 <span>在前端构建前输入你的站点名，用于打包后主题的站点名称和标题，后续无法修改。如需更改请联系管理员。</span>
               </div>
-              <form onSubmit={onSubmit} className="flex flex-col sm:flex-row gap-2 items-start">
-                <input
-                  className="input input-bordered w-full sm:w-auto flex-1"
-                  placeholder="站点名称"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  disabled={setSiteNameMutation.status === "pending"}
-                />
-                <button className="btn btn-primary" type="submit" disabled={!input.trim() || setSiteNameMutation.status === "pending"}>
-                  {setSiteNameMutation.status === "pending" ? "提交中..." : "设置"}
-                </button>
-              </form>
-               <p className="text-sm text-base-content/70">
-                确认无误后提交，一旦保存不可修改。
-              </p>
+              {fetchedSiteName && (
+                <>
+                  <form onSubmit={onSubmit} className="flex flex-col sm:flex-row gap-2 items-start">
+                    <input
+                      className="input input-bordered w-full sm:w-auto flex-1"
+                      placeholder="站点名称"
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      disabled={setSiteNameMutation.status === "pending"}
+                    />
+                    <button className="btn btn-primary" type="submit" disabled={!input.trim() || setSiteNameMutation.status === "pending"}>
+                      {setSiteNameMutation.status === "pending" ? "提交中..." : "设置"}
+                    </button>
+                  </form>
+                  <p className="text-sm text-base-content/70">确认无误后提交，一旦保存不可修改。</p>
+                </>
+              )}
             </div>
           )}
           {message && <p className="text-info">{message}</p>}
         </div>
       </div>
 
-      {jobId && (
+      {(jobId || derivedActiveJob) && (
         <div className="alert bg-base-100 flex flex-col sm:flex-row sm:items-center gap-2">
-          <span>当前构建任务 ID：{jobId}</span>
-          <span className="badge badge-outline">{activeJobStatusLabel ?? "获取状态中..."}</span>
+          <span>
+            当前构建任务 ID：{jobId ?? derivedActiveJob?.id ?? "获取中"}
+          </span>
+          <span className="badge badge-outline">
+            {activeJobStatusLabel ??
+              (derivedActiveJob ? (derivedActiveJob.status === "pending" ? "等待中" : "构建中") : "获取状态中...")}
+          </span>
           {activeJobQuery.data?.status === "failed" && (
             <span className="text-error text-sm">{activeJobQuery.data.message || "构建失败"}</span>
           )}
-          {activeJobQuery.isFetching && <span className="loading loading-spinner loading-xs" />}
+          {(activeJobQuery.isFetching || jobsQuery.isFetching) && <span className="loading loading-spinner loading-xs" />}
         </div>
       )}
 

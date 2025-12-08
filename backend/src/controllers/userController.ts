@@ -138,6 +138,26 @@ export const adminUpdatePassword = async (req: Request, res: Response, next: Nex
   }
 };
 
+export const adminResetBuildQuota = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { email } = req.body ?? {};
+    if (!email) {
+      return res.status(400).json({ error: "Email is required" });
+    }
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    await prisma.user.update({
+      where: { email },
+      data: { buildQuotaUsed: 0, buildQuotaDate: null } as any,
+    });
+    res.json({ message: "构建次数已重置" });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const register = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { email, password } = req.body;
