@@ -59,6 +59,12 @@ const LoginPage = () => {
           <Link className="link" to="/auth/forgot">
             忘记密码？
           </Link>
+          <div className="flex items-center gap-1">
+            <span>还没有账号？</span>
+            <Link className="link link-primary" to="/auth/register">
+              立刻注册
+            </Link>
+          </div>
         </div>
         {message && <p className="text-info mt-2">{message}</p>}
       </div>

@@ -1,14 +1,17 @@
 import { Link, Outlet } from "react-router-dom";
 import { useAuth } from "../components/useAuth";
+import { usePublicSettings } from "../features/settings/publicSettings";
 
 const AuthLayout = () => {
   const { token, logout } = useAuth();
+  const publicSettings = usePublicSettings();
+  const siteTitle = publicSettings.data?.siteName || "PacMachine";
   return (
     <div data-theme="light" className="min-h-screen bg-base-200">
       <div className="navbar bg-base-100 shadow">
         <div className="navbar-start">
           <Link to="/" className="btn btn-ghost text-xl">
-            PacMachine Auth
+            {siteTitle}
           </Link>
         </div>
         <div className="navbar-end gap-2">

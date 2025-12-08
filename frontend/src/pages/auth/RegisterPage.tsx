@@ -1,4 +1,5 @@
 import { FormEvent, useState } from "react";
+import { Link } from "react-router-dom";
 import { useRegisterMutation } from "../../features/auth/mutations";
 
 const RegisterPage = () => {
@@ -42,6 +43,12 @@ const RegisterPage = () => {
             {mutation.status === "pending" ? "注册中..." : "注册"}
           </button>
         </form>
+        <div className="text-sm flex items-center justify-center gap-2 mt-2">
+          <span>已有账号？</span>
+          <Link className="link link-primary" to="/auth/login">
+            立刻登录
+          </Link>
+        </div>
         {message && <p className="text-info mt-2">{message}</p>}
       </div>
     </div>
