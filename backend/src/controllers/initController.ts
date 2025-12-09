@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { loadSettings, saveSettings, isInitialized, SystemSettings } from "./systemSettingsController";
 import fs from "fs";
 import path from "path";
+import { startBuildWorker } from "../services/buildWorker";
 
 export const checkInitialized = (_req: Request, res: Response, next: NextFunction) => {
   try {
@@ -61,7 +62,6 @@ export const initializeSystem = async (req: Request, res: Response, next: NextFu
         email,
         password: hashed,
         role: "admin",
-        siteName: siteName || null,
       },
     });
 
@@ -73,6 +73,9 @@ export const initializeSystem = async (req: Request, res: Response, next: NextFu
       initialized: true,
     };
     saveSettings(merged);
+
+    // 初始化完成后再启动后台构建轮询
+    startBuildWorker();
 
     res.json({ success: true, adminId: user.id });
   } catch (err) {

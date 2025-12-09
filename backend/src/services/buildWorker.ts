@@ -2,8 +2,12 @@ import prisma from "../lib/prisma";
 import { buildTemplate } from "./buildService";
 
 let working = false;
+let started = false;
 
 export const startBuildWorker = (intervalMs = 2000) => {
+  if (started) return;
+  started = true;
+
   setInterval(async () => {
     if (working) return;
     working = true;

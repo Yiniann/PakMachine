@@ -1,7 +1,7 @@
 import axios from "axios";
 
-// Directly hit backend; override via VITE_API_BASE if needed.
-const baseURL = (import.meta as any).env?.VITE_API_BASE || "http://localhost:3000";
+const isDev = (import.meta as any).env?.DEV;
+const baseURL = isDev ? "http://localhost:3000" : (import.meta as any).env?.VITE_API_BASE;
 
 const api = axios.create({ baseURL });
 
