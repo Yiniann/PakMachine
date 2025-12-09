@@ -1,0 +1,80 @@
+name: Build Template
+
+on:
+  workflow_dispatch:
+    inputs:
+      jobId:
+        description: "Backend job id"
+        required: true
+        type: string
+      envJson:
+        description: "Env content as string"
+        required: true
+        type: string
+      workdir:
+        description: "Optional subdirectory"
+        required: false
+        type: string
+
+env:
+  BACKEND_WEBHOOK_URL: ${{ vars.BACKEND_WEBHOOK_URL || 'https://pac.xiamii.com/webhooks/github' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set workdir
+        run: echo "WORKDIR=${{ github.event.inputs.workdir || '.' }}" >> $GITHUB_ENV
+
+      - name: Write .env
+        run: |
+          cd "$WORKDIR"
+          printf '%s' "${{ github.event.inputs.envJson }}" > .env
+
+      - name: Install & build
+        run: |
+          cd "$WORKDIR"
+          npm ci || npm install
+          npm run build
+
+      - name: Package artifact
+        run: |
+          cd "$WORKDIR"
+          if [ -d dist ]; then target=dist; elif [ -d build ]; then target=build; else echo "No dist/build directory"; exit 1; fi
+          zip -r artifact.zip "$target"
+
+      - name: Notify running
+        run: |
+          body='{"jobId":"${{ github.event.inputs.jobId }}","status":"running","message":"GitHub Actions 构建中"}'
+          sig="sha256=$(echo -n "$body" | openssl dgst -sha256 -hmac "${{ secrets.ACTION_WEBHOOK_SECRET }}" | cut -d' ' -f2)"
+          curl -s -X POST -H "Content-Type: application/json" -H "X-Hub-Signature-256: $sig" \
+            -d "$body" "$BACKEND_WEBHOOK_URL"
+
+      - name: Upload artifact (GitHub-hosted)
+        uses: actions/upload-artifact@v4
+        with:
+          name: built-asset
+          path: ${{ env.WORKDIR }}/artifact.zip
+
+      - name: Notify success
+        run: |
+          # TODO: 将 artifactUrl 换成你可访问的下载链接；如果使用 upload-artifact，需要你额外生成公开下载地址。
+          artifactUrl=""
+          body='{"jobId":"${{ github.event.inputs.jobId }}","status":"success","message":"构建完成","artifactUrl":"'"$artifactUrl"'","artifactFilename":"artifact.zip"}'
+          sig="sha256=$(echo -n "$body" | openssl dgst -sha256 -hmac "${{ secrets.ACTION_WEBHOOK_SECRET }}" | cut -d' ' -f2)"
+          curl -s -X POST -H "Content-Type: application/json" -H "X-Hub-Signature-256: $sig" \
+            -d "$body" "$BACKEND_WEBHOOK_URL"
+
+      - name: Notify failure
+        if: failure()
+        run: |
+          body='{"jobId":"${{ github.event.inputs.jobId }}","status":"failed","message":"GitHub Actions 构建失败"}'
+          sig="sha256=$(echo -n "$body" | openssl dgst -sha256 -hmac "${{ secrets.ACTION_WEBHOOK_SECRET }}" | cut -d' ' -f2)"
+          curl -s -X POST -H "Content-Type: application/json" -H "X-Hub-Signature-256: $sig" \
+            -d "$body" "$BACKEND_WEBHOOK_URL"

@@ -5,6 +5,10 @@ import { Request, Response, NextFunction } from "express";
 export type SystemSettings = {
   siteName?: string;
   allowRegister?: boolean;
+  actionDispatchToken?: string;
+  actionWebhookSecret?: string;
+  workflowFile?: string;
+  initialized?: boolean;
 };
 
 const settingsPath = path.join(__dirname, "../../config/system-settings.json");
@@ -18,10 +22,15 @@ export const loadSettings = (): SystemSettings => {
   }
 };
 
-const saveSettings = (settings: SystemSettings) => {
+export const saveSettings = (settings: SystemSettings) => {
   const dir = path.dirname(settingsPath);
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2), "utf8");
+};
+
+export const isInitialized = () => {
+  const settings = loadSettings();
+  return Boolean(settings.initialized);
 };
 
 export const getSystemSettings = (_req: Request, res: Response, next: NextFunction) => {

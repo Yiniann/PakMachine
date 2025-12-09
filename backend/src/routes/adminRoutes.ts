@@ -9,7 +9,14 @@ import {
   listUsers,
 } from "../controllers/userController";
 import { getSystemSettings, updateSystemSettings } from "../controllers/systemSettingsController";
-import { removeTemplate, renameUploadedTemplate, uploadTemplate } from "../controllers/buildController";
+import {
+  createGithubTemplateEntry,
+  listGithubTemplateEntries,
+  removeGithubTemplateEntry,
+  removeTemplate,
+  renameUploadedTemplate,
+  uploadTemplate,
+} from "../controllers/buildController";
 import { authenticate, requireAdmin } from "../middleware/auth";
 import { templateUploadHandler } from "../middleware/upload";
 import { UploadError } from "../services/uploadService";
@@ -29,6 +36,9 @@ router.put("/settings", updateSystemSettings);
 router.post("/upload-template", templateUploadHandler, uploadTemplate);
 router.delete("/upload-template/:filename", removeTemplate);
 router.patch("/upload-template/:filename", renameUploadedTemplate);
+router.get("/github-templates", listGithubTemplateEntries);
+router.post("/github-templates", createGithubTemplateEntry);
+router.delete("/github-templates/:name", removeGithubTemplateEntry);
 
 // Local error handler to surface service errors as 400s.
 router.use((err: unknown, _req: import("express").Request, res: import("express").Response, next: import("express").NextFunction) => {
