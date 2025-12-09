@@ -10,6 +10,7 @@ export type InitPayload = {
   password: string;
   siteName?: string;
   allowRegister?: boolean;
+  databaseUrl?: string;
 };
 
 export const useInitStatus = (): UseQueryResult<InitStatus> =>
@@ -26,6 +27,14 @@ export const useInitializeSystem = (): UseMutationResult<any, unknown, InitPaylo
   useMutation({
     mutationFn: async (payload) => {
       const res = await api.post("/init", payload);
+      return res.data;
+    },
+  });
+
+export const useSaveDatabaseUrl = (): UseMutationResult<{ success: boolean; needRestart?: boolean }, unknown, { databaseUrl: string }, unknown> =>
+  useMutation({
+    mutationFn: async (payload) => {
+      const res = await api.post("/init/database", payload);
       return res.data;
     },
   });

@@ -1,7 +1,6 @@
-import { PrismaClient } from "@prisma/client";
+import prisma from "../lib/prisma";
 import { buildTemplate } from "./buildService";
 
-const prisma = new PrismaClient();
 let working = false;
 
 export const startBuildWorker = (intervalMs = 2000) => {
