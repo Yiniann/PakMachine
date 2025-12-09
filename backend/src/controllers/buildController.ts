@@ -1,5 +1,15 @@
 import { Request, Response, NextFunction } from "express";
-import { deleteTemplate, handleTemplateUpload, listTemplates, renameTemplate } from "../services/uploadService";
+import {
+  createGithubTemplate,
+  deleteGithubTemplate,
+  deleteTemplate,
+  getTemplateEntry,
+  handleTemplateUpload,
+  listGithubTemplates,
+  listTemplates,
+  renameTemplate,
+} from "../services/uploadService";
+import { dispatchGithubWorkflow } from "../services/githubWorkflowService";
 import prisma from "../lib/prisma";
 import fs from "fs";
 import path from "path";
@@ -16,10 +26,14 @@ export const uploadTemplate = async (req: Request, res: Response, next: NextFunc
 export const listUploadedTemplates = async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const templates = listTemplates();
-    const simplified = templates.map(({ filename, modifiedAt, description }) => ({
+    const simplified = templates.map(({ filename, modifiedAt, description, type, repo, branch, workdir }) => ({
       filename,
       modifiedAt,
       description,
+      type,
+      repo,
+      branch,
+      workdir,
     }));
     res.json(simplified);
   } catch (err) {
@@ -31,6 +45,41 @@ export const removeTemplate = async (req: Request, res: Response, next: NextFunc
   try {
     const { filename } = req.params;
     deleteTemplate(filename);
+    res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const listGithubTemplateEntries = async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const data = listGithubTemplates();
+    res.json(data);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const createGithubTemplateEntry = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { name, repo, branch, workdir, description } = req.body ?? {};
+    if (!name || !repo) {
+      return res.status(400).json({ error: "缺少 name 或 repo" });
+    }
+    createGithubTemplate({ name, repo, branch, workdir, description });
+    res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const removeGithubTemplateEntry = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { name } = req.params;
+    if (!name) {
+      return res.status(400).json({ error: "缺少 name" });
+    }
+    deleteGithubTemplate(name);
     res.json({ success: true });
   } catch (err) {
     next(err);
@@ -57,6 +106,11 @@ export const buildTemplatePackage = async (req: Request, res: Response, next: Ne
     if (!filename || !envContent) {
       return res.status(400).json({ error: "缺少 filename 或 envContent" });
     }
+    const template = getTemplateEntry(filename);
+    if (!template) {
+      return res.status(404).json({ error: "模板不存在" });
+    }
+
     const user = (req as any).user;
     if (!user?.sub) {
       return res.status(401).json({ error: "Unauthorized" });
@@ -87,10 +141,29 @@ export const buildTemplatePackage = async (req: Request, res: Response, next: Ne
           userId: Number(user.sub),
           filename,
           envJson: envContent,
-          status: "pending",
+          status: template.type === "github" ? "queued" : "pending",
+          message: template.type === "github" ? "已提交到 GitHub Actions" : null,
         },
       });
     });
+
+    if (template.type === "github") {
+      try {
+        await dispatchGithubWorkflow(template, job.id, envContent);
+        await prisma.buildJob.update({
+          where: { id: job.id },
+          data: { status: "running", message: "GitHub Actions 处理中..." },
+        });
+        return res.json({ message: "已提交到 GitHub Actions", jobId: job.id, type: template.type });
+      } catch (err: any) {
+        await prisma.buildJob.update({
+          where: { id: job.id },
+          data: { status: "failed", message: err?.message || "GitHub Actions 触发失败" },
+        });
+        throw err;
+      }
+    }
+
     res.json({ message: "已加入构建队列", jobId: job.id });
   } catch (err) {
     // surfacing custom quota error

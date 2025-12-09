@@ -4,6 +4,9 @@ import api from "../../api/client";
 export type SystemSettings = {
   siteName?: string;
   allowRegister?: boolean;
+  actionDispatchToken?: string;
+  actionWebhookSecret?: string;
+  workflowFile?: string;
 };
 
 export const useSystemSettings = (): UseQueryResult<SystemSettings> =>

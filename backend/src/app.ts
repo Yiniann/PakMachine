@@ -1,6 +1,7 @@
 import express, { NextFunction, Request, Response } from "express";
 import cors from "cors";
 import routes from "./routes";
+import webhookRoutes from "./routes/webhookRoutes";
 import path from "path";
 import { uploadBaseDir } from "./middleware/upload";
 import { startBuildWorker } from "./services/buildWorker";
@@ -20,8 +21,15 @@ app.use(
     exposedHeaders: ["x-build-quota-used", "x-build-quota-left"],
   }),
 );
-app.use(express.json());
+app.use(
+  express.json({
+    verify: (req, _res, buf) => {
+      (req as any).rawBody = buf;
+    },
+  }),
+);
 app.use("/uploads/templates", express.static(uploadsTemplates));
+app.use("/webhooks", webhookRoutes);
 app.use(routes);
 startBuildWorker();
 
