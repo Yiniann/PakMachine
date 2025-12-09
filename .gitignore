@@ -19,3 +19,4 @@ build/
 # Uploads
 /uploads/
 backend/config/system-settings.json
+backend/.env

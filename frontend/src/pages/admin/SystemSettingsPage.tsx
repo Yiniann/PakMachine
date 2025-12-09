@@ -44,7 +44,7 @@ const SystemSettingsPage = () => {
           {!settingsQuery.isLoading && (
             <form className="space-y-4" onSubmit={onSubmit}>
               <label className="form-control">
-                <span className="label-text">站点名称</span>
+                <span className="label-text">平台名称（用于展示，与用户构建站点名无关）</span>
                 <input
                   className="input input-bordered"
                   value={siteName}

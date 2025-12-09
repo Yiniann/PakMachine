@@ -1,4 +1,8 @@
 {
-  "allowRegister": false,
-  "siteName": "Packer"
+  "allowRegister": true,
+  "siteName": "",
+  "initialized": true,
+  "actionDispatchToken": "",
+  "actionWebhookSecret": "",
+  "workflowFile": "build.yml"
 }
