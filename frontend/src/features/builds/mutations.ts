@@ -1,6 +1,5 @@
 import { useMutation, UseMutationResult } from "@tanstack/react-query";
 import api from "../../api/client";
-import { TemplateFile } from "./queries";
 import { useQueryClient } from "@tanstack/react-query";
 
 type UploadResponse = {

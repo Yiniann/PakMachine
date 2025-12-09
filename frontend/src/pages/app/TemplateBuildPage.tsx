@@ -42,6 +42,11 @@ const TemplateBuildPage = () => {
     return true;
   }, [selected, siteName, enableIdhub, idhubApiUrl, idhubApiKey, allowedOriginsError, allowedClientOrigins]);
 
+  const selectedTemplate = useMemo(
+    () => templates.data?.find((item) => item.filename === selected),
+    [selected, templates.data],
+  );
+
   const buildEnvContent = () => {
     const lines = [
       `VITE_SITE_NAME=${siteName.trim()}`,
@@ -135,6 +140,7 @@ const TemplateBuildPage = () => {
                   <tr>
                     <th></th>
                     <th>文件名</th>
+                    <th>描述</th>
                     <th>更新时间</th>
                   </tr>
                 </thead>
@@ -151,11 +157,21 @@ const TemplateBuildPage = () => {
                         />
                       </td>
                       <td className="whitespace-pre-wrap break-all">{item.filename}</td>
+                      <td className="max-w-xs whitespace-pre-wrap break-words text-sm text-base-content/80">{item.description || "-"}</td>
                       <td>{item.modifiedAt ? new Date(item.modifiedAt).toLocaleString() : "-"}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+          {selectedTemplate && (
+            <div className="alert alert-info">
+              <span className="font-semibold">当前选择：</span>
+              <div className="flex flex-col">
+                <span className="font-mono text-sm break-all">{selectedTemplate.filename}</span>
+                <span className="text-sm text-base-content/80">{selectedTemplate.description || "暂无描述"}</span>
+              </div>
             </div>
           )}
         </div>

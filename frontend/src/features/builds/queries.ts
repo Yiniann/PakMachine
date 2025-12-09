@@ -4,6 +4,7 @@ import api from "../../api/client";
 export type TemplateFile = {
   filename: string;
   modifiedAt?: string;
+  description?: string;
 };
 
 export const useTemplateFiles = (): UseQueryResult<TemplateFile[]> =>

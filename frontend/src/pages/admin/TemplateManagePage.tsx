@@ -8,6 +8,7 @@ const TemplateManagePage = () => {
   const [file, setFile] = useState<File | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [description, setDescription] = useState("");
   const [renameTarget, setRenameTarget] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
@@ -34,10 +35,14 @@ const TemplateManagePage = () => {
     }
     const form = new FormData();
     form.append("file", file);
+    if (description.trim()) {
+      form.append("description", description.trim());
+    }
     mutation.mutate(form, {
       onSuccess: (data) => {
         setMessage(`上传成功：${data.originalName || data.filename} (${(data.size / 1024 / 1024).toFixed(1)} MB)`);
         setFile(null);
+        setDescription("");
         if (inputRef.current) inputRef.current.value = "";
         templates.refetch();
       },
@@ -60,6 +65,16 @@ const TemplateManagePage = () => {
                 ref={inputRef}
                 onChange={(e) => setFile(e.target.files?.[0] || null)}
               />
+              <label className="form-control">
+                <span className="label-text">模板描述（可选）</span>
+                <textarea
+                  className="textarea textarea-bordered"
+                  placeholder="用一句话说明这个模板的用途或特点"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows={2}
+                />
+              </label>
               {file && (
                 <div className="text-sm text-base-content/70">
                   选择了：{file.name}（{(file.size / 1024 / 1024).toFixed(1)} MB）
@@ -91,6 +106,7 @@ const TemplateManagePage = () => {
                   <thead>
                     <tr>
                       <th>文件名</th>
+                      <th>描述</th>
                       <th>修改时间</th>
                       <th>操作</th>
                     </tr>
@@ -99,6 +115,7 @@ const TemplateManagePage = () => {
                     {templates.data.map((item) => (
                       <tr key={item.filename}>
                         <td className="whitespace-pre-wrap break-all">{item.filename}</td>
+                        <td className="max-w-xs whitespace-pre-wrap break-words text-sm text-base-content/80">{item.description || "-"}</td>
                         <td>{item.modifiedAt ? new Date(item.modifiedAt).toLocaleString() : "-"}</td>
                         <td className="space-y-2">
                           <div className="flex flex-wrap gap-2 items-center">

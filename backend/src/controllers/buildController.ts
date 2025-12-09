@@ -6,7 +6,7 @@ import path from "path";
 
 export const uploadTemplate = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const payload = handleTemplateUpload(req.file);
+    const payload = handleTemplateUpload(req.file, (req.body as any)?.description);
     res.json(payload);
   } catch (err) {
     next(err);
@@ -16,9 +16,10 @@ export const uploadTemplate = async (req: Request, res: Response, next: NextFunc
 export const listUploadedTemplates = async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const templates = listTemplates();
-    const simplified = templates.map(({ filename, modifiedAt }) => ({
+    const simplified = templates.map(({ filename, modifiedAt, description }) => ({
       filename,
       modifiedAt,
+      description,
     }));
     res.json(simplified);
   } catch (err) {
