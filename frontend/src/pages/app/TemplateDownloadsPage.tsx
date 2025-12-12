@@ -1,16 +1,27 @@
-import { useArtifacts } from "../../features/builds/artifacts";
+import { Artifact, useArtifacts } from "../../features/builds/artifacts";
 import api from "../../api/client";
 
 const TemplateDownloadsPage = () => {
   const artifacts = useArtifacts();
 
-  const onDownload = async (id: number, filename: string) => {
+  const onDownload = async (item: Artifact) => {
     try {
-      const res = await api.get(`/build/download/${id}`, { responseType: "blob" });
+      const remote = item.outputPath && /^https?:\/\//i.test(item.outputPath);
+      if (remote) {
+        // 直接跳转远程链接（R2）
+        const a = document.createElement("a");
+        a.href = item.outputPath!;
+        a.target = "_blank";
+        a.rel = "noopener";
+        a.click();
+        return;
+      }
+
+      const res = await api.get(`/build/download/${item.id}`, { responseType: "blob" });
       const blobUrl = window.URL.createObjectURL(new Blob([res.data]));
       const a = document.createElement("a");
       a.href = blobUrl;
-      a.download = filename;
+      a.download = item.sourceFilename;
       a.click();
       window.URL.revokeObjectURL(blobUrl);
     } catch (err: any) {
@@ -53,7 +64,7 @@ const TemplateDownloadsPage = () => {
                     <td className="whitespace-pre-wrap break-all">{item.sourceFilename}</td>
                     <td>{new Date(item.createdAt).toLocaleString()}</td>
                     <td>
-                      <button className="btn btn-sm" onClick={() => onDownload(item.id, item.sourceFilename)}>
+                      <button className="btn btn-sm" onClick={() => onDownload(item)}>
                         下载
                       </button>
                     </td>

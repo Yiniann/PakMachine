@@ -118,13 +118,29 @@ export const initializeSystem = async (req: Request, res: Response, next: NextFu
     }
     const hashed = await bcrypt.hash(password, 10);
 
-    const user = await prisma.user.create({
-      data: {
-        email,
-        password: hashed,
-        role: "admin",
-      },
-    });
+    // 如果管理员已存在则复用，避免重复创建导致唯一约束报错
+    let user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      try {
+        user = await prisma.user.create({
+          data: {
+            email,
+            password: hashed,
+            role: "admin",
+          },
+        });
+      } catch (err: any) {
+        // 处理并发/重复初始化导致的唯一约束报错，回退到查询已有用户
+        if (err?.code === "P2002") {
+          user = await prisma.user.findUnique({ where: { email } });
+        } else {
+          throw err;
+        }
+      }
+    }
+    if (!user) {
+      throw new Error("创建管理员失败");
+    }
 
     const current = loadSettings();
     const merged: SystemSettings = {

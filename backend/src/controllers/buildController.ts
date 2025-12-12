@@ -15,6 +15,7 @@ import fs from "fs";
 import path from "path";
 import { Readable } from "stream";
 import { URL } from "url";
+import { normalizeArtifactUrl } from "../lib/artifactUrl";
 
 export const uploadTemplate = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -232,16 +233,17 @@ export const downloadBuildArtifact = async (req: Request, res: Response, next: N
       return res.status(403).json({ error: "无权下载" });
     }
 
-    const isRemote = /^https?:\/\//i.test(artifact.outputPath);
-    if (isRemote) {
-      const remote = await fetch(artifact.outputPath);
+    const remoteUrl = normalizeArtifactUrl(artifact.outputPath);
+    const isRemote = remoteUrl ? /^https?:\/\//i.test(remoteUrl) : false;
+    if (isRemote && remoteUrl) {
+      const remote = await fetch(remoteUrl);
       if (!remote.ok || !remote.body) {
         return res.status(404).json({ error: "远程文件不可用" });
       }
 
       let filename = artifact.sourceFilename;
       try {
-        const u = new URL(artifact.outputPath);
+        const u = new URL(remoteUrl);
         filename = path.basename(u.pathname) || filename;
       } catch {
         // fallback to stored sourceFilename
@@ -307,6 +309,7 @@ export const listUserArtifacts = async (req: Request, res: Response, next: NextF
     const data = artifacts.map((a) => ({
       id: a.id,
       sourceFilename: a.sourceFilename,
+      outputPath: a.outputPath,
       createdAt: a.createdAt,
     }));
     res.json(data);
