@@ -1,7 +1,7 @@
 generator client {
   provider = "prisma-client-js"
-  // Include linux engine so Prisma Client works on debian hosts deployed with mac-built artifacts
-  binaryTargets = ["native", "debian-openssl-3.0.x"]
+  // Include linux engines so Prisma Client works on Debian/Ubuntu hosts even if built on mac
+  binaryTargets = ["native", "debian-openssl-3.0.x", "debian-openssl-1.1.x"]
 }
 
 datasource db {

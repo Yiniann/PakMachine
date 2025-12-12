@@ -13,6 +13,8 @@ import { dispatchGithubWorkflow } from "../services/githubWorkflowService";
 import prisma from "../lib/prisma";
 import fs from "fs";
 import path from "path";
+import { Readable } from "stream";
+import { URL } from "url";
 
 export const uploadTemplate = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -229,6 +231,33 @@ export const downloadBuildArtifact = async (req: Request, res: Response, next: N
     if (artifact.userId !== Number(user.sub)) {
       return res.status(403).json({ error: "无权下载" });
     }
+
+    const isRemote = /^https?:\/\//i.test(artifact.outputPath);
+    if (isRemote) {
+      const remote = await fetch(artifact.outputPath);
+      if (!remote.ok || !remote.body) {
+        return res.status(404).json({ error: "远程文件不可用" });
+      }
+
+      let filename = artifact.sourceFilename;
+      try {
+        const u = new URL(artifact.outputPath);
+        filename = path.basename(u.pathname) || filename;
+      } catch {
+        // fallback to stored sourceFilename
+      }
+
+      res.setHeader("Content-Type", remote.headers.get("content-type") || "application/octet-stream");
+      const len = remote.headers.get("content-length");
+      if (len) {
+        res.setHeader("Content-Length", len);
+      }
+      const dispositionName = encodeURIComponent(filename || "download");
+      res.setHeader("Content-Disposition", `attachment; filename*=UTF-8''${dispositionName}`);
+
+      return Readable.fromWeb(remote.body as any).pipe(res);
+    }
+
     if (!fs.existsSync(artifact.outputPath)) {
       return res.status(404).json({ error: "文件已不存在" });
     }
