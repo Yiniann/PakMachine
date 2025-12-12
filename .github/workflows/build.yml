@@ -18,6 +18,11 @@ on:
 
 env:
   BACKEND_WEBHOOK_URL: ${{ vars.BACKEND_WEBHOOK_URL || 'https://pac.xiamii.com/webhooks/github' }}
+  CF_R2_ACCOUNT_ID: ${{ secrets.CF_R2_ACCOUNT_ID || '' }}
+  CF_R2_ACCESS_KEY_ID: ${{ secrets.CF_R2_ACCESS_KEY_ID || '' }}
+  CF_R2_SECRET_ACCESS_KEY: ${{ secrets.CF_R2_SECRET_ACCESS_KEY || '' }}
+  CF_R2_BUCKET: ${{ secrets.CF_R2_BUCKET || '' }}
+  CF_R2_PUBLIC_BASE: ${{ secrets.CF_R2_PUBLIC_BASE || '' }}
 
 jobs:
   build:
@@ -26,8 +31,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: main
 
       - name: Set workdir
         run: echo "WORKDIR=${{ github.event.inputs.workdir || '.' }}" >> $GITHUB_ENV
@@ -45,9 +48,29 @@ jobs:
 
       - name: Package artifact
         run: |
-          cd "$WORKDIR"
-          if [ -d dist ]; then target=dist; elif [ -d build ]; then target=build; else echo "No dist/build directory"; exit 1; fi
-          zip -r artifact.zip "$target"
+          set -euo pipefail
+          # Look for build output in several common locations and package the first match.
+          targets="$GITHUB_WORKSPACE/$WORKDIR/dist
+          $GITHUB_WORKSPACE/$WORKDIR/build
+          $GITHUB_WORKSPACE/frontend/dist
+          $GITHUB_WORKSPACE/frontend/build
+          $GITHUB_WORKSPACE/backend/dist
+          $GITHUB_WORKSPACE/backend/build"
+
+          target=""
+          for p in $targets; do
+            if [ -d "$p" ]; then
+              target="$p"
+              break
+            fi
+          done
+          if [ -z "$target" ]; then
+            echo "No dist/build directory found among candidates."
+            exit 1
+          fi
+          # Create artifact in workspace root so upload step can find it reliably
+          cd "$(dirname "$target")"
+          zip -r "$GITHUB_WORKSPACE/artifact.zip" "$(basename "$target")"
 
       - name: Notify running
         run: |
@@ -60,12 +83,28 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: built-asset
-          path: ${{ env.WORKDIR }}/artifact.zip
+          # Use runner-provided workspace path (env.GITHUB_WORKSPACE is empty)
+          path: ${{ github.workspace }}/artifact.zip
+
+      - name: Upload artifact to Cloudflare R2 (optional)
+        env:
+          AWS_ACCESS_KEY_ID: ${{ env.CF_R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ env.CF_R2_SECRET_ACCESS_KEY }}
+          AWS_REGION: auto
+        run: |
+          if [ -z "$CF_R2_ACCOUNT_ID" ] || [ -z "$CF_R2_ACCESS_KEY_ID" ] || [ -z "$CF_R2_SECRET_ACCESS_KEY" ] || [ -z "$CF_R2_BUCKET" ] || [ -z "$CF_R2_PUBLIC_BASE" ]; then
+            echo "Cloudflare R2 secrets not set, skip R2 upload"
+            exit 0
+          fi
+          set -euo pipefail
+          endpoint="https://${CF_R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+          key="artifact-${{ github.run_id }}.zip"
+          aws s3 cp "$GITHUB_WORKSPACE/artifact.zip" "s3://$CF_R2_BUCKET/$key" --endpoint-url "$endpoint"
+          echo "ARTIFACT_URL=$CF_R2_PUBLIC_BASE/$key" >> $GITHUB_ENV
 
       - name: Notify success
         run: |
-          # TODO: 将 artifactUrl 换成你可访问的下载链接；如果使用 upload-artifact，需要你额外生成公开下载地址。
-          artifactUrl=""
+          artifactUrl="${ARTIFACT_URL:-}"
           body='{"jobId":"${{ github.event.inputs.jobId }}","status":"success","message":"构建完成","artifactUrl":"'"$artifactUrl"'","artifactFilename":"artifact.zip"}'
           sig="sha256=$(echo -n "$body" | openssl dgst -sha256 -hmac "${{ secrets.ACTION_WEBHOOK_SECRET }}" | cut -d' ' -f2)"
           curl -s -X POST -H "Content-Type: application/json" -H "X-Hub-Signature-256: $sig" \

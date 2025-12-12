@@ -5,6 +5,7 @@ import { loadSettings, saveSettings, isInitialized, SystemSettings } from "./sys
 import fs from "fs";
 import path from "path";
 import { startBuildWorker } from "../services/buildWorker";
+import { spawn } from "child_process";
 
 export const checkInitialized = (_req: Request, res: Response, next: NextFunction) => {
   try {
@@ -24,6 +25,66 @@ type InitPayload = {
 };
 
 const envPath = path.resolve(__dirname, "../../.env");
+const repoRoot = path.resolve(__dirname, "../..");
+
+const parsePostInitCommands = (): string[] => {
+  const multi = process.env.POST_INIT_COMMANDS;
+  if (multi) {
+    try {
+      const parsed = JSON.parse(multi);
+      if (Array.isArray(parsed)) {
+        return parsed.map((c) => String(c).trim()).filter(Boolean);
+      }
+    } catch {
+      // fall through to other parsing options
+    }
+    return multi
+      .split(/\r?\n/)
+      .map((c) => c.trim())
+      .filter(Boolean);
+  }
+  const single = process.env.POST_INIT_COMMAND;
+  if (single) {
+    return single
+      .split("&&")
+      .map((c) => c.trim())
+      .filter(Boolean);
+  }
+  return [];
+};
+
+const runCommandSequential = (command: string, cwd: string) =>
+  new Promise<void>((resolve, reject) => {
+    console.log(`[init] running post-init command in ${cwd}: ${command}`);
+    const child = spawn(command, {
+      cwd,
+      shell: true,
+      env: process.env,
+      stdio: "inherit", // stream output to the server log for debugging
+    });
+    child.on("exit", (code) => {
+      if (code === 0) {
+        console.log(`[init] post-init command succeeded: ${command}`);
+        resolve();
+      } else {
+        reject(new Error(`post-init command failed with code ${code}: ${command}`));
+      }
+    });
+    child.on("error", (err) => reject(err));
+  });
+
+const runPostInitHooks = () => {
+  const commands = parsePostInitCommands();
+  if (!commands.length) return;
+  const cwd = process.env.POST_INIT_CWD || repoRoot;
+  (async () => {
+    for (const cmd of commands) {
+      await runCommandSequential(cmd, cwd);
+    }
+  })().catch((err) => {
+    console.error("[init] POST_INIT_COMMAND(S) failed:", err);
+  });
+};
 
 const upsertDatabaseUrl = (databaseUrl: string) => {
   const lines: string[] = [];
@@ -76,6 +137,8 @@ export const initializeSystem = async (req: Request, res: Response, next: NextFu
 
     // 初始化完成后再启动后台构建轮询
     startBuildWorker();
+    // 可选：自动执行部署/构建脚本（通过环境变量配置）
+    runPostInitHooks();
 
     res.json({ success: true, adminId: user.id });
   } catch (err) {

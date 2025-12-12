@@ -47,7 +47,7 @@ export const templateUploadHandler: import("express").RequestHandler = (req, res
     if (err) {
       if (err instanceof multer.MulterError) {
         if (err.code === "LIMIT_FILE_SIZE") {
-          return res.status(400).json({ error: "文件过大，限制 50MB" });
+          return res.status(400).json({ error: "文件过大，限制 500MB" });
         }
         return res.status(400).json({ error: err.message });
       }
