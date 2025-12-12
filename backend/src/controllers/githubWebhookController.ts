@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import prisma from "../lib/prisma";
 import { verifyGithubWebhook } from "../services/githubWorkflowService";
+import { normalizeArtifactUrl } from "../lib/artifactUrl";
 
 type GithubWebhookPayload = {
   jobId?: number | string;
@@ -37,11 +38,12 @@ export const handleGithubBuildWebhook = async (req: Request, res: Response, next
 
     let artifactId: number | undefined;
     if (status === "success" && artifactUrl) {
+      const normalizedArtifactUrl = normalizeArtifactUrl(artifactUrl) ?? artifactUrl;
       const artifact = await prisma.buildArtifact.create({
         data: {
           userId: job.userId,
           sourceFilename: artifactFilename || job.filename,
-          outputPath: artifactUrl,
+          outputPath: normalizedArtifactUrl,
         },
       });
       artifactId = artifact.id;
