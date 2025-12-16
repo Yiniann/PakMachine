@@ -28,7 +28,8 @@ const TemplateManagePage = () => {
   const deleteGithubTemplate = useDeleteGithubTemplate();
   const templates = useTemplateFiles();
   const githubTemplates = useGithubTemplates();
-  const uploadTemplates = templates.data?.filter((t) => (t.type ?? "upload") === "upload");
+  const githubNames = new Set((githubTemplates.data ?? []).map((t) => t.name));
+  const uploadTemplates = templates.data?.filter((t) => !githubNames.has(t.filename));
 
   const tooBig = false;
 

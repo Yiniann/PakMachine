@@ -9,10 +9,21 @@ export const getBuildQuota = async (req: Request, res: Response, next: NextFunct
     }
     const dbUser: any = await prisma.user.findUnique({
       where: { id: Number(user.sub) },
-      select: { buildQuotaUsed: true, buildQuotaDate: true },
+      select: { buildQuotaUsed: true, buildQuotaDate: true, role: true },
     });
     if (!dbUser) {
       return res.status(404).json({ error: "User not found" });
+    }
+
+    if (dbUser.role === "admin") {
+      const now = new Date();
+      return res.json({
+        limit: Number.MAX_SAFE_INTEGER,
+        used: 0,
+        left: Number.MAX_SAFE_INTEGER,
+        date: now.toISOString().slice(0, 10),
+        unlimited: true,
+      });
     }
 
     const limit = 2;

@@ -29,15 +29,7 @@ export const uploadTemplate = async (req: Request, res: Response, next: NextFunc
 export const listUploadedTemplates = async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const templates = listTemplates();
-    const simplified = templates.map(({ filename, modifiedAt, description, type, repo, branch, workdir }) => ({
-      filename,
-      modifiedAt,
-      description,
-      type,
-      repo,
-      branch,
-      workdir,
-    }));
+    const simplified = templates.map(({ filename, modifiedAt, description }) => ({ filename, modifiedAt, description }));
     res.json(simplified);
   } catch (err) {
     next(err);
@@ -126,18 +118,21 @@ export const buildTemplatePackage = async (req: Request, res: Response, next: Ne
       if (!dbUser) {
         throw new Error("User not found");
       }
+      const isAdmin = dbUser.role === "admin";
 
-      const now = new Date();
-      const isSameDay = dbUser.buildQuotaDate && new Date(dbUser.buildQuotaDate).toDateString() === now.toDateString();
-      const used = isSameDay ? dbUser.buildQuotaUsed || 0 : 0;
-      if (used >= 2) {
-        throw Object.assign(new Error("今日构建次数已用完（每日最多 2 次）"), { statusCode: 429, quotaLeft: 0, quotaUsed: used });
+      if (!isAdmin) {
+        const now = new Date();
+        const isSameDay = dbUser.buildQuotaDate && new Date(dbUser.buildQuotaDate).toDateString() === now.toDateString();
+        const used = isSameDay ? dbUser.buildQuotaUsed || 0 : 0;
+        if (used >= 2) {
+          throw Object.assign(new Error("今日构建次数已用完（每日最多 2 次）"), { statusCode: 429, quotaLeft: 0, quotaUsed: used });
+        }
+
+        await tx.user.update({
+          where: { id: Number(user.sub) },
+          data: { buildQuotaUsed: used + 1, buildQuotaDate: now } as any,
+        });
       }
-
-      await tx.user.update({
-        where: { id: Number(user.sub) },
-        data: { buildQuotaUsed: used + 1, buildQuotaDate: now } as any,
-      });
 
       return tx.buildJob.create({
         data: {
@@ -309,7 +304,6 @@ export const listUserArtifacts = async (req: Request, res: Response, next: NextF
     const data = artifacts.map((a) => ({
       id: a.id,
       sourceFilename: a.sourceFilename,
-      outputPath: a.outputPath,
       createdAt: a.createdAt,
     }));
     res.json(data);

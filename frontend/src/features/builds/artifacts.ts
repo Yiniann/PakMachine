@@ -4,7 +4,6 @@ import api from "../../api/client";
 export type Artifact = {
   id: number;
   sourceFilename: string;
-  outputPath?: string;
   createdAt: string;
 };
 

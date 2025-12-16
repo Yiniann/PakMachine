@@ -7,6 +7,13 @@ export type SystemSettings = {
   actionDispatchToken?: string;
   actionWebhookSecret?: string;
   workflowFile?: string;
+   mailerHost?: string;
+   mailerPort?: number;
+   mailerSecure?: boolean;
+   mailerUser?: string;
+   mailerPass?: string;
+   mailerFrom?: string;
+   passwordResetBaseUrl?: string;
 };
 
 export const useSystemSettings = (): UseQueryResult<SystemSettings> =>

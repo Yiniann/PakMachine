@@ -9,6 +9,13 @@ export type SystemSettings = {
   actionWebhookSecret?: string;
   workflowFile?: string;
   initialized?: boolean;
+  mailerHost?: string;
+  mailerPort?: number;
+  mailerSecure?: boolean;
+  mailerUser?: string;
+  mailerPass?: string;
+  mailerFrom?: string;
+  passwordResetBaseUrl?: string;
 };
 
 const settingsPath = path.join(__dirname, "../../config/system-settings.json");
@@ -59,6 +66,13 @@ export const updateSystemSettings = (req: Request, res: Response, next: NextFunc
       ...current,
       ...payload,
     };
+    if (payload.mailerPort !== undefined) {
+      const parsed = Number(payload.mailerPort);
+      merged.mailerPort = Number.isFinite(parsed) ? parsed : undefined;
+    }
+    if (payload.mailerSecure !== undefined) {
+      merged.mailerSecure = Boolean(payload.mailerSecure);
+    }
     saveSettings(merged);
     res.json(merged);
   } catch (err) {

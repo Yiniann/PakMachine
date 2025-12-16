@@ -6,17 +6,6 @@ const TemplateDownloadsPage = () => {
 
   const onDownload = async (item: Artifact) => {
     try {
-      const remote = item.outputPath && /^https?:\/\//i.test(item.outputPath);
-      if (remote) {
-        // 直接跳转远程链接（R2）
-        const a = document.createElement("a");
-        a.href = item.outputPath!;
-        a.target = "_blank";
-        a.rel = "noopener";
-        a.click();
-        return;
-      }
-
       const res = await api.get(`/build/download/${item.id}`, { responseType: "blob" });
       const blobUrl = window.URL.createObjectURL(new Blob([res.data]));
       const a = document.createElement("a");

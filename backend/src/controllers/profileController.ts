@@ -22,8 +22,9 @@ export const setSiteName = async (req: Request, res: Response, next: NextFunctio
       return res.status(400).json({ error: "站点名称不能为空" });
     }
     const existing = await prisma.user.findUnique({ where: { id: Number(user.sub) } });
+    const isAdmin = (existing as any)?.role === "admin";
     const current = (existing as any)?.siteName;
-    if (current) {
+    if (current && !isAdmin) {
       return res.status(409).json({ error: "站点名称已设置，不能修改" });
     }
     const updated = await prisma.user.update({

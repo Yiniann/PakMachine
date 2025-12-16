@@ -139,7 +139,6 @@ const TemplateBuildPage = () => {
                 <thead>
                   <tr>
                     <th></th>
-                    <th>来源</th>
                     <th>文件名</th>
                     <th>描述</th>
                     <th>更新时间</th>
@@ -157,7 +156,6 @@ const TemplateBuildPage = () => {
                           onChange={() => setSelected(item.filename)}
                         />
                       </td>
-                      <td className="text-sm">{item.type === "github" ? "GitHub" : "本地上传"}</td>
                       <td className="whitespace-pre-wrap break-all">{item.filename}</td>
                       <td className="max-w-xs whitespace-pre-wrap break-words text-sm text-base-content/80">{item.description || "-"}</td>
                       <td>{item.modifiedAt ? new Date(item.modifiedAt).toLocaleString() : "-"}</td>
@@ -173,13 +171,6 @@ const TemplateBuildPage = () => {
               <div className="flex flex-col">
                 <span className="font-mono text-sm break-all">{selectedTemplate.filename}</span>
                 <span className="text-sm text-base-content/80">{selectedTemplate.description || "暂无描述"}</span>
-                {selectedTemplate.type === "github" && (
-                  <span className="text-xs text-base-content/60">
-                    来源：GitHub {selectedTemplate.repo}
-                    {selectedTemplate.branch ? `@${selectedTemplate.branch}` : ""}
-                    {selectedTemplate.workdir ? ` • ${selectedTemplate.workdir}` : ""}
-                  </span>
-                )}
               </div>
             </div>
           )}

@@ -1,19 +1,25 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useSiteName, useSetSiteName } from "../../features/builds/siteName";
 import { useBuildJob, useBuildJobs } from "../../features/builds/jobs";
 import { useBuildQuota } from "../../features/builds/quota";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useAuth } from "../../components/useAuth";
 
 const HomePage = () => {
   const siteNameQuery = useSiteName();
   const setSiteNameMutation = useSetSiteName();
   const jobsQuery = useBuildJobs();
   const quotaQuery = useBuildQuota();
+  const { role } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const [cachedSiteName, setCachedSiteName] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [message, setMessage] = useState<string | null>(null);
+  const [buildFailure, setBuildFailure] = useState<{ jobId: number; message: string } | null>(null);
+  const [dismissedFailureId, setDismissedFailureId] = useState<number | null>(null);
+  const prevJobIdRef = useRef<number | undefined>(undefined);
+  const dismissedStorageKey = "pacmachine-dismissed-failure-id";
 
   const siteName = siteNameQuery.data?.siteName || null;
   const loadingSiteName = siteNameQuery.isPending; // 只在首个请求未返回时认为 loading，避免阻塞展示
@@ -25,6 +31,8 @@ const HomePage = () => {
   const derivedActiveJob =
     jobsQuery.data?.find((j) => j.status === "pending" || j.status === "running") ?? null;
   const hasActiveJob = Boolean(jobId) || Boolean(derivedActiveJob);
+  const isAdmin = role === "admin";
+  const showSiteNameForm = fetchedSiteName && (!displaySiteName || isAdmin);
 
   const activeJobStatusLabel = useMemo(() => {
     if (!activeJobQuery.data) return null;
@@ -55,13 +63,24 @@ const HomePage = () => {
   useEffect(() => {
     if (siteName) {
       setCachedSiteName(siteName);
+      if (isAdmin) {
+        setInput(siteName);
+      }
     }
-  }, [siteName]);
+  }, [siteName, isAdmin]);
 
   useEffect(() => {
     if (!jobId) return;
     const status = activeJobQuery.data?.status;
     if (!status) return;
+
+    if (status === "failed" && dismissedFailureId !== jobId) {
+      setBuildFailure({
+        jobId,
+        message: activeJobQuery.data?.message || "构建失败，请稍后重试",
+      });
+    }
+
     if (status === "success" || status === "failed") {
       setSearchParams((prev) => {
         const next = new URLSearchParams(prev);
@@ -69,10 +88,44 @@ const HomePage = () => {
         return next;
       });
       if (status === "success") {
+        setBuildFailure(null);
         navigate("/app/downloads");
       }
     }
-  }, [jobId, activeJobQuery.data?.status, navigate, setSearchParams]);
+  }, [jobId, activeJobQuery.data?.status, activeJobQuery.data?.message, navigate, setSearchParams]);
+
+  useEffect(() => {
+    if (jobId !== undefined && jobId !== prevJobIdRef.current) {
+      // 新任务开始时清掉旧提示与已忽略的记录
+      setBuildFailure(null);
+      setDismissedFailureId(null);
+      localStorage.removeItem(dismissedStorageKey);
+    }
+    prevJobIdRef.current = jobId;
+  }, [jobId]);
+
+  useEffect(() => {
+    const stored = localStorage.getItem(dismissedStorageKey);
+    if (stored) {
+      const parsed = Number(stored);
+      if (Number.isFinite(parsed)) {
+        setDismissedFailureId(parsed);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!jobsQuery.data) return;
+    const latestFailed = [...jobsQuery.data]
+      .filter((j) => j.status === "failed")
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+    if (!latestFailed) return;
+    if (dismissedFailureId && latestFailed.id === dismissedFailureId) return;
+    setBuildFailure({
+      jobId: latestFailed.id,
+      message: latestFailed.message || "构建失败，请稍后重试",
+    });
+  }, [jobsQuery.data, dismissedFailureId]);
 
   return (
     <div className="space-y-4">
@@ -87,19 +140,27 @@ const HomePage = () => {
 
           {loadingSiteName && !displaySiteName && <p>加载站点名称...</p>}
 
-          {(displaySiteName || hasActiveJob) ? (
+          {!showSiteNameForm && (displaySiteName || hasActiveJob) ? (
             <div className="bg-base-200/60 rounded-box p-4 space-y-3">
               <div className="flex flex-wrap items-center gap-3">
                 <span className="font-semibold">站点名称</span>
                 <span className="badge badge-lg badge-outline">{displaySiteName || "已设置"}</span>
-                 <span className="text-xs text-base-content/60">如需更改站点名请联系管理员</span>
+                 <span className="text-xs text-base-content/60">
+                  {isAdmin ? "管理员可随时修改站点名" : "如需更改站点名请联系管理员"}
+                </span>
               </div>
               <div className="flex flex-wrap items-center gap-3 text-sm text-base-content/70">
                 {quotaQuery.data && (
                   <div className="flex items-center gap-1">
                     <span className="font-semibold">今日剩余</span>
-                    <span className="badge badge-outline">{quotaQuery.data.left} / {quotaQuery.data.limit}</span>
-                    <span className="text-xs text-base-content/60">打包次数每日刷新</span>
+                    {quotaQuery.data.unlimited ? (
+                      <span className="badge badge-outline">无限制</span>
+                    ) : (
+                      <span className="badge badge-outline">
+                        {quotaQuery.data.left} / {quotaQuery.data.limit}
+                      </span>
+                    )}
+                    <span className="text-xs text-base-content/60">{quotaQuery.data.unlimited ? "管理员账号不受限制" : "打包次数每日刷新"}</span>
                   </div>
                 )}
               </div>
@@ -107,7 +168,10 @@ const HomePage = () => {
           ) : (
             <div className="bg-base-200/60 rounded-box p-4 space-y-3">
               <div className="alert">
-                <span>在前端构建前输入你的站点名，用于打包后主题的站点名称和标题，后续无法修改。如需更改请联系管理员。</span>
+                <span>
+                  在前端构建前输入你的站点名，用于打包后主题的站点名称和标题，
+                  {isAdmin ? "管理员可重复修改。" : "后续无法修改。如需更改请联系管理员。"}
+                </span>
               </div>
               {fetchedSiteName && (
                 <>
@@ -120,10 +184,12 @@ const HomePage = () => {
                       disabled={setSiteNameMutation.status === "pending"}
                     />
                     <button className="btn btn-primary" type="submit" disabled={!input.trim() || setSiteNameMutation.status === "pending"}>
-                      {setSiteNameMutation.status === "pending" ? "提交中..." : "设置"}
+                      {setSiteNameMutation.status === "pending" ? "提交中..." : isAdmin ? "保存" : "设置"}
                     </button>
                   </form>
-                  <p className="text-sm text-base-content/70">确认无误后提交，一旦保存不可修改。</p>
+                  <p className="text-sm text-base-content/70">
+                    {isAdmin ? "管理员可随时更新站点名称。" : "确认无误后提交，一旦保存不可修改。"}
+                  </p>
                 </>
               )}
             </div>
@@ -131,6 +197,31 @@ const HomePage = () => {
           {message && <p className="text-info">{message}</p>}
         </div>
       </div>
+
+      {buildFailure && (
+        <div className="alert alert-error bg-base-100 flex flex-col sm:flex-row sm:items-center gap-2">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold">构建失败</span>
+            <span className="badge badge-outline">#{buildFailure.jobId}</span>
+          </div>
+          <div className="text-sm text-base-content/80 sm:flex-1">{buildFailure.message}</div>
+          <div className="flex items-center gap-2 sm:ml-auto">
+            <button className="btn btn-sm" onClick={() => navigate("/app/build")}>
+              重新提交
+            </button>
+                <button
+                  className="btn btn-sm btn-ghost"
+                  onClick={() => {
+                    setDismissedFailureId(buildFailure.jobId);
+                    localStorage.setItem(dismissedStorageKey, String(buildFailure.jobId));
+                    setBuildFailure(null);
+                  }}
+                >
+                  知道了
+                </button>
+          </div>
+        </div>
+      )}
 
       {(jobId || derivedActiveJob) && (
         <div className="alert bg-base-100 flex flex-col sm:flex-row sm:items-center gap-2">

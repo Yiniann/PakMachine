@@ -29,7 +29,7 @@ export const useRegisterMutation = (): UseMutationResult<
   });
 
 export const useForgotPasswordMutation = (): UseMutationResult<
-  { resetToken?: string; message?: string; expiresAt?: string; resetUrl?: string },
+  { resetToken?: string; message?: string; expiresAt?: string; resetUrl?: string; emailSent?: boolean },
   unknown,
   { email: string },
   unknown

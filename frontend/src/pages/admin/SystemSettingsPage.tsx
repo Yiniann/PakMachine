@@ -11,6 +11,13 @@ const SystemSettingsPage = () => {
   const [actionWebhookSecret, setActionWebhookSecret] = useState("");
   const [workflowFile, setWorkflowFile] = useState("build.yml");
   const [message, setMessage] = useState<string | null>(null);
+  const [mailerHost, setMailerHost] = useState("");
+  const [mailerPort, setMailerPort] = useState("");
+  const [mailerSecure, setMailerSecure] = useState(false);
+  const [mailerUser, setMailerUser] = useState("");
+  const [mailerPass, setMailerPass] = useState("");
+  const [mailerFrom, setMailerFrom] = useState("");
+  const [passwordResetBaseUrl, setPasswordResetBaseUrl] = useState("");
 
   useEffect(() => {
     if (settingsQuery.data) {
@@ -19,6 +26,13 @@ const SystemSettingsPage = () => {
       setActionDispatchToken(settingsQuery.data.actionDispatchToken || "");
       setActionWebhookSecret(settingsQuery.data.actionWebhookSecret || "");
       setWorkflowFile(settingsQuery.data.workflowFile || "build.yml");
+      setMailerHost(settingsQuery.data.mailerHost || "");
+      setMailerPort(settingsQuery.data.mailerPort ? String(settingsQuery.data.mailerPort) : "");
+      setMailerSecure(Boolean(settingsQuery.data.mailerSecure));
+      setMailerUser(settingsQuery.data.mailerUser || "");
+      setMailerPass(settingsQuery.data.mailerPass || "");
+      setMailerFrom(settingsQuery.data.mailerFrom || "");
+      setPasswordResetBaseUrl(settingsQuery.data.passwordResetBaseUrl || "");
     }
   }, [settingsQuery.data]);
 
@@ -26,7 +40,20 @@ const SystemSettingsPage = () => {
     e.preventDefault();
     setMessage(null);
     updateSettings.mutate(
-      { siteName, allowRegister, actionDispatchToken, actionWebhookSecret, workflowFile },
+      {
+        siteName,
+        allowRegister,
+        actionDispatchToken,
+        actionWebhookSecret,
+        workflowFile,
+        mailerHost,
+        mailerPort: mailerPort ? Number(mailerPort) : undefined,
+        mailerSecure,
+        mailerUser,
+        mailerPass,
+        mailerFrom,
+        passwordResetBaseUrl,
+      },
       {
         onSuccess: () => setMessage("设置已保存"),
         onError: () => setMessage("保存失败"),
@@ -95,6 +122,80 @@ const SystemSettingsPage = () => {
                   onChange={(e) => setWorkflowFile(e.target.value || "build.yml")}
                   placeholder="如 build.yml"
                 />
+              </label>
+
+              <div className="divider">邮件服务</div>
+              <label className="form-control">
+                <span className="label-text">SMTP Host</span>
+                <input
+                  className="input input-bordered"
+                  value={mailerHost}
+                  onChange={(e) => setMailerHost(e.target.value)}
+                  placeholder="smtp.example.com"
+                />
+              </label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <label className="form-control">
+                  <span className="label-text">SMTP Port</span>
+                  <input
+                    className="input input-bordered"
+                    type="number"
+                    min={1}
+                    value={mailerPort}
+                    onChange={(e) => setMailerPort(e.target.value)}
+                    placeholder="465 / 587"
+                  />
+                </label>
+                <label className="form-control">
+                  <span className="label-text">加密 (TLS/SSL)</span>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      className="toggle"
+                      checked={mailerSecure}
+                      onChange={(e) => setMailerSecure(e.target.checked)}
+                    />
+                    <span className="text-sm text-base-content/70">{mailerSecure ? "启用" : "关闭"}</span>
+                  </div>
+                </label>
+              </div>
+              <label className="form-control">
+                <span className="label-text">SMTP 用户名</span>
+                <input
+                  className="input input-bordered"
+                  value={mailerUser}
+                  onChange={(e) => setMailerUser(e.target.value)}
+                  placeholder="可为空，取决于服务商"
+                />
+              </label>
+              <label className="form-control">
+                <span className="label-text">SMTP 密码/密钥</span>
+                <input
+                  type="password"
+                  className="input input-bordered"
+                  value={mailerPass}
+                  onChange={(e) => setMailerPass(e.target.value)}
+                  placeholder="不会自动隐藏，请妥善保存文件权限"
+                />
+              </label>
+              <label className="form-control">
+                <span className="label-text">发件人（From）</span>
+                <input
+                  className="input input-bordered"
+                  value={mailerFrom}
+                  onChange={(e) => setMailerFrom(e.target.value)}
+                  placeholder="PacMachine <noreply@example.com>"
+                />
+              </label>
+              <label className="form-control">
+                <span className="label-text">重置链接基础地址</span>
+                <input
+                  className="input input-bordered"
+                  value={passwordResetBaseUrl}
+                  onChange={(e) => setPasswordResetBaseUrl(e.target.value)}
+                  placeholder="https://your-frontend.com/auth/reset"
+                />
+                <span className="text-xs text-base-content/60">用于邮件中的重置链接，留空则使用默认或环境变量 PASSWORD_RESET_BASE_URL。</span>
               </label>
 
               <div className="flex gap-2">

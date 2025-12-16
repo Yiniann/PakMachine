@@ -5,10 +5,6 @@ export type TemplateFile = {
   filename: string;
   modifiedAt?: string;
   description?: string;
-  type?: "upload" | "github";
-  repo?: string;
-  branch?: string;
-  workdir?: string;
 };
 
 export type GithubTemplate = {

@@ -4,26 +4,16 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import prisma from "../lib/prisma";
 import { loadSettings } from "./systemSettingsController";
+import { buildResetUrl, sendPasswordResetEmail } from "../services/mailService";
 
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
 const TOKEN_EXPIRES_HOURS = 1;
-const RESET_URL_BASE = process.env.PASSWORD_RESET_BASE_URL || "http://localhost:5173/auth/reset";
 
 // Basic validators to keep payloads sane before touching the database
 const isValidEmail = (email: string) =>
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 const isValidPassword = (pwd: string) => typeof pwd === "string" && pwd.length >= 8;
 
-const buildResetUrl = (token: string) => {
-  try {
-    const url = new URL(RESET_URL_BASE);
-    url.searchParams.set("token", token);
-    return url.toString();
-  } catch {
-    // Fallback for malformed base URLs; still return something usable for copy/paste.
-    return `${RESET_URL_BASE}?token=${encodeURIComponent(token)}`;
-  }
-};
 
 export const listUsers = async (_req: Request, res: Response, next: NextFunction) => {
   try {
@@ -274,10 +264,20 @@ export const forgotPassword = async (req: Request, res: Response, next: NextFunc
       data: { resetToken: token, resetTokenExpires: expires },
     });
 
+    const resetUrl = buildResetUrl(token);
+
+    const sendResult = await sendPasswordResetEmail({
+      to: email,
+      resetUrl,
+      token,
+      expiresAt: expires,
+    });
+
     const payload: Record<string, unknown> = {
       message: "If that email exists, a reset link has been generated",
       expiresAt: expires,
-      resetUrl: buildResetUrl(token),
+      resetUrl,
+      emailSent: sendResult.sent,
     };
 
     // Return the raw token for local/dev usage; in production links are enough.

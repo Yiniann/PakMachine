@@ -6,6 +6,7 @@ export type BuildQuota = {
   used: number;
   left: number;
   date: string;
+  unlimited?: boolean;
 };
 
 export const useBuildQuota = (): UseQueryResult<BuildQuota> =>

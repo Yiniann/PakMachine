@@ -41,7 +41,13 @@ const ForgotPasswordPage = () => {
       { email },
       {
         onSuccess: (data) => {
-          setForgotMessage(data.message || "重置链接已生成，如账号存在会发送到邮箱");
+          const baseMsg = data.message || "重置链接已生成，如账号存在会发送到邮箱";
+          if (data.resetToken) {
+            setToken(data.resetToken);
+          }
+          setForgotMessage(
+            data.emailSent === false ? `${baseMsg}（邮件未发送，请联系管理员配置邮件服务）` : baseMsg,
+          );
         },
         onError: (err: any) => setForgotMessage(err?.response?.data?.error || "请求失败，请稍后再试"),
       },
