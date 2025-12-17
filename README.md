@@ -116,7 +116,7 @@ server {
 
     # 构建产物静态文件
     location /artifacts/ {
-        alias /www/wwwroot/pac.xiamii.com/artifacts/;
+        alias /www/wwwroot/example.com/artifacts/;
         autoindex off;
     }
 }
