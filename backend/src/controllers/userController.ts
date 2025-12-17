@@ -18,7 +18,9 @@ const isValidPassword = (pwd: string) => typeof pwd === "string" && pwd.length >
 export const listUsers = async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const users = await prisma.user.findMany({ orderBy: { id: "asc" } });
-    const safe = users.map(({ password: _pw, resetToken, resetTokenExpires, ...rest }) => rest);
+    const safe = users.map(
+      ({ password: _pw, resetToken, resetTokenExpires, ...rest }: typeof users[number]) => rest,
+    );
     res.json(safe);
   } catch (error) {
     next(error);

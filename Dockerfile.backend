@@ -1,0 +1,26 @@
+FROM node:18-alpine AS deps
+WORKDIR /app/backend
+COPY backend/package*.json ./
+RUN npm ci
+
+FROM deps AS builder
+COPY backend ./
+# 先生成 Prisma Client 再编译，保证类型可用
+RUN npx prisma generate
+RUN npm run build
+
+FROM node:18-alpine AS runner
+WORKDIR /app/backend
+ENV NODE_ENV=production
+# Prisma 运行时依赖 OpenSSL
+RUN apk add --no-cache openssl
+COPY --from=builder /app/backend/dist ./dist
+COPY --from=builder /app/backend/prisma ./prisma
+COPY --from=builder /app/backend/config ./config
+COPY backend/package*.json ./
+# 安装生产依赖，去掉 dev 体积
+RUN npm ci --omit=dev
+# 上传目录和配置目录可通过卷覆盖
+VOLUME ["/app/uploads", "/app/backend/config"]
+EXPOSE 3000
+CMD ["node", "dist/index.js"]

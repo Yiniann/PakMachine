@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { Request, Response, NextFunction } from "express";
+import prisma from "../lib/prisma";
 
 export type SystemSettings = {
   siteName?: string;
@@ -38,6 +39,25 @@ export const saveSettings = (settings: SystemSettings) => {
 export const isInitialized = () => {
   const settings = loadSettings();
   return Boolean(settings.initialized);
+};
+
+// 更严格的初始化检查：当配置标记已初始化但数据库里没有任何用户时，回退为未初始化，避免跳过首次引导。
+export const checkAndFixInitialization = async () => {
+  const settings = loadSettings();
+  let initialized = Boolean(settings.initialized);
+  if (initialized) {
+    try {
+      const userCount = await prisma.user.count();
+      if (userCount === 0) {
+        initialized = false;
+        saveSettings({ ...settings, initialized: false });
+      }
+    } catch (err) {
+      // 数据库不可用时不抛出，沿用原状态，但记录日志便于排查
+      console.warn("[init] failed to verify user count, keep current initialized flag", err);
+    }
+  }
+  return initialized;
 };
 
 export const getSystemSettings = (_req: Request, res: Response, next: NextFunction) => {

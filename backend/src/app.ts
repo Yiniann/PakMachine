@@ -4,7 +4,7 @@ import routes from "./routes";
 import webhookRoutes from "./routes/webhookRoutes";
 import { uploadBaseDir } from "./middleware/upload";
 import { startBuildWorker } from "./services/buildWorker";
-import { isInitialized } from "./controllers/systemSettingsController";
+import { checkAndFixInitialization, isInitialized } from "./controllers/systemSettingsController";
 
 const app = express();
 const uploadsTemplates = uploadBaseDir;
@@ -42,7 +42,15 @@ app.use(routes);
 
 // 仅在系统已初始化且有可用数据库时再启动后台构建轮询
 if (isInitialized()) {
-  startBuildWorker();
+  checkAndFixInitialization()
+    .then((inited) => {
+      if (inited) {
+        startBuildWorker();
+      }
+    })
+    .catch((err) => {
+      console.warn("[init] failed to verify initialization status at startup", err);
+    });
 }
 
 // Centralized error handler.

@@ -1,15 +1,21 @@
 import { Request, Response, NextFunction } from "express";
 import prisma, { reloadPrisma, testDatabaseConnection } from "../lib/prisma";
 import bcrypt from "bcryptjs";
-import { loadSettings, saveSettings, isInitialized, SystemSettings } from "./systemSettingsController";
+import {
+  loadSettings,
+  saveSettings,
+  isInitialized,
+  SystemSettings,
+  checkAndFixInitialization,
+} from "./systemSettingsController";
 import fs from "fs";
 import path from "path";
 import { startBuildWorker } from "../services/buildWorker";
 import { spawn } from "child_process";
 
-export const checkInitialized = (_req: Request, res: Response, next: NextFunction) => {
+export const checkInitialized = async (_req: Request, res: Response, next: NextFunction) => {
   try {
-    const inited = isInitialized();
+    const inited = await checkAndFixInitialization();
     res.json({ initialized: inited });
   } catch (err) {
     next(err);

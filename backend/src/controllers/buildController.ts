@@ -11,6 +11,7 @@ import {
 } from "../services/uploadService";
 import { dispatchGithubWorkflow } from "../services/githubWorkflowService";
 import prisma from "../lib/prisma";
+import type { Prisma, BuildArtifact, BuildJob } from "@prisma/client";
 import fs from "fs";
 import path from "path";
 import { Readable } from "stream";
@@ -111,7 +112,7 @@ export const buildTemplatePackage = async (req: Request, res: Response, next: Ne
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    const job = await prisma.$transaction(async (tx) => {
+    const job = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const dbUser: any = await tx.user.findUnique({
         where: { id: Number(user.sub) },
       });
@@ -301,7 +302,7 @@ export const listUserArtifacts = async (req: Request, res: Response, next: NextF
       where: { userId: Number(user.sub) },
       orderBy: { id: "desc" },
     });
-    const data = artifacts.map((a) => ({
+    const data = artifacts.map((a: BuildArtifact) => ({
       id: a.id,
       sourceFilename: a.sourceFilename,
       createdAt: a.createdAt,
@@ -326,7 +327,7 @@ export const listUserBuildJobs = async (req: Request, res: Response, next: NextF
     });
 
     res.json(
-      jobs.map((j) => ({
+      jobs.map((j: BuildJob) => ({
         id: j.id,
         status: j.status,
         message: j.message,

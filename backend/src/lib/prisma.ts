@@ -2,11 +2,22 @@ import { PrismaClient } from "@prisma/client";
 
 let prisma: PrismaClient | null = null;
 
-const createClient = (databaseUrl?: string) => {
-  const url = databaseUrl || process.env.DATABASE_URL;
+// 当环境变量未配置时，回退到 Docker 约定的内网地址，减少手工填写
+const defaultDatabaseUrl = "mysql://pacmachine:mYeJX4PRx3ykGbiT@mysql:3306/pacmachine";
+
+const resolveDatabaseUrl = (databaseUrl?: string) => {
+  const url = databaseUrl || process.env.DATABASE_URL || process.env.DEFAULT_DATABASE_URL || defaultDatabaseUrl;
   if (!url) {
     throw Object.assign(new Error("缺少 DATABASE_URL"), { statusCode: 500 });
   }
+  if (!process.env.DATABASE_URL && url === defaultDatabaseUrl) {
+    console.warn("[prisma] using built-in default DATABASE_URL (mysql service inside compose)");
+  }
+  return url;
+};
+
+const createClient = (databaseUrl?: string) => {
+  const url = resolveDatabaseUrl(databaseUrl);
   return new PrismaClient({ datasourceUrl: url });
 };
 

@@ -4,7 +4,9 @@
   "description": "Express + TypeScript + Prisma (MySQL) API",
   "main": "dist/index.js",
   "scripts": {
+    "predev": "prisma generate",
     "dev": "ts-node src/index.ts",
+    "prebuild": "prisma generate",
     "build": "tsc -p .",
     "start": "node dist/index.js",
     "prisma:generate": "prisma generate",
