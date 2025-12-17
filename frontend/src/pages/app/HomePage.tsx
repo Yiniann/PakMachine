@@ -33,6 +33,9 @@ const HomePage = () => {
   const hasActiveJob = Boolean(jobId) || Boolean(derivedActiveJob);
   const isAdmin = role === "admin";
   const showSiteNameForm = fetchedSiteName && (!displaySiteName || isAdmin);
+  const quota = quotaQuery.data;
+  const isUnlimitedQuota =
+    quota?.unlimited || (quota?.limit ?? 0) >= Number.MAX_SAFE_INTEGER / 2; // 后端用 MAX_SAFE_INTEGER 表示无限
 
   const activeJobStatusLabel = useMemo(() => {
     if (!activeJobQuery.data) return null;
@@ -150,17 +153,19 @@ const HomePage = () => {
                 </span>
               </div>
               <div className="flex flex-wrap items-center gap-3 text-sm text-base-content/70">
-                {quotaQuery.data && (
+                {quota && (
                   <div className="flex items-center gap-1">
                     <span className="font-semibold">今日剩余</span>
-                    {quotaQuery.data.unlimited ? (
+                    {isUnlimitedQuota ? (
                       <span className="badge badge-outline">无限制</span>
                     ) : (
                       <span className="badge badge-outline">
-                        {quotaQuery.data.left} / {quotaQuery.data.limit}
+                        {quota.left} / {quota.limit}
                       </span>
                     )}
-                    <span className="text-xs text-base-content/60">{quotaQuery.data.unlimited ? "管理员账号不受限制" : "打包次数每日刷新"}</span>
+                    <span className="text-xs text-base-content/60">
+                      {isUnlimitedQuota ? "管理员账号不受限制" : "打包次数每日刷新"}
+                    </span>
                   </div>
                 )}
               </div>

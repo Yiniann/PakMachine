@@ -48,13 +48,14 @@ const TemplateBuildPage = () => {
   );
 
   const buildEnvContent = () => {
+    const prodApiFinal = prodApiUrl.trim() || "/api/v1/";
     const lines = [
       `VITE_SITE_NAME=${siteName.trim()}`,
       `VITE_SITE_LOGO=${siteLogo.trim()}`,
       `VITE_ENABLE_IDHUB=${enableIdhub ? "true" : "false"}`,
       `VITE_IDHUB_API_URL=${idhubApiUrl.trim()}`,
       `VITE_IDHUB_API_KEY=${idhubApiKey.trim()}`,
-      `VITE_PROD_API_URL=${prodApiUrl.trim()}`,
+      `VITE_PROD_API_URL=${prodApiFinal}`,
       `VITE_ALLOWED_CLIENT_ORIGINS=${allowedClientOrigins.trim()}`,
       `VITE_DOWNLOAD_IOS=${downloadIos.trim()}`,
       `VITE_DOWNLOAD_ANDROID=${downloadAndroid.trim()}`,
@@ -112,7 +113,7 @@ const TemplateBuildPage = () => {
     if (profileQuery.data) {
       const cfg: any = profileQuery.data;
       setSiteLogo(cfg.siteLogo || cfg.VITE_SITE_LOGO || "");
-      setProdApiUrl(cfg.prodApiUrl || cfg.VITE_PROD_API_URL || "");
+      setProdApiUrl(cfg.prodApiUrl || cfg.VITE_PROD_API_URL || "/api/v1/");
       setEnableIdhub(Boolean(cfg.enableIdhub ?? (cfg.VITE_ENABLE_IDHUB === "true" || cfg.VITE_ENABLE_IDHUB === true)));
       setIdhubApiUrl(cfg.idhubApiUrl || cfg.VITE_IDHUB_API_URL || "");
       setIdhubApiKey(cfg.idhubApiKey || cfg.VITE_IDHUB_API_KEY || "");
@@ -216,15 +217,15 @@ const TemplateBuildPage = () => {
                 {allowedOriginsError && <span className="text-error text-xs">{allowedOriginsError}</span>}
               </label>
             </div>
-                          <label className="form-control md:col-span-2">
-                <span className="label-text">后端 API 地址</span>
-                <input
-                  className="input input-bordered"
-                  value={prodApiUrl}
-                  onChange={(e) => setProdApiUrl(e.target.value)}
-                  placeholder="/api/v1/"
-                />
-              </label>
+            <label className="form-control md:col-span-2">
+              <span className="label-text">后端 API 地址（默认 /api/v1/，留空自动使用）</span>
+              <input
+                className="input input-bordered"
+                value={prodApiUrl}
+                onChange={(e) => setProdApiUrl(e.target.value)}
+                placeholder="/api/v1/"
+              />
+            </label>
 
             <div className="space-y-3">
               <div className="font-semibold text-base">IDHub</div>
