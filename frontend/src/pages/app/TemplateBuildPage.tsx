@@ -18,6 +18,7 @@ const TemplateBuildPage = () => {
   const [selected, setSelected] = useState<string | null>(null);
   const [siteName, setSiteName] = useState("");
   const [siteLogo, setSiteLogo] = useState("");
+  const [authBackground, setAuthBackground] = useState("");
   const [enableIdhub, setEnableIdhub] = useState(false);
   const [idhubApiUrl, setIdhubApiUrl] = useState("");
   const [idhubApiKey, setIdhubApiKey] = useState("");
@@ -52,6 +53,7 @@ const TemplateBuildPage = () => {
     const lines = [
       `VITE_SITE_NAME=${siteName.trim()}`,
       `VITE_SITE_LOGO=${siteLogo.trim()}`,
+      `VITE_AUTH_BACKGROUND=${authBackground.trim()}`,
       `VITE_ENABLE_IDHUB=${enableIdhub ? "true" : "false"}`,
       `VITE_IDHUB_API_URL=${idhubApiUrl.trim()}`,
       `VITE_IDHUB_API_KEY=${idhubApiKey.trim()}`,
@@ -87,13 +89,14 @@ const TemplateBuildPage = () => {
             navigate(`/app?jobId=${data.jobId}`);
           }
           setError(null);
-          saveProfile.mutate({
-            siteLogo,
-            prodApiUrl,
-            enableIdhub,
-            idhubApiUrl,
-            idhubApiKey,
-            allowedClientOrigins,
+            saveProfile.mutate({
+              siteLogo,
+              authBackground,
+              prodApiUrl,
+              enableIdhub,
+              idhubApiUrl,
+              idhubApiKey,
+              allowedClientOrigins,
             downloadIos,
             downloadAndroid,
             downloadWindows,
@@ -113,6 +116,7 @@ const TemplateBuildPage = () => {
     if (profileQuery.data) {
       const cfg: any = profileQuery.data;
       setSiteLogo(cfg.siteLogo || cfg.VITE_SITE_LOGO || "");
+      setAuthBackground(cfg.authBackground || cfg.VITE_AUTH_BACKGROUND || "");
       setProdApiUrl(cfg.prodApiUrl || cfg.VITE_PROD_API_URL || "/api/v1/");
       setEnableIdhub(Boolean(cfg.enableIdhub ?? (cfg.VITE_ENABLE_IDHUB === "true" || cfg.VITE_ENABLE_IDHUB === true)));
       setIdhubApiUrl(cfg.idhubApiUrl || cfg.VITE_IDHUB_API_URL || "");
@@ -185,7 +189,7 @@ const TemplateBuildPage = () => {
           <form className="space-y-4" onSubmit={onSubmit}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="md:col-span-2 font-semibold text-base">站点信息</div>
-              <label className="form-control">
+              <label className="form-control md:col-span-2">
                 <span className="label-text">站点名称*</span>
                 <input
                   className="input input-bordered"
@@ -199,6 +203,15 @@ const TemplateBuildPage = () => {
               <label className="form-control">
                 <span className="label-text">站点 Logo 链接</span>
                 <input className="input input-bordered" value={siteLogo} onChange={(e) => setSiteLogo(e.target.value)} placeholder="支持url或者本地图片" />
+              </label>
+              <label className="form-control">
+                <span className="label-text">登陆页面背景 VITE_AUTH_BACKGROUND</span>
+                <input
+                  className="input input-bordered"
+                  value={authBackground}
+                  onChange={(e) => setAuthBackground(e.target.value)}
+                  placeholder="支持 url 或本地图片"
+                />
               </label>
 
               <label className="form-control md:col-span-2">
@@ -296,6 +309,7 @@ const TemplateBuildPage = () => {
                   setIdhubApiKey("");
                   setAllowedClientOrigins("");
                   setAllowedOriginsError(null);
+                  setAuthBackground("");
                   setDownloadIos("");
                   setDownloadAndroid("");
                   setDownloadWindows("");
