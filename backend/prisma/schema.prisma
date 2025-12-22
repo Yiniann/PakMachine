@@ -13,6 +13,7 @@ model User {
   id                 Int       @id @default(autoincrement())
   email              String    @unique
   password           String
+  emailVerified      Boolean   @default(false)
   role               String    @default("user") // "user" | "admin"
   siteName           String?
   buildQuotaUsed     Int       @default(0) // 当天已使用的构建次数
@@ -26,6 +27,20 @@ model User {
   buildJobs           BuildJob[]
   buildProfile        BuildProfile?
   buildArtifacts      BuildArtifact[]
+}
+
+model VerificationCode {
+  id          Int      @id @default(autoincrement())
+  email       String
+  codeHash    String
+  purpose     String   @default("register")
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  consumedAt  DateTime?
+  attemptCount Int     @default(0)
+
+  @@index([email])
+  @@index([purpose, email])
 }
 
 /// 管理员上传的模板（一个 zip 文件）

@@ -7,6 +7,7 @@ export interface User {
   role: string;
   createdAt: string;
   updatedAt: string;
+  emailVerified?: boolean;
   siteName?: string | null;
   buildQuotaUsed?: number | null;
   buildQuotaDate?: string | null;

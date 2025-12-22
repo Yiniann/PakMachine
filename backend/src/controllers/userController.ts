@@ -4,15 +4,19 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import prisma from "../lib/prisma";
 import { loadSettings } from "./systemSettingsController";
-import { buildResetUrl, sendPasswordResetEmail } from "../services/mailService";
+import { buildResetUrl, sendPasswordResetEmail, sendRegisterVerificationEmail } from "../services/mailService";
 
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
 const TOKEN_EXPIRES_HOURS = 1;
+const REGISTER_CODE_EXPIRATION_MINUTES = 10;
+const REGISTER_CODE_RESEND_SECONDS = 60;
 
 // Basic validators to keep payloads sane before touching the database
 const isValidEmail = (email: string) =>
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 const isValidPassword = (pwd: string) => typeof pwd === "string" && pwd.length >= 8;
+const hashCode = (code: string) => crypto.createHash("sha256").update(code).digest("hex");
+const generateRegisterCode = () => Math.floor(100000 + Math.random() * 900000).toString();
 
 
 export const listUsers = async (_req: Request, res: Response, next: NextFunction) => {
@@ -47,7 +51,7 @@ export const adminCreateUser = async (req: Request, res: Response, next: NextFun
 
     const hashed = await bcrypt.hash(password, 10);
     const created = await prisma.user.create({
-      data: { email, password: hashed, role },
+      data: { email, password: hashed, role, emailVerified: true },
     });
     const { password: _pw, resetToken, resetTokenExpires, ...rest } = created;
     res.status(201).json(rest);
@@ -151,22 +155,19 @@ export const adminResetBuildQuota = async (req: Request, res: Response, next: Ne
   }
 };
 
-export const register = async (req: Request, res: Response, next: NextFunction) => {
+export const sendRegisterCode = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const sys = loadSettings();
     if (sys.allowRegister === false) {
       return res.status(403).json({ error: "注册已关闭" });
     }
 
-    const { email, password } = req.body;
-    if (!email || !password) {
-      return res.status(400).json({ error: "Email and password are required" });
+    const { email } = req.body ?? {};
+    if (!email) {
+      return res.status(400).json({ error: "Email is required" });
     }
     if (!isValidEmail(email)) {
       return res.status(400).json({ error: "Email format is invalid" });
-    }
-    if (!isValidPassword(password)) {
-      return res.status(400).json({ error: "Password must be at least 8 characters" });
     }
 
     const existing = await prisma.user.findUnique({ where: { email } });
@@ -174,8 +175,119 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
       return res.status(409).json({ error: "Email already registered" });
     }
 
+    const now = Date.now();
+    const recent = await prisma.verificationCode.findFirst({
+      where: {
+        email,
+        purpose: "register",
+        createdAt: { gte: new Date(now - REGISTER_CODE_RESEND_SECONDS * 1000) },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (recent && !recent.consumedAt) {
+      const retryAt = new Date(recent.createdAt.getTime() + REGISTER_CODE_RESEND_SECONDS * 1000);
+      return res
+        .status(429)
+        .json({ error: "验证码请求过于频繁，请稍后再试", retryAt: retryAt.toISOString() });
+    }
+
+    const code = generateRegisterCode();
+    const expiresAt = new Date(now + REGISTER_CODE_EXPIRATION_MINUTES * 60 * 1000);
+
+    const record = await prisma.verificationCode.create({
+      data: {
+        email,
+        codeHash: hashCode(code),
+        purpose: "register",
+        expiresAt,
+      },
+    });
+
+    const sendResult = await sendRegisterVerificationEmail({
+      to: email,
+      code,
+      expiresAt,
+    });
+
+    const payload: Record<string, unknown> = {
+      message: "验证码已发送",
+      expiresAt,
+      emailSent: sendResult.sent,
+      recordId: record.id,
+    };
+    if (!sendResult.sent && sendResult.reason) {
+      payload.reason = sendResult.reason;
+    }
+    if (process.env.NODE_ENV !== "production") {
+      payload.code = code;
+    }
+
+    res.json(payload);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const register = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const sys = loadSettings();
+    if (sys.allowRegister === false) {
+      return res.status(403).json({ error: "注册已关闭" });
+    }
+
+    const { email, password, code } = req.body;
+    if (!email || !password || !code) {
+      return res.status(400).json({ error: "Email, password and code are required" });
+    }
+    if (!isValidEmail(email)) {
+      return res.status(400).json({ error: "Email format is invalid" });
+    }
+    if (!isValidPassword(password)) {
+      return res.status(400).json({ error: "Password must be at least 8 characters" });
+    }
+    if (typeof code !== "string" || code.trim().length === 0) {
+      return res.status(400).json({ error: "验证码不能为空" });
+    }
+
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing) {
+      return res.status(409).json({ error: "Email already registered" });
+    }
+
+    const latestCode = await prisma.verificationCode.findFirst({
+      where: {
+        email,
+        purpose: "register",
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (!latestCode) {
+      return res.status(400).json({ error: "验证码无效或已过期，请重新获取" });
+    }
+    if (latestCode.consumedAt) {
+      return res.status(400).json({ error: "验证码已被使用，请重新获取" });
+    }
+
+    const hashedCode = hashCode(code);
+    if (latestCode.codeHash !== hashedCode) {
+      await prisma.verificationCode.update({
+        where: { id: latestCode.id },
+        data: { attemptCount: { increment: 1 } },
+      });
+      return res.status(400).json({ error: "验证码错误" });
+    }
+
     const hashed = await bcrypt.hash(password, 10);
-    const user = await prisma.user.create({ data: { email, password: hashed } });
+    const [user] = await prisma.$transaction([
+      prisma.user.create({ data: { email, password: hashed, emailVerified: true } }),
+      prisma.verificationCode.update({
+        where: { id: latestCode.id },
+        data: { consumedAt: new Date() },
+      }),
+    ]);
     const { password: _pw, resetToken, resetTokenExpires, ...rest } = user;
 
     res.status(201).json(rest);

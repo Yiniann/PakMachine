@@ -18,12 +18,25 @@ export const useLoginMutation = (): UseMutationResult<
 export const useRegisterMutation = (): UseMutationResult<
   User,
   unknown,
-  { email: string; password: string },
+  { email: string; password: string; code: string },
   unknown
 > =>
   useMutation({
     mutationFn: async (variables) => {
       const res = await api.post("/auth/register", variables);
+      return res.data;
+    },
+  });
+
+export const useSendRegisterCodeMutation = (): UseMutationResult<
+  { message?: string; expiresAt?: string; emailSent?: boolean; reason?: string; code?: string },
+  unknown,
+  { email: string },
+  unknown
+> =>
+  useMutation({
+    mutationFn: async (variables) => {
+      const res = await api.post("/auth/register/send-code", variables);
       return res.data;
     },
   });

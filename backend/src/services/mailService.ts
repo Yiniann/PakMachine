@@ -30,6 +30,14 @@ export const isMailConfigured = () => {
   return Boolean(cfg.host && cfg.port && cfg.from);
 };
 
+const createTransporter = (cfg: MailConfig) =>
+  nodemailer.createTransport({
+    host: cfg.host,
+    port: cfg.port,
+    secure: cfg.secure ?? cfg.port === 465,
+    auth: cfg.user ? { user: cfg.user, pass: cfg.pass || "" } : undefined,
+  });
+
 export const buildResetUrl = (token: string) => {
   const cfg = resolveMailConfig();
   const base = cfg.resetBaseUrl || "http://localhost:5173/auth/reset";
@@ -58,12 +66,7 @@ export const sendPasswordResetEmail = async (
   }
 
   try {
-    const transporter = nodemailer.createTransport({
-      host: cfg.host,
-      port: cfg.port,
-      secure: cfg.secure ?? cfg.port === 465,
-      auth: cfg.user ? { user: cfg.user, pass: cfg.pass || "" } : undefined,
-    });
+    const transporter = createTransporter(cfg);
 
     const subject = "密码重置";
     const text = [
@@ -91,6 +94,44 @@ export const sendPasswordResetEmail = async (
     return { sent: true };
   } catch (err) {
     console.error("[mail] Failed to send reset email", err);
+    return { sent: false, reason: "send_failed" };
+  }
+};
+
+type RegisterMailPayload = {
+  to: string;
+  code: string;
+  expiresAt: Date;
+};
+
+export const sendRegisterVerificationEmail = async (
+  payload: RegisterMailPayload,
+): Promise<{ sent: boolean; reason?: string }> => {
+  const cfg = resolveMailConfig();
+  if (!cfg.host || !cfg.port || !cfg.from) {
+    return { sent: false, reason: "not_configured" };
+  }
+
+  try {
+    const transporter = createTransporter(cfg);
+    const subject = "注册验证码";
+    const text = [`您的注册验证码：${payload.code}`, `有效期：${payload.expiresAt.toLocaleString()}`].join("\n");
+    const html = `
+      <p>您的注册验证码：<strong>${payload.code}</strong></p>
+      <p>有效期：${payload.expiresAt.toLocaleString()}</p>
+    `;
+
+    await transporter.sendMail({
+      from: cfg.from,
+      to: payload.to,
+      subject,
+      text,
+      html,
+    });
+
+    return { sent: true };
+  } catch (err) {
+    console.error("[mail] Failed to send register email", err);
     return { sent: false, reason: "send_failed" };
   }
 };
