@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
+import fs from "fs";
 import prisma from "../lib/prisma";
 import { loadSettings } from "./systemSettingsController";
 import { buildResetUrl, sendPasswordResetEmail, sendRegisterVerificationEmail } from "../services/mailService";
@@ -66,7 +67,41 @@ export const adminDeleteUser = async (req: Request, res: Response, next: NextFun
     if (!Number.isInteger(id)) {
       return res.status(400).json({ error: "Invalid user id" });
     }
-    await prisma.user.delete({ where: { id } });
+
+    const user = await prisma.user.findUnique({ where: { id } });
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const artifacts = await prisma.buildArtifact.findMany({
+      where: { userId: id },
+      select: { id: true, outputPath: true },
+    });
+
+    await prisma.$transaction(
+      async (tx) => {
+        await tx.buildJob.deleteMany({ where: { userId: id } });
+        await tx.buildProfile.deleteMany({ where: { userId: id } });
+        await tx.buildArtifact.deleteMany({ where: { userId: id } });
+        await tx.user.delete({ where: { id } });
+      },
+      {
+        timeout: 60_000, // allow slower deletes on large datasets
+        maxWait: 10_000,
+      },
+    );
+
+    for (const artifact of artifacts) {
+      if (!artifact.outputPath || /^https?:\/\//i.test(artifact.outputPath)) continue;
+      if (fs.existsSync(artifact.outputPath)) {
+        try {
+          fs.unlinkSync(artifact.outputPath);
+        } catch (err) {
+          console.warn(`[adminDeleteUser] Failed to remove artifact file ${artifact.outputPath}:`, err);
+        }
+      }
+    }
+
     res.json({ message: "User deleted" });
   } catch (error) {
     next(error);

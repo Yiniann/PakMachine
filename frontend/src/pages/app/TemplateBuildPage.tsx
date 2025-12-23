@@ -17,6 +17,7 @@ const TemplateBuildPage = () => {
 
   const [selected, setSelected] = useState<string | null>(null);
   const [siteName, setSiteName] = useState("");
+  const [enableLanding, setEnableLanding] = useState(true);
   const [siteLogo, setSiteLogo] = useState("");
   const [authBackground, setAuthBackground] = useState("");
   const [enableIdhub, setEnableIdhub] = useState(false);
@@ -52,6 +53,7 @@ const TemplateBuildPage = () => {
     const prodApiFinal = prodApiUrl.trim() || "/api/v1/";
     const lines = [
       `VITE_SITE_NAME=${siteName.trim()}`,
+      `VITE_ENABLE_LANDING=${enableLanding ? "true" : "false"}`,
       `VITE_SITE_LOGO=${siteLogo.trim()}`,
       `VITE_AUTH_BACKGROUND=${authBackground.trim()}`,
       `VITE_ENABLE_IDHUB=${enableIdhub ? "true" : "false"}`,
@@ -89,14 +91,15 @@ const TemplateBuildPage = () => {
             navigate(`/app?jobId=${data.jobId}`);
           }
           setError(null);
-            saveProfile.mutate({
-              siteLogo,
-              authBackground,
-              prodApiUrl,
-              enableIdhub,
-              idhubApiUrl,
-              idhubApiKey,
-              allowedClientOrigins,
+          saveProfile.mutate({
+            siteLogo,
+            authBackground,
+            prodApiUrl,
+            enableIdhub,
+            idhubApiUrl,
+            idhubApiKey,
+            allowedClientOrigins,
+            enableLanding,
             downloadIos,
             downloadAndroid,
             downloadWindows,
@@ -127,6 +130,8 @@ const TemplateBuildPage = () => {
       setDownloadAndroid(cfg.downloadAndroid || cfg.VITE_DOWNLOAD_ANDROID || "");
       setDownloadWindows(cfg.downloadWindows || cfg.VITE_DOWNLOAD_WINDOWS || "");
       setDownloadMacos(cfg.downloadMacos || cfg.VITE_DOWNLOAD_MACOS || "");
+      const landingRaw = cfg.enableLanding ?? cfg.VITE_ENABLE_LANDING;
+      setEnableLanding(landingRaw === undefined ? true : landingRaw === true || landingRaw === "true");
     }
   }, [profileQuery.data]);
 
@@ -189,17 +194,31 @@ const TemplateBuildPage = () => {
           <form className="space-y-4" onSubmit={onSubmit}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="md:col-span-2 font-semibold text-base">站点信息</div>
-              <label className="form-control md:col-span-2">
-                <span className="label-text">站点名称*</span>
-                <input
-                  className="input input-bordered"
-                  value={siteName}
-                  readOnly
-                  disabled={siteNameQuery.isLoading}
-                  placeholder={siteNameQuery.isLoading ? "加载中..." : "请先在主页设置站点名称"}
-                />
-                {!siteName && !siteNameQuery.isLoading && <span className="text-error text-sm">请前往主页先设置站点名称</span>}
-              </label>
+              <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-[2fr_auto] gap-3 items-end">
+                <label className="form-control">
+                  <span className="label-text">站点名称*</span>
+                  <input
+                    className="input input-bordered"
+                    value={siteName}
+                    readOnly
+                    disabled={siteNameQuery.isLoading}
+                    placeholder={siteNameQuery.isLoading ? "加载中..." : "请先在主页设置站点名称"}
+                  />
+                  {!siteName && !siteNameQuery.isLoading && <span className="text-error text-sm">请前往主页先设置站点名称</span>}
+                </label>
+                <label className="form-control">
+                  <span className="label-text">着陆页开关 VITE_ENABLE_LANDING</span>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      className="toggle"
+                      checked={enableLanding}
+                      onChange={(e) => setEnableLanding(e.target.checked)}
+                    />
+                    <span className="text-sm text-base-content/70">{enableLanding ? "开启" : "关闭"}</span>
+                  </div>
+                </label>
+              </div>
               <label className="form-control">
                 <span className="label-text">站点 Logo 链接</span>
                 <input className="input input-bordered" value={siteLogo} onChange={(e) => setSiteLogo(e.target.value)} placeholder="支持url或者本地图片" />
@@ -310,6 +329,7 @@ const TemplateBuildPage = () => {
                   setAllowedClientOrigins("");
                   setAllowedOriginsError(null);
                   setAuthBackground("");
+                  setEnableLanding(true);
                   setDownloadIos("");
                   setDownloadAndroid("");
                   setDownloadWindows("");
