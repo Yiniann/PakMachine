@@ -40,11 +40,17 @@ jobs:
           cd "$WORKDIR"
           printf '%s' "${{ github.event.inputs.envJson }}" > .env
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8
+          run_install: false
+
       - name: Install & build
         run: |
           cd "$WORKDIR"
-          npm ci || npm install
-          npm run build
+          pnpm install --no-frozen-lockfile
+          pnpm run build
 
       - name: Package artifact
         run: |

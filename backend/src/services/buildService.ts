@@ -61,10 +61,14 @@ export const buildTemplate = async (prisma: PrismaClient, userId: number, filena
     if (fs.existsSync(nodeModules)) {
       fs.rmSync(nodeModules, { recursive: true, force: true });
     }
-    const hasLock = fs.existsSync(path.join(projectDir, "package-lock.json"));
     const timeoutMs = 10 * 60 * 1000; // 10 minutes safety timeout
-    execSync(hasLock ? "npm ci" : "npm install", { cwd: projectDir, stdio: "inherit", timeout: timeoutMs });
-    execSync("npm run build", { cwd: projectDir, stdio: "inherit", timeout: timeoutMs });
+    const hasPnpmLock = fs.existsSync(path.join(projectDir, "pnpm-lock.yaml"));
+    const hasNpmLock = fs.existsSync(path.join(projectDir, "package-lock.json"));
+    const installCmd = hasPnpmLock ? "pnpm install --frozen-lockfile" : hasNpmLock ? "npm ci" : "npm install";
+    const buildCmd = hasPnpmLock ? "pnpm run build" : "npm run build";
+
+    execSync(installCmd, { cwd: projectDir, stdio: "inherit", timeout: timeoutMs });
+    execSync(buildCmd, { cwd: projectDir, stdio: "inherit", timeout: timeoutMs });
     const distDir = fs.existsSync(path.join(projectDir, "dist"))
       ? path.join(projectDir, "dist")
       : fs.existsSync(path.join(projectDir, "build"))
