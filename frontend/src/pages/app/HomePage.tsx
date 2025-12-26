@@ -16,10 +16,17 @@ const HomePage = () => {
   const [cachedSiteName, setCachedSiteName] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [message, setMessage] = useState<string | null>(null);
-  const [buildFailure, setBuildFailure] = useState<{ jobId: number; message: string } | null>(null);
+  const [buildFailure, setBuildFailure] = useState<{ jobId: number; message: string; createdAt: string } | null>(null);
   const [dismissedFailureId, setDismissedFailureId] = useState<number | null>(null);
   const prevJobIdRef = useRef<number | undefined>(undefined);
   const dismissedStorageKey = "pacmachine-dismissed-failure-id";
+  const failureWindowMs = 5 * 60 * 1000;
+
+  const isRecentFailure = (createdAt?: string) => {
+    if (!createdAt) return false;
+    const ts = new Date(createdAt).getTime();
+    return Number.isFinite(ts) && Date.now() - ts <= failureWindowMs;
+  };
 
   const siteName = siteNameQuery.data?.siteName || null;
   const loadingSiteName = siteNameQuery.isPending; // 只在首个请求未返回时认为 loading，避免阻塞展示
@@ -78,10 +85,16 @@ const HomePage = () => {
     if (!status) return;
 
     if (status === "failed" && dismissedFailureId !== jobId) {
-      setBuildFailure({
-        jobId,
-        message: activeJobQuery.data?.message || "构建失败，请稍后重试",
-      });
+      const createdAt = activeJobQuery.data?.createdAt;
+      if (isRecentFailure(createdAt)) {
+        setBuildFailure({
+          jobId,
+          message: activeJobQuery.data?.message || "构建失败，请稍后重试",
+          createdAt: createdAt!,
+        });
+      } else {
+        setBuildFailure(null);
+      }
     }
 
     if (status === "success" || status === "failed") {
@@ -95,7 +108,7 @@ const HomePage = () => {
         navigate("/app/downloads");
       }
     }
-  }, [jobId, activeJobQuery.data?.status, activeJobQuery.data?.message, navigate, setSearchParams]);
+  }, [jobId, activeJobQuery.data?.status, activeJobQuery.data?.message, activeJobQuery.data?.createdAt, navigate, setSearchParams]);
 
   useEffect(() => {
     if (jobId !== undefined && jobId !== prevJobIdRef.current) {
@@ -120,58 +133,80 @@ const HomePage = () => {
   useEffect(() => {
     if (!jobsQuery.data) return;
     const latestFailed = [...jobsQuery.data]
-      .filter((j) => j.status === "failed")
+      .filter((j) => j.status === "failed" && isRecentFailure(j.createdAt))
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
     if (!latestFailed) return;
     if (dismissedFailureId && latestFailed.id === dismissedFailureId) return;
     setBuildFailure({
       jobId: latestFailed.id,
       message: latestFailed.message || "构建失败，请稍后重试",
+      createdAt: latestFailed.createdAt,
     });
   }, [jobsQuery.data, dismissedFailureId]);
 
+  useEffect(() => {
+    if (!buildFailure) return;
+    const createdAtMs = new Date(buildFailure.createdAt).getTime();
+    if (!Number.isFinite(createdAtMs)) return;
+    const remaining = failureWindowMs - (Date.now() - createdAtMs);
+    if (remaining <= 0) {
+      setBuildFailure(null);
+      return;
+    }
+    const timeout = window.setTimeout(() => {
+      setBuildFailure(null);
+    }, remaining);
+    return () => window.clearTimeout(timeout);
+  }, [buildFailure, failureWindowMs]);
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="card bg-base-100 shadow-xl">
-        <div className="card-body space-y-4">
-          <div className="flex flex-col gap-2">
-            <h2 className="card-title">主题打包机</h2>
-            <p className="text-base-content/70">
-              设置站点名，提交打包，完成后在“构建下载”获取仅与你账号绑定的产物。
-            </p>
+        <div className="card-body space-y-5">
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div className="space-y-1">
+              <h2 className="card-title">主题打包机</h2>
+              <p className="text-base-content/70 max-w-2xl">
+                设置站点名，提交打包，完成后在“构建下载”获取仅与你账号绑定的产物。
+              </p>
+            </div>
           </div>
 
-          {loadingSiteName && !displaySiteName && <p>加载站点名称...</p>}
+          {loadingSiteName && !displaySiteName && <p className="text-sm text-base-content/70">加载站点名称...</p>}
 
           {!showSiteNameForm && (displaySiteName || hasActiveJob) ? (
-            <div className="bg-base-200/60 rounded-box p-4 space-y-3">
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="font-semibold">站点名称</span>
-                <span className="badge badge-lg badge-outline">{displaySiteName || "已设置"}</span>
-                 <span className="text-xs text-base-content/60">
-                  {isAdmin ? "管理员可随时修改站点名" : "如需更改站点名请联系管理员"}
-                </span>
-              </div>
-              <div className="flex flex-wrap items-center gap-3 text-sm text-base-content/70">
+            <div className="rounded-box border border-base-200 bg-base-200/60 p-4 md:p-5">
+              <div className="grid gap-4 md:grid-cols-[1.4fr_1fr]">
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="font-semibold">站点名称</span>
+                    <span className="badge badge-lg badge-outline">{displaySiteName || "已设置"}</span>
+                  </div>
+                  <div className="text-xs text-base-content/60">
+                    {isAdmin ? "管理员可随时修改站点名" : "如需更改站点名请联系管理员"}
+                  </div>
+                </div>
                 {quota && (
-                  <div className="flex items-center gap-1">
-                    <span className="font-semibold">今日剩余</span>
-                    {isUnlimitedQuota ? (
-                      <span className="badge badge-outline">无限制</span>
-                    ) : (
-                      <span className="badge badge-outline">
-                        {quota.left} / {quota.limit}
+                  <div className="rounded-md bg-base-100/70 p-3">
+                    <div className="text-xs text-base-content/60">今日剩余</div>
+                    <div className="mt-1 flex flex-wrap items-center gap-2">
+                      {isUnlimitedQuota ? (
+                        <span className="badge badge-outline">无限制</span>
+                      ) : (
+                        <span className="badge badge-outline">
+                          {quota.left} / {quota.limit}
+                        </span>
+                      )}
+                      <span className="text-xs text-base-content/60">
+                        {isUnlimitedQuota ? "管理员账号不受限制" : "打包次数每日刷新"}
                       </span>
-                    )}
-                    <span className="text-xs text-base-content/60">
-                      {isUnlimitedQuota ? "管理员账号不受限制" : "打包次数每日刷新"}
-                    </span>
+                    </div>
                   </div>
                 )}
               </div>
             </div>
           ) : (
-            <div className="bg-base-200/60 rounded-box p-4 space-y-3">
+            <div className="rounded-box border border-base-200 bg-base-200/60 p-4 md:p-5 space-y-4">
               <div className="alert">
                 <span>
                   在前端构建前输入你的站点名，用于打包后主题的站点名称和标题，
@@ -199,12 +234,12 @@ const HomePage = () => {
               )}
             </div>
           )}
-          {message && <p className="text-info">{message}</p>}
+          {message && <p className="text-info text-sm">{message}</p>}
         </div>
       </div>
 
       {buildFailure && (
-        <div className="alert alert-error bg-base-100 flex flex-col sm:flex-row sm:items-center gap-2">
+        <div className="alert alert-error bg-base-100 shadow-sm flex flex-col sm:flex-row sm:items-center gap-3">
           <div className="flex items-center gap-2">
             <span className="font-semibold">构建失败</span>
             <span className="badge badge-outline">#{buildFailure.jobId}</span>
@@ -214,29 +249,29 @@ const HomePage = () => {
             <button className="btn btn-sm" onClick={() => navigate("/app/build")}>
               重新提交
             </button>
-                <button
-                  className="btn btn-sm btn-ghost"
-                  onClick={() => {
-                    setDismissedFailureId(buildFailure.jobId);
-                    localStorage.setItem(dismissedStorageKey, String(buildFailure.jobId));
-                    setBuildFailure(null);
-                  }}
-                >
-                  知道了
-                </button>
+            <button
+              className="btn btn-sm btn-ghost"
+              onClick={() => {
+                setDismissedFailureId(buildFailure.jobId);
+                localStorage.setItem(dismissedStorageKey, String(buildFailure.jobId));
+                setBuildFailure(null);
+              }}
+            >
+              知道了
+            </button>
           </div>
         </div>
       )}
 
       {(jobId || derivedActiveJob) && (
-        <div className="alert bg-base-100 flex flex-col sm:flex-row sm:items-center gap-2">
-          <span>
-            当前构建任务 ID：{jobId ?? derivedActiveJob?.id ?? "获取中"}
-          </span>
-          <span className="badge badge-outline">
-            {activeJobStatusLabel ??
-              (derivedActiveJob ? (derivedActiveJob.status === "pending" ? "等待中" : "构建中") : "获取状态中...")}
-          </span>
+        <div className="alert bg-base-100 shadow-sm flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span>当前构建任务 ID：{jobId ?? derivedActiveJob?.id ?? "获取中"}</span>
+            <span className="badge badge-outline">
+              {activeJobStatusLabel ??
+                (derivedActiveJob ? (derivedActiveJob.status === "pending" ? "等待中" : "构建中") : "获取状态中...")}
+            </span>
+          </div>
           {activeJobQuery.data?.status === "failed" && (
             <span className="text-error text-sm">{activeJobQuery.data.message || "构建失败"}</span>
           )}
@@ -245,7 +280,7 @@ const HomePage = () => {
       )}
 
       <div className="card bg-base-100 shadow-xl">
-        <div className="card-body space-y-3">
+        <div className="card-body space-y-4">
           <h3 className="card-title">构建队列</h3>
           {jobsQuery.isLoading && <p>加载队列...</p>}
           {jobsQuery.error && <p className="text-error">加载失败</p>}
@@ -267,7 +302,7 @@ const HomePage = () => {
                   return <p className="col-span-full">暂无任务</p>;
                 }
                 return cards.map((c) => (
-                  <div key={c.label} className={`stat shadow-sm ${c.color}`}>
+                  <div key={c.label} className={`stat rounded-box border border-base-200 shadow-sm ${c.color}`}>
                     <div className="stat-title">{c.label}</div>
                     <div className="stat-value text-3xl">{c.value}</div>
                   </div>

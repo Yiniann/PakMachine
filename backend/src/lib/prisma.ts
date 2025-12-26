@@ -2,8 +2,11 @@ import { PrismaClient } from "@prisma/client";
 
 let prisma: PrismaClient | null = null;
 
-// 当环境变量未配置时，回退到 Docker 约定的内网地址，减少手工填写
-const defaultDatabaseUrl = "mysql://pacmachine:mYeJX4PRx3ykGbiT@mysql:3306/pacmachine";
+// 当环境变量未配置时，开发环境使用本地数据库，生产环境回退到 Docker 内网地址
+const defaultDatabaseUrl =
+  process.env.NODE_ENV === "production"
+    ? "mysql://pacmachine:mYeJX4PRx3ykGbiT@mysql:3306/pacmachine"
+    : "mysql://root:1201@localhost:3306/pacmachine";
 
 const resolveDatabaseUrl = (databaseUrl?: string) => {
   const url = databaseUrl || process.env.DATABASE_URL || process.env.DEFAULT_DATABASE_URL || defaultDatabaseUrl;

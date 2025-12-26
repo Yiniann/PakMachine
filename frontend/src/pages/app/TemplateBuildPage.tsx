@@ -21,13 +21,13 @@ const TemplateBuildPage = () => {
   const [siteLogo, setSiteLogo] = useState("");
   const [authBackground, setAuthBackground] = useState("");
   const [enableIdhub, setEnableIdhub] = useState(false);
-  const [idhubApiUrl, setIdhubApiUrl] = useState("");
+  const [idhubApiUrl, setIdhubApiUrl] = useState("/idhub-api/");
   const [idhubApiKey, setIdhubApiKey] = useState("");
   const [downloadIos, setDownloadIos] = useState("");
   const [downloadAndroid, setDownloadAndroid] = useState("");
   const [downloadWindows, setDownloadWindows] = useState("");
   const [downloadMacos, setDownloadMacos] = useState("");
-  const [prodApiUrl, setProdApiUrl] = useState("");
+  const [prodApiUrl, setProdApiUrl] = useState("/api/v1/");
   const [allowedClientOrigins, setAllowedClientOrigins] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -43,11 +43,6 @@ const TemplateBuildPage = () => {
     if (parseOrigins(allowedClientOrigins).length > 4) return false;
     return true;
   }, [selected, siteName, enableIdhub, idhubApiUrl, idhubApiKey, allowedOriginsError, allowedClientOrigins]);
-
-  const selectedTemplate = useMemo(
-    () => templates.data?.find((item) => item.filename === selected),
-    [selected, templates.data],
-  );
 
   const buildEnvContent = () => {
     const prodApiFinal = prodApiUrl.trim() || "/api/v1/";
@@ -122,7 +117,7 @@ const TemplateBuildPage = () => {
       setAuthBackground(cfg.authBackground || cfg.VITE_AUTH_BACKGROUND || "");
       setProdApiUrl(cfg.prodApiUrl || cfg.VITE_PROD_API_URL || "/api/v1/");
       setEnableIdhub(Boolean(cfg.enableIdhub ?? (cfg.VITE_ENABLE_IDHUB === "true" || cfg.VITE_ENABLE_IDHUB === true)));
-      setIdhubApiUrl(cfg.idhubApiUrl || cfg.VITE_IDHUB_API_URL || "");
+      setIdhubApiUrl(cfg.idhubApiUrl || cfg.VITE_IDHUB_API_URL || "/idhub-api/");
       setIdhubApiKey(cfg.idhubApiKey || cfg.VITE_IDHUB_API_KEY || "");
       setAllowedClientOrigins(cfg.allowedClientOrigins || cfg.VITE_ALLOWED_CLIENT_ORIGINS || "");
       setAllowedOriginsError(null);
@@ -149,7 +144,7 @@ const TemplateBuildPage = () => {
                 <thead>
                   <tr>
                     <th></th>
-                    <th>文件名</th>
+                    <th>模板名</th>
                     <th>描述</th>
                     <th>更新时间</th>
                   </tr>
@@ -175,15 +170,6 @@ const TemplateBuildPage = () => {
               </table>
             </div>
           )}
-          {selectedTemplate && (
-            <div className="alert alert-info">
-              <span className="font-semibold">当前选择：</span>
-              <div className="flex flex-col">
-                <span className="font-mono text-sm break-all">{selectedTemplate.filename}</span>
-                <span className="text-sm text-base-content/80">{selectedTemplate.description || "暂无描述"}</span>
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
@@ -191,129 +177,154 @@ const TemplateBuildPage = () => {
         <div className="card-body space-y-3">
           <h2 className="card-title">填写站点配置</h2>
           <p className="text-sm text-base-content/70">按要求填写字段，系统会生成 .env 写入模板并进行构建。</p>
-          <form className="space-y-4" onSubmit={onSubmit}>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="md:col-span-2 font-semibold text-base">站点信息</div>
-              <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-[2fr_auto] gap-3 items-end">
+          <form className="space-y-6" onSubmit={onSubmit}>
+            <div className="rounded-lg border border-base-200 bg-base-200/30 p-4 space-y-4">
+              <div className="font-semibold text-base">站点信息</div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="md:col-span-2 flex flex-wrap items-end gap-3">
+                  <label className="form-control w-full md:w-1/2">
+                    <span className="label-text">站点名称</span>
+                    <input
+                      className="input input-bordered bg-base-200 text-base-content/60 cursor-not-allowed w-full"
+                      value={siteName}
+                      readOnly
+                      disabled={siteNameQuery.isLoading}
+                      placeholder={siteNameQuery.isLoading ? "加载中..." : "请先在主页设置站点名称"}
+                    />
+                    {!siteName && !siteNameQuery.isLoading && <span className="text-error text-sm">请前往主页先设置站点名称</span>}
+                  </label>
+                  <label className="form-control ml-2">
+                    <span className="label-text">着陆页开关</span>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        className="toggle"
+                        checked={enableLanding}
+                        onChange={(e) => setEnableLanding(e.target.checked)}
+                      />
+                      <span className="text-sm text-base-content/70">{enableLanding ? "开启" : "关闭"}</span>
+                    </div>
+                  </label>
+                </div>
                 <label className="form-control">
-                  <span className="label-text">站点名称*</span>
-                  <input
-                    className="input input-bordered"
-                    value={siteName}
-                    readOnly
-                    disabled={siteNameQuery.isLoading}
-                    placeholder={siteNameQuery.isLoading ? "加载中..." : "请先在主页设置站点名称"}
-                  />
-                  {!siteName && !siteNameQuery.isLoading && <span className="text-error text-sm">请前往主页先设置站点名称</span>}
+                  <span className="label-text">站点 Logo</span>
+                  <input className="input input-bordered" value={siteLogo} onChange={(e) => setSiteLogo(e.target.value)} placeholder="支持url或者本地图片" />
                 </label>
                 <label className="form-control">
-                  <span className="label-text">着陆页开关 VITE_ENABLE_LANDING</span>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      className="toggle"
-                      checked={enableLanding}
-                      onChange={(e) => setEnableLanding(e.target.checked)}
-                    />
-                    <span className="text-sm text-base-content/70">{enableLanding ? "开启" : "关闭"}</span>
+                  <span className="label-text">登陆页背景</span>
+                  <input
+                    className="input input-bordered"
+                    value={authBackground}
+                    onChange={(e) => setAuthBackground(e.target.value)}
+                    placeholder="支持 url 或本地图片"
+                  />
+                </label>
+
+                <label className="form-control md:col-span-2">
+                  <span className="label-text">前端域名（多个域名用逗号分隔，最多 4 个）</span>
+                  <input
+                    className="input input-bordered"
+                    value={allowedClientOrigins}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setAllowedClientOrigins(value);
+                      const origins = parseOrigins(value);
+                      setAllowedOriginsError(origins.length > 4 ? "最多只能填写 4 个域名" : null);
+                    }}
+                    placeholder="请输入完整域名，如 https://xxx.xxx.com, https://yyy.yyy.com"
+                  />
+                  {allowedOriginsError && <span className="text-error text-xs">{allowedOriginsError}</span>}
+                </label>
+                <label className="form-control md:col-span-2">
+                  <span className="label-text">后端 API 地址</span>
+                  <input
+                    className="input input-bordered"
+                    value={prodApiUrl}
+                    onChange={(e) => setProdApiUrl(e.target.value)}
+                    placeholder="/api/v1/"
+                  />
+                  <div className="mt-2 rounded-md border border-warning/40 bg-warning/15 px-3 py-2 text-sm text-warning">
+                    服务器静态部署无需修改（保持 /api/v1/ 即可，Nginx 会在服务器端反代）；如使用 serverless 部署，请填写对应的反代 Worker 地址。
                   </div>
                 </label>
               </div>
-              <label className="form-control">
-                <span className="label-text">站点 Logo 链接</span>
-                <input className="input input-bordered" value={siteLogo} onChange={(e) => setSiteLogo(e.target.value)} placeholder="支持url或者本地图片" />
-              </label>
-              <label className="form-control">
-                <span className="label-text">登陆页面背景 VITE_AUTH_BACKGROUND</span>
-                <input
-                  className="input input-bordered"
-                  value={authBackground}
-                  onChange={(e) => setAuthBackground(e.target.value)}
-                  placeholder="支持 url 或本地图片"
-                />
-              </label>
-
-              <label className="form-control md:col-span-2">
-                <span className="label-text">前端域名（多个域名用逗号分隔，最多 4 个）</span>
-                <input
-                  className="input input-bordered"
-                  value={allowedClientOrigins}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setAllowedClientOrigins(value);
-                    const origins = parseOrigins(value);
-                    setAllowedOriginsError(origins.length > 4 ? "最多只能填写 4 个域名" : null);
-                  }}
-                  placeholder="请输入完整域名，如 https://xxx.xxx.com, https://yyy.yyy.com"
-                />
-                {allowedOriginsError && <span className="text-error text-xs">{allowedOriginsError}</span>}
-              </label>
-            </div>
-            <label className="form-control md:col-span-2">
-              <span className="label-text">后端 API 地址（默认 /api/v1/，留空自动使用）</span>
-              <input
-                className="input input-bordered"
-                value={prodApiUrl}
-                onChange={(e) => setProdApiUrl(e.target.value)}
-                placeholder="/api/v1/"
-              />
-            </label>
-
-            <div className="space-y-3">
-              <div className="font-semibold text-base">IDHub</div>
-              <label className="form-control">
-                <span className="label-text">IDHub 开关 VITE_ENABLE_IDHUB</span>
-                <div className="flex items-center gap-3">
-                  <input type="checkbox" className="toggle" checked={enableIdhub} onChange={(e) => setEnableIdhub(e.target.checked)} />
-                  <span className="text-sm text-base-content/70">{enableIdhub ? "开启" : "关闭"}</span>
-                </div>
-              </label>
-              {enableIdhub && (
-                <>
-                  <label className="form-control">
-                    <span className="label-text">IDHub API 地址*</span>
-                    <input
-                      className="input input-bordered"
-                      value={idhubApiUrl}
-                      onChange={(e) => setIdhubApiUrl(e.target.value)}
-                      placeholder="/idhub-api/"
-                      required={enableIdhub}
-                    />
-                  </label>
-                  <label className="form-control">
-                    <span className="label-text">IDHub API Key*</span>
-                    <input
-                      className="input input-bordered"
-                      value={idhubApiKey}
-                      onChange={(e) => setIdhubApiKey(e.target.value)}
-                      required={enableIdhub}
-                    />
-                  </label>
-                </>
-              )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="md:col-span-2 font-semibold text-base">客户端下载链接</div>
-              <label className="form-control">
-                <span className="label-text">iOS 下载地址</span>
-                <input className="input input-bordered" value={downloadIos} onChange={(e) => setDownloadIos(e.target.value)} placeholder="https://example.com/ios" />
-              </label>
-              <label className="form-control">
-                <span className="label-text">Android 下载地址</span>
-                <input className="input input-bordered" value={downloadAndroid} onChange={(e) => setDownloadAndroid(e.target.value)} placeholder="https://example.com/android" />
-              </label>
-              <label className="form-control">
-                <span className="label-text">Windows 下载地址</span>
-                <input className="input input-bordered" value={downloadWindows} onChange={(e) => setDownloadWindows(e.target.value)} placeholder="https://example.com/windows" />
-              </label>
-              <label className="form-control">
-                <span className="label-text">macOS 下载地址</span>
-                <input className="input input-bordered" value={downloadMacos} onChange={(e) => setDownloadMacos(e.target.value)} placeholder="https://example.com/macos" />
-              </label>
+            <div className="rounded-lg border border-base-200 bg-base-200/30 p-4 space-y-4">
+              <div className="font-semibold text-base">苹果账户分享页</div>
+              <div className="rounded-md border border-success/40 bg-success/15 px-3 py-2 text-sm text-success">
+                对接 AppleAutoPro 账号分享页。
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <label className="form-control md:col-span-2">
+                  <span className="label-text">分享页开关</span>
+                  <div className="flex items-center gap-3">
+                    <input type="checkbox" className="toggle" checked={enableIdhub} onChange={(e) => setEnableIdhub(e.target.checked)} />
+                    <span className="text-sm text-base-content/70">{enableIdhub ? "开启" : "关闭"}</span>
+                  </div>
+                </label>
+                {enableIdhub && (
+                  <>
+                    <label className="form-control md:col-span-2">
+                      <span className="label-text">AppleAutoPro API 地址*</span>
+                      <input
+                        className="input input-bordered"
+                        value={idhubApiUrl}
+                        onChange={(e) => setIdhubApiUrl(e.target.value)}
+                        placeholder="/idhub-api/"
+                        required={enableIdhub}
+                      />
+                      <div className="mt-2 rounded-md border border-warning/40 bg-warning/15 px-3 py-2 text-sm text-warning">
+                        服务器静态部署无需修改（保持 /idhub-api/ 即可，Nginx 会在服务器端反代）；如使用 serverless 部署，请填写对应的反代 Worker 地址。
+                      </div>
+                    </label>
+                    <label className="form-control md:col-span-2">
+                      <span className="label-text">AppleAutoPro API Key*</span>
+                      <input
+                        className="input input-bordered"
+                        value={idhubApiKey}
+                        onChange={(e) => setIdhubApiKey(e.target.value)}
+                        required={enableIdhub}
+                      />
+                    </label>
+                  </>
+                )}
+              </div>
             </div>
 
-            <div className="flex flex-wrap gap-2 mt-2">
+            <div className="rounded-lg border border-base-200 bg-base-200/30 p-4 space-y-4">
+              <div className="font-semibold text-base">客户端下载链接</div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <label className="form-control">
+                  <span className="label-text">iOS 下载地址</span>
+                  <input className="input input-bordered" value={downloadIos} onChange={(e) => setDownloadIos(e.target.value)} placeholder="https://example.com/ios" />
+                </label>
+                <label className="form-control">
+                  <span className="label-text">Android 下载地址</span>
+                  <input
+                    className="input input-bordered"
+                    value={downloadAndroid}
+                    onChange={(e) => setDownloadAndroid(e.target.value)}
+                    placeholder="https://example.com/android"
+                  />
+                </label>
+                <label className="form-control">
+                  <span className="label-text">Windows 下载地址</span>
+                  <input
+                    className="input input-bordered"
+                    value={downloadWindows}
+                    onChange={(e) => setDownloadWindows(e.target.value)}
+                    placeholder="https://example.com/windows"
+                  />
+                </label>
+                <label className="form-control">
+                  <span className="label-text">macOS 下载地址</span>
+                  <input className="input input-bordered" value={downloadMacos} onChange={(e) => setDownloadMacos(e.target.value)} placeholder="https://example.com/macos" />
+                </label>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2 pt-2 border-t border-base-200">
               <button className="btn btn-primary" type="submit" disabled={!canSubmit || buildMutation.status === "pending"}>
                 {buildMutation.status === "pending" ? "构建中..." : "开始构建"}
               </button>
@@ -324,7 +335,7 @@ const TemplateBuildPage = () => {
                   setSiteName(siteNameQuery.data?.siteName || "");
                   setSiteLogo("");
                   setEnableIdhub(false);
-                  setIdhubApiUrl("");
+                  setIdhubApiUrl("/idhub-api/");
                   setIdhubApiKey("");
                   setAllowedClientOrigins("");
                   setAllowedOriginsError(null);
@@ -334,7 +345,7 @@ const TemplateBuildPage = () => {
                   setDownloadAndroid("");
                   setDownloadWindows("");
                   setDownloadMacos("");
-                  setProdApiUrl("");
+                  setProdApiUrl("/api/v1/");
                 }}
               >
                 清空
