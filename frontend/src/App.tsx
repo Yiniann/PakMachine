@@ -12,6 +12,7 @@ import AdminUsersPage from "./pages/admin/UsersPage";
 import AdminHomePage from "./pages/admin/HomePage";
 import TemplateManagePage from "./pages/admin/TemplateManagePage";
 import SystemSettingsPage from "./pages/admin/SystemSettingsPage";
+import BuildRecordsPage from "./pages/admin/BuildRecordsPage";
 import TemplateBuildPage from "./pages/app/TemplateBuildPage";
 import TemplateDownloadsPage from "./pages/app/TemplateDownloadsPage";
 import UserSettingsPage from "./pages/app/UserSettingsPage";
@@ -49,6 +50,7 @@ const App = () => {
             <Route path="users" element={<AdminUsersPage />} />
             <Route path="templates" element={<TemplateManagePage />} />
             <Route path="settings" element={<SystemSettingsPage />} />
+            <Route path="builds" element={<BuildRecordsPage />} />
           </Route>
         </Route>
 

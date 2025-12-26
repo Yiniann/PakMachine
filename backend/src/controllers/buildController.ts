@@ -18,6 +18,8 @@ import { Readable } from "stream";
 import { URL } from "url";
 import { normalizeArtifactUrl } from "../lib/artifactUrl";
 
+const ADMIN_BUILD_JOBS_LIMIT = 200;
+
 export const uploadTemplate = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const payload = handleTemplateUpload(req.file, (req.body as any)?.description);
@@ -334,6 +336,36 @@ export const listUserBuildJobs = async (req: Request, res: Response, next: NextF
         artifactId: j.artifactId,
         filename: j.filename,
         createdAt: j.createdAt,
+      })),
+    );
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const listAllBuildJobs = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const limit = Math.min(Number(req.query.limit) || 50, ADMIN_BUILD_JOBS_LIMIT);
+    const offset = Math.max(Number(req.query.offset) || 0, 0);
+    const jobs = await prisma.buildJob.findMany({
+      include: { user: { select: { id: true, email: true, siteName: true } } },
+      orderBy: { id: "desc" },
+      take: limit,
+      skip: offset,
+    });
+    res.json(
+      jobs.map((j) => ({
+        id: j.id,
+        status: j.status,
+        message: j.message,
+        artifactId: j.artifactId,
+        filename: j.filename,
+        createdAt: j.createdAt,
+        user: {
+          id: j.user.id,
+          email: j.user.email,
+          siteName: j.user.siteName,
+        },
       })),
     );
   } catch (err) {

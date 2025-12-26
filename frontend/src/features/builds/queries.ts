@@ -15,6 +15,20 @@ export type GithubTemplate = {
   description?: string;
 };
 
+export type AdminBuildJob = {
+  id: number;
+  status: string;
+  message?: string | null;
+  artifactId?: number | null;
+  filename: string;
+  createdAt: string;
+  user: {
+    id: number;
+    email: string;
+    siteName?: string | null;
+  };
+};
+
 export const useTemplateFiles = (): UseQueryResult<TemplateFile[]> =>
   useQuery({
     queryKey: ["templates"],
@@ -32,4 +46,14 @@ export const useGithubTemplates = (): UseQueryResult<GithubTemplate[]> =>
       return res.data;
     },
     staleTime: 30_000,
+  });
+
+export const useAdminBuildJobs = (limit = 100): UseQueryResult<AdminBuildJob[]> =>
+  useQuery({
+    queryKey: ["admin-build-jobs", limit],
+    queryFn: async () => {
+      const res = await api.get("/admin/build-jobs", { params: { limit } });
+      return res.data;
+    },
+    staleTime: 10_000,
   });

@@ -11,6 +11,7 @@ import {
 import { getSystemSettings, updateSystemSettings } from "../controllers/systemSettingsController";
 import {
   createGithubTemplateEntry,
+  listAllBuildJobs,
   listGithubTemplateEntries,
   removeGithubTemplateEntry,
   removeTemplate,
@@ -31,6 +32,7 @@ router.patch("/changePwd", adminUpdatePassword);
 router.patch("/changeRole", adminUpdateRole);
 router.patch("/resetSiteName", adminResetSiteName);
 router.patch("/resetBuildQuota", adminResetBuildQuota);
+router.get("/build-jobs", listAllBuildJobs);
 router.get("/settings", getSystemSettings);
 router.put("/settings", updateSystemSettings);
 router.post("/upload-template", templateUploadHandler, uploadTemplate);

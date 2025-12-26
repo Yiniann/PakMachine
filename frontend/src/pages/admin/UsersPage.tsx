@@ -27,6 +27,7 @@ const UsersPage = () => {
   const [roleEdit, setRoleEdit] = useState<Record<string, string>>({});
   const [createOpen, setCreateOpen] = useState(false);
   const [settingsUser, setSettingsUser] = useState<User | null>(null);
+  const BUILD_LIMIT = 2;
 
   const errorMessage =
     error && (error as any)?.response?.data?.error
@@ -105,11 +106,10 @@ const UsersPage = () => {
   );
 
   const getQuotaLeft = (u: User) => {
-    const limit = 2;
-    if (!u.buildQuotaDate) return limit;
+    if (!u.buildQuotaDate) return BUILD_LIMIT;
     const isToday = new Date(u.buildQuotaDate).toDateString() === new Date().toDateString();
     const used = u.buildQuotaUsed ?? 0;
-    return isToday ? Math.max(limit - used, 0) : limit;
+    return isToday ? Math.max(BUILD_LIMIT - used, 0) : BUILD_LIMIT;
   };
 
   return (
@@ -131,6 +131,8 @@ const UsersPage = () => {
                   <tr>
                     <th>ID</th>
                     <th>邮箱</th>
+                    <th>站点名</th>
+                    <th>今日剩余构建</th>
                     <th>权限组</th>
                     <th>创建时间</th>
                     <th>操作</th>
@@ -141,6 +143,10 @@ const UsersPage = () => {
                     <tr key={u.id}>
                       <td>{u.id}</td>
                       <td>{u.email}</td>
+                      <td>{u.siteName ?? "未设置"}</td>
+                      <td>
+                        {getQuotaLeft(u)} / {BUILD_LIMIT}
+                      </td>
                       <td>{u.role === "admin" ? "管理员" : "用户"}</td>
                       <td>{u.createdAtLabel}</td>
                       <td>
@@ -241,7 +247,9 @@ const UsersPage = () => {
                   <span className="label-text">今日构建次数</span>
                 </label>
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="badge badge-outline">剩余 {getQuotaLeft(settingsUser)} / 2</span>
+                  <span className="badge badge-outline">
+                    剩余 {getQuotaLeft(settingsUser)} / {BUILD_LIMIT}
+                  </span>
                   <button
                     type="button"
                     className="btn btn-sm btn-outline"
