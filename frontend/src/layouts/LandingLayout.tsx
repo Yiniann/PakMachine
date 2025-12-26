@@ -17,7 +17,7 @@ const LandingLayout = () => {
         <div className="navbar-end gap-2">
           {token && (
             <Link to="/app" className="btn btn-outline btn-sm">
-              应用
+              开始构建
             </Link>
           )}
           {!token && (
