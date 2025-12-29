@@ -3,12 +3,10 @@ import { useTemplateFiles } from "../../features/builds/queries";
 import { useBuildTemplate } from "../../features/builds/build";
 import { useBuildProfile, useSaveBuildProfile } from "../../features/builds/profile";
 import { useSiteName } from "../../features/builds/siteName";
-import { useAuth } from "../../components/useAuth";
 import { useNavigate } from "react-router-dom";
 
 const TemplateBuildPage = () => {
   const navigate = useNavigate();
-  const { token } = useAuth();
   const templates = useTemplateFiles();
   const buildMutation = useBuildTemplate();
   const profileQuery = useBuildProfile();
@@ -18,11 +16,13 @@ const TemplateBuildPage = () => {
   const [selected, setSelected] = useState<string | null>(null);
   const [siteName, setSiteName] = useState("");
   const [enableLanding, setEnableLanding] = useState(true);
+  const [enableRedeemCode, setEnableRedeemCode] = useState(true);
   const [siteLogo, setSiteLogo] = useState("");
   const [authBackground, setAuthBackground] = useState("");
   const [enableIdhub, setEnableIdhub] = useState(false);
   const [idhubApiUrl, setIdhubApiUrl] = useState("/idhub-api/");
   const [idhubApiKey, setIdhubApiKey] = useState("");
+  const [enableDownload, setEnableDownload] = useState(false);
   const [downloadIos, setDownloadIos] = useState("");
   const [downloadAndroid, setDownloadAndroid] = useState("");
   const [downloadWindows, setDownloadWindows] = useState("");
@@ -49,18 +49,25 @@ const TemplateBuildPage = () => {
     const lines = [
       `VITE_SITE_NAME=${siteName.trim()}`,
       `VITE_ENABLE_LANDING=${enableLanding ? "true" : "false"}`,
+      `VITE_ENABLE_REDEEM_CODE=${enableRedeemCode ? "true" : "false"}`,
       `VITE_SITE_LOGO=${siteLogo.trim()}`,
       `VITE_AUTH_BACKGROUND=${authBackground.trim()}`,
       `VITE_ENABLE_IDHUB=${enableIdhub ? "true" : "false"}`,
-      `VITE_IDHUB_API_URL=${idhubApiUrl.trim()}`,
-      `VITE_IDHUB_API_KEY=${idhubApiKey.trim()}`,
       `VITE_PROD_API_URL=${prodApiFinal}`,
       `VITE_ALLOWED_CLIENT_ORIGINS=${allowedClientOrigins.trim()}`,
-      `VITE_DOWNLOAD_IOS=${downloadIos.trim()}`,
-      `VITE_DOWNLOAD_ANDROID=${downloadAndroid.trim()}`,
-      `VITE_DOWNLOAD_WINDOWS=${downloadWindows.trim()}`,
-      `VITE_DOWNLOAD_MACOS=${downloadMacos.trim()}`,
+      `VITE_ENABLE_DOWNLOAD=${enableDownload ? "true" : "false"}`,
     ];
+    if (enableIdhub) {
+      lines.push(`VITE_IDHUB_API_URL=${idhubApiUrl.trim()}`, `VITE_IDHUB_API_KEY=${idhubApiKey.trim()}`);
+    }
+    if (enableDownload) {
+      lines.push(
+        `VITE_DOWNLOAD_IOS=${downloadIos.trim()}`,
+        `VITE_DOWNLOAD_ANDROID=${downloadAndroid.trim()}`,
+        `VITE_DOWNLOAD_WINDOWS=${downloadWindows.trim()}`,
+        `VITE_DOWNLOAD_MACOS=${downloadMacos.trim()}`,
+      );
+    }
     return lines.join("\n");
   };
 
@@ -95,6 +102,8 @@ const TemplateBuildPage = () => {
             idhubApiKey,
             allowedClientOrigins,
             enableLanding,
+            enableRedeemCode,
+            enableDownload,
             downloadIos,
             downloadAndroid,
             downloadWindows,
@@ -121,12 +130,21 @@ const TemplateBuildPage = () => {
       setIdhubApiKey(cfg.idhubApiKey || cfg.VITE_IDHUB_API_KEY || "");
       setAllowedClientOrigins(cfg.allowedClientOrigins || cfg.VITE_ALLOWED_CLIENT_ORIGINS || "");
       setAllowedOriginsError(null);
-      setDownloadIos(cfg.downloadIos || cfg.VITE_DOWNLOAD_IOS || "");
-      setDownloadAndroid(cfg.downloadAndroid || cfg.VITE_DOWNLOAD_ANDROID || "");
-      setDownloadWindows(cfg.downloadWindows || cfg.VITE_DOWNLOAD_WINDOWS || "");
-      setDownloadMacos(cfg.downloadMacos || cfg.VITE_DOWNLOAD_MACOS || "");
+      const downloadIosValue = cfg.downloadIos || cfg.VITE_DOWNLOAD_IOS || "";
+      const downloadAndroidValue = cfg.downloadAndroid || cfg.VITE_DOWNLOAD_ANDROID || "";
+      const downloadWindowsValue = cfg.downloadWindows || cfg.VITE_DOWNLOAD_WINDOWS || "";
+      const downloadMacosValue = cfg.downloadMacos || cfg.VITE_DOWNLOAD_MACOS || "";
+      setDownloadIos(downloadIosValue);
+      setDownloadAndroid(downloadAndroidValue);
+      setDownloadWindows(downloadWindowsValue);
+      setDownloadMacos(downloadMacosValue);
+      const downloadRaw = cfg.enableDownload ?? cfg.VITE_ENABLE_DOWNLOAD;
+      const hasDownloadLinks = Boolean(downloadIosValue || downloadAndroidValue || downloadWindowsValue || downloadMacosValue);
+      setEnableDownload(downloadRaw === undefined ? hasDownloadLinks : downloadRaw === true || downloadRaw === "true");
       const landingRaw = cfg.enableLanding ?? cfg.VITE_ENABLE_LANDING;
       setEnableLanding(landingRaw === undefined ? true : landingRaw === true || landingRaw === "true");
+      const redeemCodeRaw = cfg.enableRedeemCode ?? cfg.VITE_ENABLE_REDEEM_CODE;
+      setEnableRedeemCode(redeemCodeRaw === undefined ? true : redeemCodeRaw === true || redeemCodeRaw === "true");
     }
   }, [profileQuery.data]);
 
@@ -193,7 +211,7 @@ const TemplateBuildPage = () => {
                     />
                     {!siteName && !siteNameQuery.isLoading && <span className="text-error text-sm">请前往主页先设置站点名称</span>}
                   </label>
-                  <label className="form-control ml-2">
+                  <label className="form-control">
                     <span className="label-text">着陆页开关</span>
                     <div className="flex items-center gap-3">
                       <input
@@ -203,6 +221,18 @@ const TemplateBuildPage = () => {
                         onChange={(e) => setEnableLanding(e.target.checked)}
                       />
                       <span className="text-sm text-base-content/70">{enableLanding ? "开启" : "关闭"}</span>
+                    </div>
+                  </label>
+                  <label className="form-control">
+                    <span className="label-text">兑换码开关</span>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        className="toggle"
+                        checked={enableRedeemCode}
+                        onChange={(e) => setEnableRedeemCode(e.target.checked)}
+                      />
+                      <span className="text-sm text-base-content/70">{enableRedeemCode ? "开启" : "关闭"}</span>
                     </div>
                   </label>
                 </div>
@@ -294,34 +324,48 @@ const TemplateBuildPage = () => {
 
             <div className="rounded-lg border border-base-200 bg-base-200/30 p-4 space-y-4">
               <div className="font-semibold text-base">客户端下载链接</div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <label className="form-control">
-                  <span className="label-text">iOS 下载地址</span>
-                  <input className="input input-bordered" value={downloadIos} onChange={(e) => setDownloadIos(e.target.value)} placeholder="https://example.com/ios" />
-                </label>
-                <label className="form-control">
-                  <span className="label-text">Android 下载地址</span>
+              <label className="form-control">
+                <span className="label-text">客户端下载开关</span>
+                <div className="flex items-center gap-3">
                   <input
-                    className="input input-bordered"
-                    value={downloadAndroid}
-                    onChange={(e) => setDownloadAndroid(e.target.value)}
-                    placeholder="https://example.com/android"
+                    type="checkbox"
+                    className="toggle"
+                    checked={enableDownload}
+                    onChange={(e) => setEnableDownload(e.target.checked)}
                   />
-                </label>
-                <label className="form-control">
-                  <span className="label-text">Windows 下载地址</span>
-                  <input
-                    className="input input-bordered"
-                    value={downloadWindows}
-                    onChange={(e) => setDownloadWindows(e.target.value)}
-                    placeholder="https://example.com/windows"
-                  />
-                </label>
-                <label className="form-control">
-                  <span className="label-text">macOS 下载地址</span>
-                  <input className="input input-bordered" value={downloadMacos} onChange={(e) => setDownloadMacos(e.target.value)} placeholder="https://example.com/macos" />
-                </label>
-              </div>
+                  <span className="text-sm text-base-content/70">{enableDownload ? "开启" : "关闭"}</span>
+                </div>
+              </label>
+              {enableDownload && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <label className="form-control">
+                    <span className="label-text">iOS 下载地址</span>
+                    <input className="input input-bordered" value={downloadIos} onChange={(e) => setDownloadIos(e.target.value)} placeholder="https://example.com/ios" />
+                  </label>
+                  <label className="form-control">
+                    <span className="label-text">Android 下载地址</span>
+                    <input
+                      className="input input-bordered"
+                      value={downloadAndroid}
+                      onChange={(e) => setDownloadAndroid(e.target.value)}
+                      placeholder="https://example.com/android"
+                    />
+                  </label>
+                  <label className="form-control">
+                    <span className="label-text">Windows 下载地址</span>
+                    <input
+                      className="input input-bordered"
+                      value={downloadWindows}
+                      onChange={(e) => setDownloadWindows(e.target.value)}
+                      placeholder="https://example.com/windows"
+                    />
+                  </label>
+                  <label className="form-control">
+                    <span className="label-text">macOS 下载地址</span>
+                    <input className="input input-bordered" value={downloadMacos} onChange={(e) => setDownloadMacos(e.target.value)} placeholder="https://example.com/macos" />
+                  </label>
+                </div>
+              )}
             </div>
 
             <div className="flex flex-wrap gap-2 pt-2 border-t border-base-200">
@@ -341,6 +385,8 @@ const TemplateBuildPage = () => {
                   setAllowedOriginsError(null);
                   setAuthBackground("");
                   setEnableLanding(true);
+                  setEnableRedeemCode(true);
+                  setEnableDownload(false);
                   setDownloadIos("");
                   setDownloadAndroid("");
                   setDownloadWindows("");
