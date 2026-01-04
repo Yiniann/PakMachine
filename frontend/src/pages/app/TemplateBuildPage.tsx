@@ -15,8 +15,8 @@ const TemplateBuildPage = () => {
 
   const [selected, setSelected] = useState<string | null>(null);
   const [siteName, setSiteName] = useState("");
+  const [backendType, setBackendType] = useState("");
   const [enableLanding, setEnableLanding] = useState(true);
-  const [enableRedeemCode, setEnableRedeemCode] = useState(true);
   const [siteLogo, setSiteLogo] = useState("");
   const [authBackground, setAuthBackground] = useState("");
   const [enableIdhub, setEnableIdhub] = useState(false);
@@ -38,18 +38,19 @@ const TemplateBuildPage = () => {
   const canSubmit = useMemo(() => {
     if (!selected) return false;
     if (!siteName.trim()) return false;
+    if (!backendType.trim()) return false;
     if (enableIdhub && (!idhubApiUrl.trim() || !idhubApiKey.trim())) return false;
     if (allowedOriginsError) return false;
     if (parseOrigins(allowedClientOrigins).length > 4) return false;
     return true;
-  }, [selected, siteName, enableIdhub, idhubApiUrl, idhubApiKey, allowedOriginsError, allowedClientOrigins]);
+  }, [selected, siteName, backendType, enableIdhub, idhubApiUrl, idhubApiKey, allowedOriginsError, allowedClientOrigins]);
 
   const buildEnvContent = () => {
     const prodApiFinal = prodApiUrl.trim() || "/api/v1/";
     const lines = [
       `VITE_SITE_NAME=${siteName.trim()}`,
+      `VITE_BACKEND_TYPE=${backendType.trim()}`,
       `VITE_ENABLE_LANDING=${enableLanding ? "true" : "false"}`,
-      `VITE_ENABLE_REDEEM_CODE=${enableRedeemCode ? "true" : "false"}`,
       `VITE_SITE_LOGO=${siteLogo.trim()}`,
       `VITE_AUTH_BACKGROUND=${authBackground.trim()}`,
       `VITE_ENABLE_IDHUB=${enableIdhub ? "true" : "false"}`,
@@ -83,6 +84,10 @@ const TemplateBuildPage = () => {
       setError("请先在主页设置站点名称");
       return;
     }
+    if (!backendType.trim()) {
+      setError("请先选择面板类型");
+      return;
+    }
     const envContent = buildEnvContent();
     buildMutation.mutate(
       { filename: selected, envContent },
@@ -95,6 +100,7 @@ const TemplateBuildPage = () => {
           setError(null);
           saveProfile.mutate({
             siteLogo,
+            backendType,
             authBackground,
             prodApiUrl,
             enableIdhub,
@@ -102,7 +108,6 @@ const TemplateBuildPage = () => {
             idhubApiKey,
             allowedClientOrigins,
             enableLanding,
-            enableRedeemCode,
             enableDownload,
             downloadIos,
             downloadAndroid,
@@ -123,6 +128,7 @@ const TemplateBuildPage = () => {
     if (profileQuery.data) {
       const cfg: any = profileQuery.data;
       setSiteLogo(cfg.siteLogo || cfg.VITE_SITE_LOGO || "");
+      setBackendType(cfg.backendType || cfg.VITE_BACKEND_TYPE || "");
       setAuthBackground(cfg.authBackground || cfg.VITE_AUTH_BACKGROUND || "");
       setProdApiUrl(cfg.prodApiUrl || cfg.VITE_PROD_API_URL || "/api/v1/");
       setEnableIdhub(Boolean(cfg.enableIdhub ?? (cfg.VITE_ENABLE_IDHUB === "true" || cfg.VITE_ENABLE_IDHUB === true)));
@@ -143,8 +149,6 @@ const TemplateBuildPage = () => {
       setEnableDownload(downloadRaw === undefined ? hasDownloadLinks : downloadRaw === true || downloadRaw === "true");
       const landingRaw = cfg.enableLanding ?? cfg.VITE_ENABLE_LANDING;
       setEnableLanding(landingRaw === undefined ? true : landingRaw === true || landingRaw === "true");
-      const redeemCodeRaw = cfg.enableRedeemCode ?? cfg.VITE_ENABLE_REDEEM_CODE;
-      setEnableRedeemCode(redeemCodeRaw === undefined ? true : redeemCodeRaw === true || redeemCodeRaw === "true");
     }
   }, [profileQuery.data]);
 
@@ -211,6 +215,15 @@ const TemplateBuildPage = () => {
                     />
                     {!siteName && !siteNameQuery.isLoading && <span className="text-error text-sm">请前往主页先设置站点名称</span>}
                   </label>
+                  <label className="form-control w-full md:w-1/4">
+                    <span className="label-text">面板类型</span>
+                    <select className="select select-bordered" value={backendType} onChange={(e) => setBackendType(e.target.value)} required>
+                      <option value="">请选择</option>
+                      <option value="xboard">xboard</option>
+                      <option value="v2board">v2board</option>
+                      <option value="xiaov2board">xiaov2board</option>
+                    </select>
+                  </label>
                   <label className="form-control">
                     <span className="label-text">着陆页开关</span>
                     <div className="flex items-center gap-3">
@@ -221,18 +234,6 @@ const TemplateBuildPage = () => {
                         onChange={(e) => setEnableLanding(e.target.checked)}
                       />
                       <span className="text-sm text-base-content/70">{enableLanding ? "开启" : "关闭"}</span>
-                    </div>
-                  </label>
-                  <label className="form-control">
-                    <span className="label-text">兑换码开关</span>
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        className="toggle"
-                        checked={enableRedeemCode}
-                        onChange={(e) => setEnableRedeemCode(e.target.checked)}
-                      />
-                      <span className="text-sm text-base-content/70">{enableRedeemCode ? "开启" : "关闭"}</span>
                     </div>
                   </label>
                 </div>
@@ -378,6 +379,7 @@ const TemplateBuildPage = () => {
                 onClick={() => {
                   setSiteName(siteNameQuery.data?.siteName || "");
                   setSiteLogo("");
+                  setBackendType("");
                   setEnableIdhub(false);
                   setIdhubApiUrl("/idhub-api/");
                   setIdhubApiKey("");
@@ -385,7 +387,6 @@ const TemplateBuildPage = () => {
                   setAllowedOriginsError(null);
                   setAuthBackground("");
                   setEnableLanding(true);
-                  setEnableRedeemCode(true);
                   setEnableDownload(false);
                   setDownloadIos("");
                   setDownloadAndroid("");

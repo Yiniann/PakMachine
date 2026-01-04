@@ -8,6 +8,7 @@ services:
     environment:
       # 强制覆盖数据库地址，避免仍然使用 localhost
       DATABASE_URL: mysql://pacmachine:mYeJX4PRx3ykGbiT@mysql:3306/pacmachine
+      UPLOAD_BASE_DIR: /app/uploads/templates
     volumes:
       - ./uploads:/app/uploads
       - ./backend/config:/app/backend/config
