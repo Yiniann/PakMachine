@@ -27,6 +27,7 @@ const TemplateBuildPage = () => {
   const [downloadAndroid, setDownloadAndroid] = useState("");
   const [downloadWindows, setDownloadWindows] = useState("");
   const [downloadMacos, setDownloadMacos] = useState("");
+  const [downloadHarmony, setDownloadHarmony] = useState("");
   const [prodApiUrl, setProdApiUrl] = useState("/api/v1/");
   const [allowedClientOrigins, setAllowedClientOrigins] = useState("");
   const [message, setMessage] = useState<string | null>(null);
@@ -67,6 +68,7 @@ const TemplateBuildPage = () => {
         `VITE_DOWNLOAD_ANDROID=${downloadAndroid.trim()}`,
         `VITE_DOWNLOAD_WINDOWS=${downloadWindows.trim()}`,
         `VITE_DOWNLOAD_MACOS=${downloadMacos.trim()}`,
+        `VITE_DOWNLOAD_HARMONY=${downloadHarmony.trim()}`,
       );
     }
     return lines.join("\n");
@@ -113,6 +115,7 @@ const TemplateBuildPage = () => {
             downloadAndroid,
             downloadWindows,
             downloadMacos,
+            downloadHarmony,
           });
         },
         onError: (err: any) => setError(err?.response?.data?.error || "构建失败，请稍后再试"),
@@ -140,12 +143,14 @@ const TemplateBuildPage = () => {
       const downloadAndroidValue = cfg.downloadAndroid || cfg.VITE_DOWNLOAD_ANDROID || "";
       const downloadWindowsValue = cfg.downloadWindows || cfg.VITE_DOWNLOAD_WINDOWS || "";
       const downloadMacosValue = cfg.downloadMacos || cfg.VITE_DOWNLOAD_MACOS || "";
+      const downloadHarmonyValue = cfg.downloadHarmony || cfg.VITE_DOWNLOAD_HARMONY || "";
       setDownloadIos(downloadIosValue);
       setDownloadAndroid(downloadAndroidValue);
       setDownloadWindows(downloadWindowsValue);
       setDownloadMacos(downloadMacosValue);
+      setDownloadHarmony(downloadHarmonyValue);
       const downloadRaw = cfg.enableDownload ?? cfg.VITE_ENABLE_DOWNLOAD;
-      const hasDownloadLinks = Boolean(downloadIosValue || downloadAndroidValue || downloadWindowsValue || downloadMacosValue);
+      const hasDownloadLinks = Boolean(downloadIosValue || downloadAndroidValue || downloadWindowsValue || downloadMacosValue || downloadHarmonyValue);
       setEnableDownload(downloadRaw === undefined ? hasDownloadLinks : downloadRaw === true || downloadRaw === "true");
       const landingRaw = cfg.enableLanding ?? cfg.VITE_ENABLE_LANDING;
       setEnableLanding(landingRaw === undefined ? true : landingRaw === true || landingRaw === "true");
@@ -365,6 +370,15 @@ const TemplateBuildPage = () => {
                     <span className="label-text">macOS 下载地址</span>
                     <input className="input input-bordered" value={downloadMacos} onChange={(e) => setDownloadMacos(e.target.value)} placeholder="https://example.com/macos" />
                   </label>
+                  <label className="form-control">
+                    <span className="label-text">鸿蒙下载地址</span>
+                    <input
+                      className="input input-bordered"
+                      value={downloadHarmony}
+                      onChange={(e) => setDownloadHarmony(e.target.value)}
+                      placeholder="https://example.com/harmony"
+                    />
+                  </label>
                 </div>
               )}
             </div>
@@ -392,6 +406,7 @@ const TemplateBuildPage = () => {
                   setDownloadAndroid("");
                   setDownloadWindows("");
                   setDownloadMacos("");
+                  setDownloadHarmony("");
                   setProdApiUrl("/api/v1/");
                 }}
               >
