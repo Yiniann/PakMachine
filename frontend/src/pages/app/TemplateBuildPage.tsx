@@ -30,7 +30,8 @@ const TemplateBuildPage = () => {
   const [downloadHarmony, setDownloadHarmony] = useState("");
   const [prodApiUrl, setProdApiUrl] = useState("/api/v1/");
   const [allowedClientOrigins, setAllowedClientOrigins] = useState("");
-  const [message, setMessage] = useState<string | null>(null);
+  const [step, setStep] = useState<1 | 2>(1);
+  const [stepError, setStepError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [allowedOriginsError, setAllowedOriginsError] = useState<string | null>(null);
 
@@ -45,6 +46,25 @@ const TemplateBuildPage = () => {
     if (parseOrigins(allowedClientOrigins).length > 4) return false;
     return true;
   }, [selected, siteName, backendType, enableIdhub, idhubApiUrl, idhubApiKey, allowedOriginsError, allowedClientOrigins]);
+
+  useEffect(() => {
+    if (selected || !templates.data || templates.data.length === 0) return;
+    const hasModified = templates.data.some((item) => Boolean(item.modifiedAt));
+    const latest = hasModified
+      ? [...templates.data].sort((a, b) => {
+          const aTime = a.modifiedAt ? new Date(a.modifiedAt).getTime() : 0;
+          const bTime = b.modifiedAt ? new Date(b.modifiedAt).getTime() : 0;
+          return bTime - aTime;
+        })[0]
+      : templates.data[0];
+    setSelected(latest?.filename || null);
+  }, [selected, templates.data]);
+
+  useEffect(() => {
+    if (selected) {
+      setStepError(null);
+    }
+  }, [selected]);
 
   const buildEnvContent = () => {
     const prodApiFinal = prodApiUrl.trim() || "/api/v1/";
@@ -76,7 +96,6 @@ const TemplateBuildPage = () => {
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
-    setMessage(null);
     setError(null);
     if (!selected) {
       setError("请先选择一个模板文件");
@@ -95,7 +114,6 @@ const TemplateBuildPage = () => {
       { filename: selected, envContent },
       {
         onSuccess: (data) => {
-          setMessage(data.message || "构建已加入队列，正在处理...");
           if (data.jobId) {
             navigate(`/app?jobId=${data.jobId}`);
           }
@@ -158,133 +176,171 @@ const TemplateBuildPage = () => {
   }, [profileQuery.data]);
 
   return (
-    <div className="space-y-6">
-      <div className="card bg-base-100 shadow-xl">
-        <div className="card-body space-y-3">
-          <h2 className="card-title">选择模板</h2>
-          {templates.isLoading && <p>加载中...</p>}
-          {templates.error && <p className="text-error">加载失败</p>}
-          {!templates.isLoading && templates.data && templates.data.length === 0 && <p>暂无可用模板，请先上传。</p>}
-          {!templates.isLoading && templates.data && templates.data.length > 0 && (
-            <div className="overflow-x-auto">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th></th>
-                    <th>模板名</th>
-                    <th>描述</th>
-                    <th>更新时间</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {templates.data.map((item) => (
-                    <tr key={item.filename}>
-                      <td>
-                        <input
-                          type="radio"
-                          name="template"
-                          className="radio"
-                          checked={selected === item.filename}
-                          onChange={() => setSelected(item.filename)}
-                        />
-                      </td>
-                      <td className="whitespace-pre-wrap break-all">{item.filename}</td>
-                      <td className="max-w-xs whitespace-pre-wrap break-words text-sm text-base-content/80">{item.description || "-"}</td>
-                      <td>{item.modifiedAt ? new Date(item.modifiedAt).toLocaleString() : "-"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+    <div>
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          className={`btn btn-sm ${step === 1 ? "btn-primary" : "btn-outline"}`}
+          onClick={() => setStep(1)}
+        >
+          1. 选择模板
+        </button>
+        <button
+          type="button"
+          className={`btn btn-sm ${step === 2 ? "btn-primary" : "btn-outline"}`}
+          disabled={!selected}
+          onClick={() => setStep(2)}
+        >
+          2. 填写配置
+        </button>
       </div>
 
-      <div className="card bg-base-100 shadow-xl">
-        <div className="card-body space-y-3">
-          <h2 className="card-title">填写站点配置</h2>
-          <p className="text-sm text-base-content/70">按要求填写字段，系统会生成 .env 写入模板并进行构建。</p>
-          <form className="space-y-6" onSubmit={onSubmit}>
-            <div className="rounded-lg border border-base-200 bg-base-200/30 p-4 space-y-4">
-              <div className="font-semibold text-base">站点信息</div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="md:col-span-2 flex flex-wrap items-end gap-3">
-                  <label className="form-control w-full md:w-1/2">
-                    <span className="label-text">站点名称</span>
-                    <input
-                      className="input input-bordered bg-base-200 text-base-content/60 cursor-not-allowed w-full"
-                      value={siteName}
-                      readOnly
-                      disabled={siteNameQuery.isLoading}
-                      placeholder={siteNameQuery.isLoading ? "加载中..." : "请先在主页设置站点名称"}
-                    />
-                    {!siteName && !siteNameQuery.isLoading && <span className="text-error text-sm">请前往主页先设置站点名称</span>}
-                  </label>
-                  <label className="form-control w-full md:w-1/4">
-                    <span className="label-text">面板类型</span>
-                    <select className="select select-bordered" value={backendType} onChange={(e) => setBackendType(e.target.value)} required>
-                      <option value="">请选择</option>
-                      <option value="xboard">xboard</option>
-                      <option value="v2board">v2board</option>
-                      <option value="xiaov2board">xiaov2board</option>
-                    </select>
+      {step === 1 && (
+        <div className="card bg-base-100 shadow-xl">
+          <div className="card-body space-y-3">
+            <h2 className="card-title">选择模板</h2>
+            {templates.isLoading && <p>加载中...</p>}
+            {templates.error && <p className="text-error">加载失败</p>}
+            {!templates.isLoading && templates.data && templates.data.length === 0 && <p>暂无可用模板，请先在后台配置 GitHub 模板。</p>}
+            {!templates.isLoading && templates.data && templates.data.length > 0 && (
+              <div className="overflow-x-auto">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th></th>
+                      <th>模板名</th>
+                      <th>描述</th>
+                      <th>更新时间</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {templates.data.map((item) => (
+                      <tr key={item.filename}>
+                        <td>
+                          <input
+                            type="radio"
+                            name="template"
+                            className="radio"
+                            checked={selected === item.filename}
+                            onChange={() => setSelected(item.filename)}
+                          />
+                        </td>
+                        <td className="whitespace-pre-wrap break-all">{item.filename}</td>
+                        <td className="max-w-xs whitespace-pre-wrap break-words text-sm text-base-content/80">{item.description || "-"}</td>
+                        <td>{item.modifiedAt ? new Date(item.modifiedAt).toLocaleString() : "-"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {stepError && <p className="text-error text-sm">{stepError}</p>}
+            <div className="flex justify-end">
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={!selected}
+                onClick={() => {
+                  if (!selected) {
+                    setStepError("请先选择一个模板");
+                    return;
+                  }
+                  setStep(2);
+                }}
+              >
+                下一步
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {step === 2 && (
+        <div className="card bg-base-100 shadow-xl">
+          <div className="card-body space-y-3">
+            <h2 className="card-title">填写站点配置</h2>
+            <p className="text-sm text-base-content/70">按要求填写字段，系统会生成 .env 写入模板并进行构建。</p>
+            <form id="build-config-form" className="flex min-h-[60vh] flex-col gap-6" onSubmit={onSubmit}>
+              <div className="rounded-lg border border-base-200 bg-base-200/30 p-4 space-y-4">
+                <div className="font-semibold text-base">站点信息</div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="md:col-span-2 flex flex-wrap items-end gap-3">
+                    <label className="form-control w-full md:w-1/2">
+                      <span className="label-text">站点名称</span>
+                      <input
+                        className="input input-bordered bg-base-200 text-base-content/60 cursor-not-allowed w-full"
+                        value={siteName}
+                        readOnly
+                        disabled={siteNameQuery.isLoading}
+                        placeholder={siteNameQuery.isLoading ? "加载中..." : "请先在主页设置站点名称"}
+                      />
+                      {!siteName && !siteNameQuery.isLoading && <span className="text-error text-sm">请前往主页先设置站点名称</span>}
+                    </label>
+                    <label className="form-control w-full md:w-1/4">
+                      <span className="label-text">面板类型</span>
+                      <select className="select select-bordered" value={backendType} onChange={(e) => setBackendType(e.target.value)} required>
+                        <option value="">请选择</option>
+                        <option value="xboard">xboard</option>
+                        <option value="v2board">v2board</option>
+                        <option value="xiaov2board">xiaov2board</option>
+                      </select>
+                    </label>
+                    <label className="form-control">
+                      <span className="label-text">着陆页开关</span>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          className="toggle"
+                          checked={enableLanding}
+                          onChange={(e) => setEnableLanding(e.target.checked)}
+                        />
+                        <span className="text-sm text-base-content/70">{enableLanding ? "开启" : "关闭"}</span>
+                      </div>
+                    </label>
+                  </div>
+                  <label className="form-control">
+                    <span className="label-text">站点 Logo</span>
+                    <input className="input input-bordered" value={siteLogo} onChange={(e) => setSiteLogo(e.target.value)} placeholder="支持url或者本地图片" />
                   </label>
                   <label className="form-control">
-                    <span className="label-text">着陆页开关</span>
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        className="toggle"
-                        checked={enableLanding}
-                        onChange={(e) => setEnableLanding(e.target.checked)}
-                      />
-                      <span className="text-sm text-base-content/70">{enableLanding ? "开启" : "关闭"}</span>
+                    <span className="label-text">登陆页背景</span>
+                    <input
+                      className="input input-bordered"
+                      value={authBackground}
+                      onChange={(e) => setAuthBackground(e.target.value)}
+                      placeholder="支持 url 或本地图片"
+                    />
+                  </label>
+
+                  <label className="form-control md:col-span-2">
+                    <span className="label-text">前端域名（多个域名用逗号分隔，最多 4 个）</span>
+                    <input
+                      className="input input-bordered"
+                      value={allowedClientOrigins}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setAllowedClientOrigins(value);
+                        const origins = parseOrigins(value);
+                        setAllowedOriginsError(origins.length > 4 ? "最多只能填写 4 个域名" : null);
+                      }}
+                      placeholder="请输入完整域名，如 https://xxx.xxx.com, https://yyy.yyy.com"
+                    />
+                    {allowedOriginsError && <span className="text-error text-xs">{allowedOriginsError}</span>}
+                  </label>
+                  <label className="form-control md:col-span-2">
+                    <span className="label-text">后端 API 地址</span>
+                    <input
+                      className="input input-bordered"
+                      value={prodApiUrl}
+                      onChange={(e) => setProdApiUrl(e.target.value)}
+                      placeholder="/api/v1/"
+                    />
+                    <div className="mt-2 rounded-md border border-warning/40 bg-warning/15 px-3 py-2 text-sm text-warning">
+                      服务器静态部署无需修改（保持 /api/v1/ 即可，Nginx 会在服务器端反代）；如使用 serverless 部署，请填写对应的反代 Worker 地址。
                     </div>
                   </label>
                 </div>
-                <label className="form-control">
-                  <span className="label-text">站点 Logo</span>
-                  <input className="input input-bordered" value={siteLogo} onChange={(e) => setSiteLogo(e.target.value)} placeholder="支持url或者本地图片" />
-                </label>
-                <label className="form-control">
-                  <span className="label-text">登陆页背景</span>
-                  <input
-                    className="input input-bordered"
-                    value={authBackground}
-                    onChange={(e) => setAuthBackground(e.target.value)}
-                    placeholder="支持 url 或本地图片"
-                  />
-                </label>
-
-                <label className="form-control md:col-span-2">
-                  <span className="label-text">前端域名（多个域名用逗号分隔，最多 4 个）</span>
-                  <input
-                    className="input input-bordered"
-                    value={allowedClientOrigins}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setAllowedClientOrigins(value);
-                      const origins = parseOrigins(value);
-                      setAllowedOriginsError(origins.length > 4 ? "最多只能填写 4 个域名" : null);
-                    }}
-                    placeholder="请输入完整域名，如 https://xxx.xxx.com, https://yyy.yyy.com"
-                  />
-                  {allowedOriginsError && <span className="text-error text-xs">{allowedOriginsError}</span>}
-                </label>
-                <label className="form-control md:col-span-2">
-                  <span className="label-text">后端 API 地址</span>
-                  <input
-                    className="input input-bordered"
-                    value={prodApiUrl}
-                    onChange={(e) => setProdApiUrl(e.target.value)}
-                    placeholder="/api/v1/"
-                  />
-                  <div className="mt-2 rounded-md border border-warning/40 bg-warning/15 px-3 py-2 text-sm text-warning">
-                    服务器静态部署无需修改（保持 /api/v1/ 即可，Nginx 会在服务器端反代）；如使用 serverless 部署，请填写对应的反代 Worker 地址。
-                  </div>
-                </label>
               </div>
-            </div>
 
             <div className="rounded-lg border border-base-200 bg-base-200/30 p-4 space-y-4">
               <div className="font-semibold text-base">苹果账户分享页</div>
@@ -329,9 +385,9 @@ const TemplateBuildPage = () => {
             </div>
 
             <div className="rounded-lg border border-base-200 bg-base-200/30 p-4 space-y-4">
-              <div className="font-semibold text-base">客户端下载链接</div>
               <label className="form-control">
-                <span className="label-text">客户端下载开关</span>
+                <div className="font-semibold text-base">客户端下载</div>
+                <span className="label-text">客户端下载卡片开关</span>
                 <div className="flex items-center gap-3">
                   <input
                     type="checkbox"
@@ -381,44 +437,59 @@ const TemplateBuildPage = () => {
                   </label>
                 </div>
               )}
+                <div className="mt-2 rounded-md border border-info/40 bg-info/15 px-3 py-2 text-sm text-info">
+                下载地址可留空，留空则不显示对应客户端的下载按钮。
+                </div>
             </div>
 
-            <div className="flex flex-wrap gap-2 pt-2 border-t border-base-200">
-              <button className="btn btn-primary" type="submit" disabled={!canSubmit || buildMutation.status === "pending"}>
-                {buildMutation.status === "pending" ? "构建中..." : "开始构建"}
-              </button>
-              <button
-                className="btn btn-outline"
-                type="button"
-                onClick={() => {
-                  setSiteName(siteNameQuery.data?.siteName || "");
-                  setSiteLogo("");
-                  setBackendType("");
-                  setEnableIdhub(false);
-                  setIdhubApiUrl("/idhub-api/");
-                  setIdhubApiKey("");
-                  setAllowedClientOrigins("");
-                  setAllowedOriginsError(null);
-                  setAuthBackground("");
-                  setEnableLanding(true);
-                  setEnableDownload(false);
-                  setDownloadIos("");
-                  setDownloadAndroid("");
-                  setDownloadWindows("");
-                  setDownloadMacos("");
-                  setDownloadHarmony("");
-                  setProdApiUrl("/api/v1/");
-                }}
-              >
-                清空
-              </button>
-            </div>
           </form>
           {buildMutation.status === "pending" && <progress className="progress progress-primary w-full" />}
-          {message && <p className="text-success">{message}</p>}
           {error && <p className="text-error">{error}</p>}
         </div>
       </div>
+    )}
+    {step === 2 && (
+      <div className="sticky bottom-0 z-10 -mx-4 mt-2 flex flex-wrap items-center justify-between gap-2 rounded-t-2xl border-t border-base-200 bg-base-200/70 px-4 py-3 shadow-[0_-6px_16px_-12px_rgba(0,0,0,0.4)] backdrop-blur lg:-mx-8 lg:px-8">
+        <button className="btn btn-outline" type="button" onClick={() => setStep(1)}>
+          上一步
+        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            className="btn btn-error text-white"
+            type="button"
+            onClick={() => {
+              setSiteName(siteNameQuery.data?.siteName || "");
+              setSiteLogo("");
+              setBackendType("");
+              setEnableIdhub(false);
+              setIdhubApiUrl("/idhub-api/");
+              setIdhubApiKey("");
+              setAllowedClientOrigins("");
+              setAllowedOriginsError(null);
+              setAuthBackground("");
+              setEnableLanding(true);
+              setEnableDownload(false);
+              setDownloadIos("");
+              setDownloadAndroid("");
+              setDownloadWindows("");
+              setDownloadMacos("");
+              setDownloadHarmony("");
+              setProdApiUrl("/api/v1/");
+            }}
+          >
+            清空
+          </button>
+          <button
+            className="btn btn-primary min-w-40"
+            type="submit"
+            form="build-config-form"
+            disabled={!canSubmit || buildMutation.status === "pending"}
+          >
+            {buildMutation.status === "pending" ? "构建中..." : "开始构建"}
+          </button>
+        </div>
+      </div>
+    )}
     </div>
   );
 };

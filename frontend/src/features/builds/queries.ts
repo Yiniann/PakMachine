@@ -13,6 +13,7 @@ export type GithubTemplate = {
   branch?: string;
   workdir?: string;
   description?: string;
+  createdAt?: string;
 };
 
 export type AdminBuildJob = {

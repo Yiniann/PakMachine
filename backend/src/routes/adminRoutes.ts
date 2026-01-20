@@ -14,12 +14,8 @@ import {
   listAllBuildJobs,
   listGithubTemplateEntries,
   removeGithubTemplateEntry,
-  removeTemplate,
-  renameUploadedTemplate,
-  uploadTemplate,
 } from "../controllers/buildController";
 import { authenticate, requireAdmin } from "../middleware/auth";
-import { templateUploadHandler } from "../middleware/upload";
 import { UploadError } from "../services/uploadService";
 
 const router = Router();
@@ -35,9 +31,6 @@ router.patch("/resetBuildQuota", adminResetBuildQuota);
 router.get("/build-jobs", listAllBuildJobs);
 router.get("/settings", getSystemSettings);
 router.put("/settings", updateSystemSettings);
-router.post("/upload-template", templateUploadHandler, uploadTemplate);
-router.delete("/upload-template/:filename", removeTemplate);
-router.patch("/upload-template/:filename", renameUploadedTemplate);
 router.get("/github-templates", listGithubTemplateEntries);
 router.post("/github-templates", createGithubTemplateEntry);
 router.delete("/github-templates/:name", removeGithubTemplateEntry);

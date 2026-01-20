@@ -2,12 +2,8 @@ import { Request, Response, NextFunction } from "express";
 import {
   createGithubTemplate,
   deleteGithubTemplate,
-  deleteTemplate,
   getTemplateEntry,
-  handleTemplateUpload,
   listGithubTemplates,
-  listTemplates,
-  renameTemplate,
 } from "../services/uploadService";
 import { dispatchGithubWorkflow } from "../services/githubWorkflowService";
 import prisma from "../lib/prisma";
@@ -20,30 +16,34 @@ import { normalizeArtifactUrl } from "../lib/artifactUrl";
 
 const ADMIN_BUILD_JOBS_LIMIT = 200;
 
-export const uploadTemplate = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const payload = handleTemplateUpload(req.file, (req.body as any)?.description);
-    res.json(payload);
-  } catch (err) {
-    next(err);
+const normalizeEnvLines = (content: string, overrides: Record<string, string | null | undefined>) => {
+  const lines = (content || "").split(/\r?\n/);
+  const filtered = lines.filter((line) => {
+    const trimmed = line.trim();
+    if (!trimmed) return false;
+    const eq = trimmed.indexOf("=");
+    if (eq <= 0) return true;
+    const key = trimmed.slice(0, eq).trim();
+    return overrides[key] === undefined;
+  });
+
+  for (const [key, value] of Object.entries(overrides)) {
+    if (value === undefined) continue;
+    const safeValue = value ?? "";
+    filtered.push(`${key}=${safeValue}`);
   }
+  return filtered.join("\n");
 };
 
 export const listUploadedTemplates = async (_req: Request, res: Response, next: NextFunction) => {
   try {
-    const templates = listTemplates();
-    const simplified = templates.map(({ filename, modifiedAt, description }) => ({ filename, modifiedAt, description }));
+    const templates = listGithubTemplates().map((item) => ({
+      filename: item.name,
+      description: item.description,
+      modifiedAt: item.createdAt || undefined,
+    }));
+    const simplified = templates.map(({ filename, description, modifiedAt }) => ({ filename, description, modifiedAt }));
     res.json(simplified);
-  } catch (err) {
-    next(err);
-  }
-};
-
-export const removeTemplate = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { filename } = req.params;
-    deleteTemplate(filename);
-    res.json({ success: true });
   } catch (err) {
     next(err);
   }
@@ -84,20 +84,6 @@ export const removeGithubTemplateEntry = async (req: Request, res: Response, nex
   }
 };
 
-export const renameUploadedTemplate = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { filename } = req.params;
-    const { newName } = req.body ?? {};
-    if (!newName) {
-      return res.status(400).json({ error: "缺少新文件名" });
-    }
-    renameTemplate(filename, newName);
-    res.json({ success: true });
-  } catch (err) {
-    next(err);
-  }
-};
-
 export const buildTemplatePackage = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { filename, envContent } = req.body ?? {};
@@ -114,19 +100,28 @@ export const buildTemplatePackage = async (req: Request, res: Response, next: Ne
       return res.status(401).json({ error: "Unauthorized" });
     }
 
+    if (template.type !== "github") {
+      return res.status(400).json({ error: "仅支持 GitHub 构建模板" });
+    }
+
+    const dbUser: any = await prisma.user.findUnique({ where: { id: Number(user.sub) }, select: { siteName: true } });
+    const enforcedEnv = normalizeEnvLines(envContent ?? "", {
+      VITE_SITE_NAME: dbUser?.siteName ?? null,
+    });
+
     const job = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      const dbUser: any = await tx.user.findUnique({
+      const txUser: any = await tx.user.findUnique({
         where: { id: Number(user.sub) },
       });
-      if (!dbUser) {
+      if (!txUser) {
         throw new Error("User not found");
       }
-      const isAdmin = dbUser.role === "admin";
+      const isAdmin = txUser.role === "admin";
 
       if (!isAdmin) {
         const now = new Date();
-        const isSameDay = dbUser.buildQuotaDate && new Date(dbUser.buildQuotaDate).toDateString() === now.toDateString();
-        const used = isSameDay ? dbUser.buildQuotaUsed || 0 : 0;
+        const isSameDay = txUser.buildQuotaDate && new Date(txUser.buildQuotaDate).toDateString() === now.toDateString();
+        const used = isSameDay ? txUser.buildQuotaUsed || 0 : 0;
         if (used >= 2) {
           throw Object.assign(new Error("今日构建次数已用完（每日最多 2 次）"), { statusCode: 429, quotaLeft: 0, quotaUsed: used });
         }
@@ -141,31 +136,27 @@ export const buildTemplatePackage = async (req: Request, res: Response, next: Ne
         data: {
           userId: Number(user.sub),
           filename,
-          envJson: envContent,
+          envJson: enforcedEnv,
           status: template.type === "github" ? "queued" : "pending",
           message: template.type === "github" ? "已提交到 GitHub Actions" : null,
         },
       });
     });
 
-    if (template.type === "github") {
-      try {
-        await dispatchGithubWorkflow(template, job.id, envContent);
-        await prisma.buildJob.update({
-          where: { id: job.id },
-          data: { status: "running", message: "GitHub Actions 处理中..." },
-        });
-        return res.json({ message: "已提交到 GitHub Actions", jobId: job.id, type: template.type });
-      } catch (err: any) {
-        await prisma.buildJob.update({
-          where: { id: job.id },
-          data: { status: "failed", message: err?.message || "GitHub Actions 触发失败" },
-        });
-        throw err;
-      }
+    try {
+      await dispatchGithubWorkflow(template, job.id, enforcedEnv);
+      await prisma.buildJob.update({
+        where: { id: job.id },
+        data: { status: "running", message: "GitHub Actions 处理中..." },
+      });
+      return res.json({ message: "已提交到 GitHub Actions", jobId: job.id, type: template.type });
+    } catch (err: any) {
+      await prisma.buildJob.update({
+        where: { id: job.id },
+        data: { status: "failed", message: err?.message || "GitHub Actions 触发失败" },
+      });
+      throw err;
     }
-
-    res.json({ message: "已加入构建队列", jobId: job.id });
   } catch (err) {
     // surfacing custom quota error
     if ((err as any)?.statusCode === 429) {

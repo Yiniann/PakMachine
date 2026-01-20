@@ -17,6 +17,7 @@ type TemplateMetaEntry = {
   repo?: string;
   branch?: string;
   workdir?: string;
+  createdAt?: string;
 };
 type TemplateMeta = Record<string, TemplateMetaEntry>;
 export type TemplateEntry = {
@@ -199,7 +200,13 @@ export const listGithubTemplates = () => {
       branch: value.branch || "main",
       workdir: value.workdir || "",
       description: value.description || "",
-    }));
+      createdAt: value.createdAt || "",
+    }))
+    .sort((a, b) => {
+      const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return bTime - aTime;
+    });
 };
 
 export const createGithubTemplate = (input: { name: string; repo: string; branch?: string; workdir?: string; description?: string }) => {
@@ -222,6 +229,7 @@ export const createGithubTemplate = (input: { name: string; repo: string; branch
     branch: input.branch?.trim() || "main",
     workdir: input.workdir?.trim() || "",
     description: input.description?.trim() || "",
+    createdAt: new Date().toISOString(),
   };
   writeTemplateMeta(meta);
   return true;
