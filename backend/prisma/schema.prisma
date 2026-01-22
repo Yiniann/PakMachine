@@ -15,6 +15,7 @@ model User {
   password           String
   emailVerified      Boolean   @default(false)
   role               String    @default("user") // "user" | "admin"
+  userType           String    @default("free") // "free" | "subscriber"
   siteName           String?
   buildQuotaUsed     Int       @default(0) // 当天已使用的构建次数
   buildQuotaDate     DateTime?

@@ -15,6 +15,45 @@ import { URL } from "url";
 import { normalizeArtifactUrl } from "../lib/artifactUrl";
 
 const ADMIN_BUILD_JOBS_LIMIT = 200;
+const ALLOWED_ENV_KEYS = new Set([
+  "VITE_SITE_NAME",
+  "VITE_BACKEND_TYPE",
+  "VITE_ENABLE_LANDING",
+  "VITE_SITE_LOGO",
+  "VITE_AUTH_BACKGROUND",
+  "VITE_ENABLE_IDHUB",
+  "VITE_IDHUB_API_URL",
+  "VITE_IDHUB_API_KEY",
+  "VITE_PROD_API_URL",
+  "VITE_ALLOWED_CLIENT_ORIGINS",
+  "VITE_ENABLE_DOWNLOAD",
+  "VITE_DOWNLOAD_IOS",
+  "VITE_DOWNLOAD_ANDROID",
+  "VITE_DOWNLOAD_WINDOWS",
+  "VITE_DOWNLOAD_MACOS",
+  "VITE_DOWNLOAD_HARMONY",
+]);
+
+const validateEnvContent = (content: string) => {
+  const lines = (content || "").split("\n");
+  for (const line of lines) {
+    if (!line.trim()) continue;
+    if (line.trim().startsWith("#")) continue;
+    const normalized = line.endsWith("\r") ? line.slice(0, -1) : line;
+    if (normalized.includes("\r")) {
+      return "字段中不允许包含换行";
+    }
+    const eq = normalized.indexOf("=");
+    if (eq <= 0) {
+      return "envContent 格式不正确";
+    }
+    const key = normalized.slice(0, eq).trim();
+    if (!ALLOWED_ENV_KEYS.has(key)) {
+      return "envContent 包含非法字段";
+    }
+  }
+  return null;
+};
 
 const normalizeEnvLines = (content: string, overrides: Record<string, string | null | undefined>) => {
   const lines = (content || "").split(/\r?\n/);
@@ -89,6 +128,10 @@ export const buildTemplatePackage = async (req: Request, res: Response, next: Ne
     const { filename, envContent } = req.body ?? {};
     if (!filename || !envContent) {
       return res.status(400).json({ error: "缺少 filename 或 envContent" });
+    }
+    const envError = validateEnvContent(envContent);
+    if (envError) {
+      return res.status(400).json({ error: envError });
     }
     const template = getTemplateEntry(filename);
     if (!template) {

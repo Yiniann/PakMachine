@@ -6,8 +6,10 @@ import {
   adminResetSiteName,
   adminUpdatePassword,
   adminUpdateRole,
+  adminUpdateUserType,
   listUsers,
 } from "../controllers/userController";
+import { getAdminStats } from "../controllers/adminStatsController";
 import { getSystemSettings, updateSystemSettings } from "../controllers/systemSettingsController";
 import {
   createGithubTemplateEntry,
@@ -26,8 +28,10 @@ router.post("/addUser", adminCreateUser);
 router.delete("/deleteUser/:id", adminDeleteUser);
 router.patch("/changePwd", adminUpdatePassword);
 router.patch("/changeRole", adminUpdateRole);
+router.patch("/changeUserType", adminUpdateUserType);
 router.patch("/resetSiteName", adminResetSiteName);
 router.patch("/resetBuildQuota", adminResetBuildQuota);
+router.get("/stats", getAdminStats);
 router.get("/build-jobs", listAllBuildJobs);
 router.get("/settings", getSystemSettings);
 router.put("/settings", updateSystemSettings);

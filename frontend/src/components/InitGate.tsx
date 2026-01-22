@@ -11,13 +11,23 @@ const InitGate = ({ children }: Props) => {
   const status = useInitStatus();
 
   if (status.isLoading) {
-    return <div className="p-6 text-center">正在检查系统状态...</div>;
+    return (
+      <div className="modal modal-open">
+        <div className="modal-box text-center">
+          <div className="flex flex-col items-center gap-3">
+            <span className="loading loading-spinner loading-lg" />
+            <p className="text-base-content/80">正在加载，请稍候...</p>
+          </div>
+        </div>
+      </div>
+    );
   }
   if (status.error) {
     return (
-      <div className="p-6 text-center text-error">
-        检查系统状态失败，请稍后重试。
-        <div className="text-sm text-base-content/70 mt-2">错误可能是后端未启动</div>
+      <div className="modal modal-open">
+        <div className="modal-box text-center">
+          <p className="text-error">加载失败，请稍后重试。</p>
+        </div>
       </div>
     );
   }

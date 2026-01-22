@@ -5,6 +5,10 @@ import { useBuildProfile, useSaveBuildProfile } from "../../features/builds/prof
 import { useSiteName } from "../../features/builds/siteName";
 import { useNavigate } from "react-router-dom";
 
+const parseOrigins = (value: string) => value.split(",").map((item) => item.trim()).filter(Boolean);
+const normalizeEnvValue = (value: string) => value.replace(/[\r\n]+/g, " ").trim();
+const hasNewline = (value: string) => /[\r\n]/.test(value);
+
 const TemplateBuildPage = () => {
   const navigate = useNavigate();
   const templates = useTemplateFiles();
@@ -14,38 +18,56 @@ const TemplateBuildPage = () => {
   const siteNameQuery = useSiteName();
 
   const [selected, setSelected] = useState<string | null>(null);
-  const [siteName, setSiteName] = useState("");
-  const [backendType, setBackendType] = useState("");
-  const [enableLanding, setEnableLanding] = useState(true);
-  const [siteLogo, setSiteLogo] = useState("");
-  const [authBackground, setAuthBackground] = useState("");
-  const [enableIdhub, setEnableIdhub] = useState(false);
-  const [idhubApiUrl, setIdhubApiUrl] = useState("/idhub-api/");
-  const [idhubApiKey, setIdhubApiKey] = useState("");
-  const [enableDownload, setEnableDownload] = useState(false);
-  const [downloadIos, setDownloadIos] = useState("");
-  const [downloadAndroid, setDownloadAndroid] = useState("");
-  const [downloadWindows, setDownloadWindows] = useState("");
-  const [downloadMacos, setDownloadMacos] = useState("");
-  const [downloadHarmony, setDownloadHarmony] = useState("");
-  const [prodApiUrl, setProdApiUrl] = useState("/api/v1/");
-  const [allowedClientOrigins, setAllowedClientOrigins] = useState("");
   const [step, setStep] = useState<1 | 2>(1);
   const [stepError, setStepError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [allowedOriginsError, setAllowedOriginsError] = useState<string | null>(null);
 
-  const parseOrigins = (value: string) => value.split(",").map((item) => item.trim()).filter(Boolean);
+  const [form, setForm] = useState({
+    backendType: "",
+    enableLanding: true,
+    siteLogo: "",
+    authBackground: "",
+    enableIdhub: false,
+    idhubApiUrl: "/idhub-api/",
+    idhubApiKey: "",
+    enableDownload: false,
+    downloadIos: "",
+    downloadAndroid: "",
+    downloadWindows: "",
+    downloadMacos: "",
+    downloadHarmony: "",
+    prodApiUrl: "/api/v1/",
+    allowedClientOrigins: "",
+  });
+
+  const siteName = siteNameQuery.data?.siteName || "";
+
+  const hasInvalidNewline = useMemo(
+    () =>
+      [
+        siteName,
+        ...Object.values(form).filter((v) => typeof v === "string"),
+      ].some(hasNewline),
+    [siteName, form],
+  );
 
   const canSubmit = useMemo(() => {
     if (!selected) return false;
     if (!siteName.trim()) return false;
-    if (!backendType.trim()) return false;
-    if (enableIdhub && (!idhubApiUrl.trim() || !idhubApiKey.trim())) return false;
+    if (!form.backendType.trim()) return false;
+    if (form.enableIdhub && (!form.idhubApiUrl.trim() || !form.idhubApiKey.trim())) return false;
     if (allowedOriginsError) return false;
-    if (parseOrigins(allowedClientOrigins).length > 4) return false;
+    if (parseOrigins(form.allowedClientOrigins).length > 4) return false;
+    if (hasInvalidNewline) return false;
     return true;
-  }, [selected, siteName, backendType, enableIdhub, idhubApiUrl, idhubApiKey, allowedOriginsError, allowedClientOrigins]);
+  }, [
+    selected,
+    siteName,
+    form,
+    allowedOriginsError,
+    hasInvalidNewline,
+  ]);
 
   useEffect(() => {
     if (selected || !templates.data || templates.data.length === 0) return;
@@ -67,28 +89,28 @@ const TemplateBuildPage = () => {
   }, [selected]);
 
   const buildEnvContent = () => {
-    const prodApiFinal = prodApiUrl.trim() || "/api/v1/";
+    const prodApiFinal = normalizeEnvValue(form.prodApiUrl) || "/api/v1/";
     const lines = [
-      `VITE_SITE_NAME=${siteName.trim()}`,
-      `VITE_BACKEND_TYPE=${backendType.trim()}`,
-      `VITE_ENABLE_LANDING=${enableLanding ? "true" : "false"}`,
-      `VITE_SITE_LOGO=${siteLogo.trim()}`,
-      `VITE_AUTH_BACKGROUND=${authBackground.trim()}`,
-      `VITE_ENABLE_IDHUB=${enableIdhub ? "true" : "false"}`,
+      `VITE_SITE_NAME=${normalizeEnvValue(siteName)}`,
+      `VITE_BACKEND_TYPE=${normalizeEnvValue(form.backendType)}`,
+      `VITE_ENABLE_LANDING=${form.enableLanding ? "true" : "false"}`,
+      `VITE_SITE_LOGO=${normalizeEnvValue(form.siteLogo)}`,
+      `VITE_AUTH_BACKGROUND=${normalizeEnvValue(form.authBackground)}`,
+      `VITE_ENABLE_IDHUB=${form.enableIdhub ? "true" : "false"}`,
       `VITE_PROD_API_URL=${prodApiFinal}`,
-      `VITE_ALLOWED_CLIENT_ORIGINS=${allowedClientOrigins.trim()}`,
-      `VITE_ENABLE_DOWNLOAD=${enableDownload ? "true" : "false"}`,
+      `VITE_ALLOWED_CLIENT_ORIGINS=${normalizeEnvValue(form.allowedClientOrigins)}`,
+      `VITE_ENABLE_DOWNLOAD=${form.enableDownload ? "true" : "false"}`,
     ];
-    if (enableIdhub) {
-      lines.push(`VITE_IDHUB_API_URL=${idhubApiUrl.trim()}`, `VITE_IDHUB_API_KEY=${idhubApiKey.trim()}`);
+    if (form.enableIdhub) {
+      lines.push(`VITE_IDHUB_API_URL=${normalizeEnvValue(form.idhubApiUrl)}`, `VITE_IDHUB_API_KEY=${normalizeEnvValue(form.idhubApiKey)}`);
     }
-    if (enableDownload) {
+    if (form.enableDownload) {
       lines.push(
-        `VITE_DOWNLOAD_IOS=${downloadIos.trim()}`,
-        `VITE_DOWNLOAD_ANDROID=${downloadAndroid.trim()}`,
-        `VITE_DOWNLOAD_WINDOWS=${downloadWindows.trim()}`,
-        `VITE_DOWNLOAD_MACOS=${downloadMacos.trim()}`,
-        `VITE_DOWNLOAD_HARMONY=${downloadHarmony.trim()}`,
+        `VITE_DOWNLOAD_IOS=${normalizeEnvValue(form.downloadIos)}`,
+        `VITE_DOWNLOAD_ANDROID=${normalizeEnvValue(form.downloadAndroid)}`,
+        `VITE_DOWNLOAD_WINDOWS=${normalizeEnvValue(form.downloadWindows)}`,
+        `VITE_DOWNLOAD_MACOS=${normalizeEnvValue(form.downloadMacos)}`,
+        `VITE_DOWNLOAD_HARMONY=${normalizeEnvValue(form.downloadHarmony)}`,
       );
     }
     return lines.join("\n");
@@ -105,8 +127,12 @@ const TemplateBuildPage = () => {
       setError("请先在主页设置站点名称");
       return;
     }
-    if (!backendType.trim()) {
+    if (!form.backendType.trim()) {
       setError("请先选择面板类型");
+      return;
+    }
+    if (hasInvalidNewline) {
+      setError("字段中不允许包含换行");
       return;
     }
     const envContent = buildEnvContent();
@@ -118,23 +144,7 @@ const TemplateBuildPage = () => {
             navigate(`/app?jobId=${data.jobId}`);
           }
           setError(null);
-          saveProfile.mutate({
-            siteLogo,
-            backendType,
-            authBackground,
-            prodApiUrl,
-            enableIdhub,
-            idhubApiUrl,
-            idhubApiKey,
-            allowedClientOrigins,
-            enableLanding,
-            enableDownload,
-            downloadIos,
-            downloadAndroid,
-            downloadWindows,
-            downloadMacos,
-            downloadHarmony,
-          });
+          saveProfile.mutate(form);
         },
         onError: (err: any) => setError(err?.response?.data?.error || "构建失败，请稍后再试"),
       },
@@ -142,63 +152,90 @@ const TemplateBuildPage = () => {
   };
 
   useEffect(() => {
-    setSiteName(siteNameQuery.data?.siteName || "");
-  }, [siteNameQuery.data?.siteName]);
+    if (!profileQuery.data) return;
+    const cfg: any = profileQuery.data;
+    const getVal = (key: string, viteKey: string, fallback: any) => cfg[key] ?? cfg[viteKey] ?? fallback;
 
-  useEffect(() => {
-    if (profileQuery.data) {
-      const cfg: any = profileQuery.data;
-      setSiteLogo(cfg.siteLogo || cfg.VITE_SITE_LOGO || "");
-      setBackendType(cfg.backendType || cfg.VITE_BACKEND_TYPE || "");
-      setAuthBackground(cfg.authBackground || cfg.VITE_AUTH_BACKGROUND || "");
-      setProdApiUrl(cfg.prodApiUrl || cfg.VITE_PROD_API_URL || "/api/v1/");
-      setEnableIdhub(Boolean(cfg.enableIdhub ?? (cfg.VITE_ENABLE_IDHUB === "true" || cfg.VITE_ENABLE_IDHUB === true)));
-      setIdhubApiUrl(cfg.idhubApiUrl || cfg.VITE_IDHUB_API_URL || "/idhub-api/");
-      setIdhubApiKey(cfg.idhubApiKey || cfg.VITE_IDHUB_API_KEY || "");
-      setAllowedClientOrigins(cfg.allowedClientOrigins || cfg.VITE_ALLOWED_CLIENT_ORIGINS || "");
-      setAllowedOriginsError(null);
-      const downloadIosValue = cfg.downloadIos || cfg.VITE_DOWNLOAD_IOS || "";
-      const downloadAndroidValue = cfg.downloadAndroid || cfg.VITE_DOWNLOAD_ANDROID || "";
-      const downloadWindowsValue = cfg.downloadWindows || cfg.VITE_DOWNLOAD_WINDOWS || "";
-      const downloadMacosValue = cfg.downloadMacos || cfg.VITE_DOWNLOAD_MACOS || "";
-      const downloadHarmonyValue = cfg.downloadHarmony || cfg.VITE_DOWNLOAD_HARMONY || "";
-      setDownloadIos(downloadIosValue);
-      setDownloadAndroid(downloadAndroidValue);
-      setDownloadWindows(downloadWindowsValue);
-      setDownloadMacos(downloadMacosValue);
-      setDownloadHarmony(downloadHarmonyValue);
-      const downloadRaw = cfg.enableDownload ?? cfg.VITE_ENABLE_DOWNLOAD;
-      const hasDownloadLinks = Boolean(downloadIosValue || downloadAndroidValue || downloadWindowsValue || downloadMacosValue || downloadHarmonyValue);
-      setEnableDownload(downloadRaw === undefined ? hasDownloadLinks : downloadRaw === true || downloadRaw === "true");
-      const landingRaw = cfg.enableLanding ?? cfg.VITE_ENABLE_LANDING;
-      setEnableLanding(landingRaw === undefined ? true : landingRaw === true || landingRaw === "true");
-    }
+    const enableDownloadRaw = getVal("enableDownload", "VITE_ENABLE_DOWNLOAD", undefined);
+    const dlIos = getVal("downloadIos", "VITE_DOWNLOAD_IOS", "");
+    const dlAndroid = getVal("downloadAndroid", "VITE_DOWNLOAD_ANDROID", "");
+    const dlWin = getVal("downloadWindows", "VITE_DOWNLOAD_WINDOWS", "");
+    const dlMac = getVal("downloadMacos", "VITE_DOWNLOAD_MACOS", "");
+    const dlHarmony = getVal("downloadHarmony", "VITE_DOWNLOAD_HARMONY", "");
+
+    const hasDownloadLinks = Boolean(dlIos || dlAndroid || dlWin || dlMac || dlHarmony);
+    const finalEnableDownload = enableDownloadRaw === undefined ? hasDownloadLinks : enableDownloadRaw === true || enableDownloadRaw === "true";
+
+    const enableLandingRaw = getVal("enableLanding", "VITE_ENABLE_LANDING", undefined);
+    const finalEnableLanding = enableLandingRaw === undefined ? true : enableLandingRaw === true || enableLandingRaw === "true";
+
+    const enableIdhubRaw = getVal("enableIdhub", "VITE_ENABLE_IDHUB", undefined);
+    const finalEnableIdhub = Boolean(enableIdhubRaw === true || enableIdhubRaw === "true");
+
+    setForm({
+      backendType: getVal("backendType", "VITE_BACKEND_TYPE", ""),
+      enableLanding: finalEnableLanding,
+      siteLogo: getVal("siteLogo", "VITE_SITE_LOGO", ""),
+      authBackground: getVal("authBackground", "VITE_AUTH_BACKGROUND", ""),
+      enableIdhub: finalEnableIdhub,
+      idhubApiUrl: getVal("idhubApiUrl", "VITE_IDHUB_API_URL", "/idhub-api/"),
+      idhubApiKey: getVal("idhubApiKey", "VITE_IDHUB_API_KEY", ""),
+      enableDownload: finalEnableDownload,
+      downloadIos: dlIos,
+      downloadAndroid: dlAndroid,
+      downloadWindows: dlWin,
+      downloadMacos: dlMac,
+      downloadHarmony: dlHarmony,
+      prodApiUrl: getVal("prodApiUrl", "VITE_PROD_API_URL", "/api/v1/"),
+      allowedClientOrigins: getVal("allowedClientOrigins", "VITE_ALLOWED_CLIENT_ORIGINS", ""),
+    });
+    setAllowedOriginsError(null);
   }, [profileQuery.data]);
 
+  useEffect(() => {
+    const origins = parseOrigins(form.allowedClientOrigins);
+    setAllowedOriginsError(origins.length > 4 ? "最多只能填写 4 个域名" : null);
+  }, [form.allowedClientOrigins]);
+
+  const resetForm = () => {
+    setForm({
+      backendType: "",
+      enableLanding: true,
+      siteLogo: "",
+      authBackground: "",
+      enableIdhub: false,
+      idhubApiUrl: "/idhub-api/",
+      idhubApiKey: "",
+      enableDownload: false,
+      downloadIos: "",
+      downloadAndroid: "",
+      downloadWindows: "",
+      downloadMacos: "",
+      downloadHarmony: "",
+      prodApiUrl: "/api/v1/",
+      allowedClientOrigins: "",
+    });
+    setAllowedOriginsError(null);
+    setError(null);
+  };
+
   return (
-    <div>
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          className={`btn btn-sm ${step === 1 ? "btn-primary" : "btn-outline"}`}
-          onClick={() => setStep(1)}
-        >
-          1. 选择模板
-        </button>
-        <button
-          type="button"
-          className={`btn btn-sm ${step === 2 ? "btn-primary" : "btn-outline"}`}
-          disabled={!selected}
-          onClick={() => setStep(2)}
-        >
-          2. 填写配置
-        </button>
+    <div className="space-y-6">
+      <div className="flex justify-center py-4">
+        <ul className="steps w-full max-w-md">
+          <li className={`step ${step >= 1 ? "step-primary" : ""} cursor-pointer`} onClick={() => setStep(1)}>
+            选择模板
+          </li>
+          <li className={`step ${step >= 2 ? "step-primary" : ""}`}>填写配置</li>
+        </ul>
       </div>
 
       {step === 1 && (
-        <div className="card bg-base-100 shadow-xl">
-          <div className="card-body space-y-3">
-            <h2 className="card-title">选择模板</h2>
+        <div className="card bg-base-100 shadow-xl border border-base-200">
+          <div className="card-body">
+            <div className="flex items-center">
+              <h2 className="card-title text-2xl font-bold">选择模板</h2>
+            </div>
             {templates.isLoading && <p>加载中...</p>}
             {templates.error && <p className="text-error">加载失败</p>}
             {!templates.isLoading && templates.data && templates.data.length === 0 && <p>暂无可用模板，请先在后台配置 GitHub 模板。</p>}
@@ -207,15 +244,19 @@ const TemplateBuildPage = () => {
                 <table className="table">
                   <thead>
                     <tr>
-                      <th></th>
+                      <th className="w-12"></th>
                       <th>模板名</th>
                       <th>描述</th>
-                      <th>更新时间</th>
+                      <th className="w-40">更新时间</th>
                     </tr>
                   </thead>
                   <tbody>
                     {templates.data.map((item) => (
-                      <tr key={item.filename}>
+                      <tr
+                        key={item.filename}
+                        className={`hover cursor-pointer transition-colors ${selected === item.filename ? "bg-base-200" : ""}`}
+                        onClick={() => setSelected(item.filename)}
+                      >
                         <td>
                           <input
                             type="radio"
@@ -225,9 +266,9 @@ const TemplateBuildPage = () => {
                             onChange={() => setSelected(item.filename)}
                           />
                         </td>
-                        <td className="whitespace-pre-wrap break-all">{item.filename}</td>
+                        <td className="font-medium">{item.filename}</td>
                         <td className="max-w-xs whitespace-pre-wrap break-words text-sm text-base-content/80">{item.description || "-"}</td>
-                        <td>{item.modifiedAt ? new Date(item.modifiedAt).toLocaleString() : "-"}</td>
+                        <td className="text-sm text-base-content/60">{item.modifiedAt ? new Date(item.modifiedAt).toLocaleString() : "-"}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -238,7 +279,7 @@ const TemplateBuildPage = () => {
             <div className="flex justify-end">
               <button
                 type="button"
-                className="btn btn-primary"
+                className="btn btn-primary px-8"
                 disabled={!selected}
                 onClick={() => {
                   if (!selected) {
@@ -256,13 +297,19 @@ const TemplateBuildPage = () => {
       )}
 
       {step === 2 && (
-        <div className="card bg-base-100 shadow-xl">
-          <div className="card-body space-y-3">
-            <h2 className="card-title">填写站点配置</h2>
-            <p className="text-sm text-base-content/70">按要求填写字段，系统会生成 .env 写入模板并进行构建。</p>
+        <div className="card bg-base-100 shadow-xl border border-base-200">
+          <div className="card-body gap-6">
+            <div>
+              <h2 className="card-title text-2xl font-bold">填写配置</h2>
+              <p className="text-base-content/70 mt-1">按要求填写字段，系统会生成 .env 写入模板并进行构建。</p>
+            </div>
+
             <form id="build-config-form" className="flex min-h-[60vh] flex-col gap-6" onSubmit={onSubmit}>
-              <div className="rounded-lg border border-base-200 bg-base-200/30 p-4 space-y-4">
-                <div className="font-semibold text-base">站点信息</div>
+              <div className="rounded-xl border border-base-200 bg-base-200/50 p-6 space-y-6">
+                <div className="flex items-center gap-2 border-b border-base-200 pb-3">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-primary"><path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S13.636 12 12 12m0 0c-1.657 0-3.636 4.03-3.636 9m3.636-9a9.004 9.004 0 01-8.716-6.747M12 12c2.485 0 4.5-4.03 4.5-9S13.636 3 12 3m0 0c-1.657 0-3.636 4.03-3.636 9m3.636-9a9.004 9.004 0 018.716 6.747M12 12c-2.485 0-4.5-4.03-4.5-9" /></svg>
+                  <h3 className="font-bold text-lg">站点基础信息</h3>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div className="md:col-span-2 flex flex-wrap items-end gap-3">
                     <label className="form-control w-full md:w-1/2">
@@ -278,7 +325,7 @@ const TemplateBuildPage = () => {
                     </label>
                     <label className="form-control w-full md:w-1/4">
                       <span className="label-text">面板类型</span>
-                      <select className="select select-bordered" value={backendType} onChange={(e) => setBackendType(e.target.value)} required>
+                      <select className="select select-bordered" value={form.backendType} onChange={(e) => setForm({ ...form, backendType: e.target.value })} required>
                         <option value="">请选择</option>
                         <option value="xboard">xboard</option>
                         <option value="v2board">v2board</option>
@@ -291,23 +338,23 @@ const TemplateBuildPage = () => {
                         <input
                           type="checkbox"
                           className="toggle"
-                          checked={enableLanding}
-                          onChange={(e) => setEnableLanding(e.target.checked)}
+                          checked={form.enableLanding}
+                          onChange={(e) => setForm({ ...form, enableLanding: e.target.checked })}
                         />
-                        <span className="text-sm text-base-content/70">{enableLanding ? "开启" : "关闭"}</span>
+                        <span className="text-sm text-base-content/70">{form.enableLanding ? "开启" : "关闭"}</span>
                       </div>
                     </label>
                   </div>
                   <label className="form-control">
                     <span className="label-text">站点 Logo</span>
-                    <input className="input input-bordered" value={siteLogo} onChange={(e) => setSiteLogo(e.target.value)} placeholder="支持url或者本地图片" />
+                    <input className="input input-bordered" value={form.siteLogo} onChange={(e) => setForm({ ...form, siteLogo: e.target.value })} placeholder="支持url或者本地图片" />
                   </label>
                   <label className="form-control">
                     <span className="label-text">登陆页背景</span>
                     <input
                       className="input input-bordered"
-                      value={authBackground}
-                      onChange={(e) => setAuthBackground(e.target.value)}
+                      value={form.authBackground}
+                      onChange={(e) => setForm({ ...form, authBackground: e.target.value })}
                       placeholder="支持 url 或本地图片"
                     />
                   </label>
@@ -316,13 +363,8 @@ const TemplateBuildPage = () => {
                     <span className="label-text">前端域名（多个域名用逗号分隔，最多 4 个）</span>
                     <input
                       className="input input-bordered"
-                      value={allowedClientOrigins}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        setAllowedClientOrigins(value);
-                        const origins = parseOrigins(value);
-                        setAllowedOriginsError(origins.length > 4 ? "最多只能填写 4 个域名" : null);
-                      }}
+                      value={form.allowedClientOrigins}
+                      onChange={(e) => setForm({ ...form, allowedClientOrigins: e.target.value })}
                       placeholder="请输入完整域名，如 https://xxx.xxx.com, https://yyy.yyy.com"
                     />
                     {allowedOriginsError && <span className="text-error text-xs">{allowedOriginsError}</span>}
@@ -331,8 +373,8 @@ const TemplateBuildPage = () => {
                     <span className="label-text">后端 API 地址</span>
                     <input
                       className="input input-bordered"
-                      value={prodApiUrl}
-                      onChange={(e) => setProdApiUrl(e.target.value)}
+                      value={form.prodApiUrl}
+                      onChange={(e) => setForm({ ...form, prodApiUrl: e.target.value })}
                       placeholder="/api/v1/"
                     />
                     <div className="mt-2 rounded-md border border-warning/40 bg-warning/15 px-3 py-2 text-sm text-warning">
@@ -342,74 +384,36 @@ const TemplateBuildPage = () => {
                 </div>
               </div>
 
-            <div className="rounded-lg border border-base-200 bg-base-200/30 p-4 space-y-4">
-              <div className="font-semibold text-base">苹果账户分享页</div>
-              <div className="rounded-md border border-success/40 bg-success/15 px-3 py-2 text-sm text-success">
-                对接 AppleAutoPro 账号分享页。
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <label className="form-control md:col-span-2">
-                  <span className="label-text">分享页开关</span>
-                  <div className="flex items-center gap-3">
-                    <input type="checkbox" className="toggle" checked={enableIdhub} onChange={(e) => setEnableIdhub(e.target.checked)} />
-                    <span className="text-sm text-base-content/70">{enableIdhub ? "开启" : "关闭"}</span>
-                  </div>
-                </label>
-                {enableIdhub && (
-                  <>
-                    <label className="form-control md:col-span-2">
-                      <span className="label-text">AppleAutoPro API 地址*</span>
-                      <input
-                        className="input input-bordered"
-                        value={idhubApiUrl}
-                        onChange={(e) => setIdhubApiUrl(e.target.value)}
-                        placeholder="/idhub-api/"
-                        required={enableIdhub}
-                      />
-                      <div className="mt-2 rounded-md border border-warning/40 bg-warning/15 px-3 py-2 text-sm text-warning">
-                        服务器静态部署无需修改（保持 /idhub-api/ 即可，Nginx 会在服务器端反代）；如使用 serverless 部署，请填写对应的反代 Worker 地址。
-                      </div>
-                    </label>
-                    <label className="form-control md:col-span-2">
-                      <span className="label-text">AppleAutoPro API Key*</span>
-                      <input
-                        className="input input-bordered"
-                        value={idhubApiKey}
-                        onChange={(e) => setIdhubApiKey(e.target.value)}
-                        required={enableIdhub}
-                      />
-                    </label>
-                  </>
-                )}
-              </div>
-            </div>
 
-            <div className="rounded-lg border border-base-200 bg-base-200/30 p-4 space-y-4">
+            <div className="rounded-xl border border-base-200 bg-base-200/50 p-6 space-y-6">
               <label className="form-control">
-                <div className="font-semibold text-base">客户端下载</div>
-                <span className="label-text">客户端下载卡片开关</span>
+                <div className="flex items-center gap-2 border-b border-base-200 pb-3 mb-4">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-secondary"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+                  <h3 className="font-bold text-lg">客户端下载配置</h3>
+                </div>
+                <span className="label-text font-medium">启用下载卡片</span>
                 <div className="flex items-center gap-3">
                   <input
                     type="checkbox"
                     className="toggle"
-                    checked={enableDownload}
-                    onChange={(e) => setEnableDownload(e.target.checked)}
+                    checked={form.enableDownload}
+                    onChange={(e) => setForm({ ...form, enableDownload: e.target.checked })}
                   />
-                  <span className="text-sm text-base-content/70">{enableDownload ? "开启" : "关闭"}</span>
+                  <span className="text-sm text-base-content/70">{form.enableDownload ? "开启" : "关闭"}</span>
                 </div>
               </label>
-              {enableDownload && (
+              {form.enableDownload && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <label className="form-control">
                     <span className="label-text">iOS 下载地址</span>
-                    <input className="input input-bordered" value={downloadIos} onChange={(e) => setDownloadIos(e.target.value)} placeholder="https://example.com/ios" />
+                    <input className="input input-bordered" value={form.downloadIos} onChange={(e) => setForm({ ...form, downloadIos: e.target.value })} placeholder="https://example.com/ios" />
                   </label>
                   <label className="form-control">
                     <span className="label-text">Android 下载地址</span>
                     <input
                       className="input input-bordered"
-                      value={downloadAndroid}
-                      onChange={(e) => setDownloadAndroid(e.target.value)}
+                      value={form.downloadAndroid}
+                      onChange={(e) => setForm({ ...form, downloadAndroid: e.target.value })}
                       placeholder="https://example.com/android"
                     />
                   </label>
@@ -417,21 +421,21 @@ const TemplateBuildPage = () => {
                     <span className="label-text">Windows 下载地址</span>
                     <input
                       className="input input-bordered"
-                      value={downloadWindows}
-                      onChange={(e) => setDownloadWindows(e.target.value)}
+                      value={form.downloadWindows}
+                      onChange={(e) => setForm({ ...form, downloadWindows: e.target.value })}
                       placeholder="https://example.com/windows"
                     />
                   </label>
                   <label className="form-control">
                     <span className="label-text">macOS 下载地址</span>
-                    <input className="input input-bordered" value={downloadMacos} onChange={(e) => setDownloadMacos(e.target.value)} placeholder="https://example.com/macos" />
+                    <input className="input input-bordered" value={form.downloadMacos} onChange={(e) => setForm({ ...form, downloadMacos: e.target.value })} placeholder="https://example.com/macos" />
                   </label>
                   <label className="form-control">
                     <span className="label-text">鸿蒙下载地址</span>
                     <input
                       className="input input-bordered"
-                      value={downloadHarmony}
-                      onChange={(e) => setDownloadHarmony(e.target.value)}
+                      value={form.downloadHarmony}
+                      onChange={(e) => setForm({ ...form, downloadHarmony: e.target.value })}
                       placeholder="https://example.com/harmony"
                     />
                   </label>
@@ -442,6 +446,52 @@ const TemplateBuildPage = () => {
                 </div>
             </div>
 
+            <div className="rounded-xl border border-base-200 bg-base-200/50 p-6 space-y-6">
+              <div className="flex items-center gap-2 border-b border-base-200 pb-3">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-accent"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" /></svg>
+                <h3 className="font-bold text-lg">AppleAutoPro 集成</h3>
+              </div>
+              <div role="alert" className="alert alert-success bg-success/10 text-success-content border-success/20 text-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="stroke-current shrink-0 w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <span>对接 AppleAutoPro 账号分享页。</span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <label className="form-control md:col-span-2">
+                  <span className="label-text font-medium">启用分享页</span>
+                  <div className="flex items-center gap-3">
+                    <input type="checkbox" className="toggle" checked={form.enableIdhub} onChange={(e) => setForm({ ...form, enableIdhub: e.target.checked })} />
+                    <span className="text-sm text-base-content/70">{form.enableIdhub ? "开启" : "关闭"}</span>
+                  </div>
+                </label>
+                {form.enableIdhub && (
+                  <>
+                    <label className="form-control md:col-span-2">
+                      <span className="label-text">AppleAutoPro API 地址*</span>
+                      <input
+                        className="input input-bordered"
+                        value={form.idhubApiUrl}
+                        onChange={(e) => setForm({ ...form, idhubApiUrl: e.target.value })}
+                        placeholder="/idhub-api/"
+                        required={form.enableIdhub}
+                      />
+                      <div className="mt-2 rounded-md border border-warning/40 bg-warning/15 px-3 py-2 text-sm text-warning">
+                        服务器静态部署无需修改（保持 /idhub-api/ 即可，Nginx 会在服务器端反代）；如使用 serverless 部署，请填写对应的反代 Worker 地址。
+                      </div>
+                    </label>
+                    <label className="form-control md:col-span-2">
+                      <span className="label-text">AppleAutoPro API Key*</span>
+                      <input
+                        className="input input-bordered"
+                        value={form.idhubApiKey}
+                        onChange={(e) => setForm({ ...form, idhubApiKey: e.target.value })}
+                        required={form.enableIdhub}
+                      />
+                    </label>
+                  </>
+                )}
+              </div>
+            </div>
+
           </form>
           {buildMutation.status === "pending" && <progress className="progress progress-primary w-full" />}
           {error && <p className="text-error">{error}</p>}
@@ -449,38 +499,20 @@ const TemplateBuildPage = () => {
       </div>
     )}
     {step === 2 && (
-      <div className="sticky bottom-0 z-10 -mx-4 mt-2 flex flex-wrap items-center justify-between gap-2 rounded-t-2xl border-t border-base-200 bg-base-200/70 px-4 py-3 shadow-[0_-6px_16px_-12px_rgba(0,0,0,0.4)] backdrop-blur lg:-mx-8 lg:px-8">
+      <div className="sticky bottom-0 z-10 -mx-4 mt-8 flex flex-wrap items-center justify-between gap-4 border-t border-base-200 bg-base-100/80 px-6 py-4 shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.1)] backdrop-blur lg:-mx-8 lg:px-8">
         <button className="btn btn-outline" type="button" onClick={() => setStep(1)}>
           上一步
         </button>
         <div className="flex flex-wrap items-center gap-2">
           <button
-            className="btn btn-error text-white"
+            className="btn btn-ghost text-error hover:bg-error/10"
             type="button"
-            onClick={() => {
-              setSiteName(siteNameQuery.data?.siteName || "");
-              setSiteLogo("");
-              setBackendType("");
-              setEnableIdhub(false);
-              setIdhubApiUrl("/idhub-api/");
-              setIdhubApiKey("");
-              setAllowedClientOrigins("");
-              setAllowedOriginsError(null);
-              setAuthBackground("");
-              setEnableLanding(true);
-              setEnableDownload(false);
-              setDownloadIos("");
-              setDownloadAndroid("");
-              setDownloadWindows("");
-              setDownloadMacos("");
-              setDownloadHarmony("");
-              setProdApiUrl("/api/v1/");
-            }}
+            onClick={resetForm}
           >
             清空
           </button>
           <button
-            className="btn btn-primary min-w-40"
+            className="btn btn-primary min-w-[160px] shadow-lg shadow-primary/30"
             type="submit"
             form="build-config-form"
             disabled={!canSubmit || buildMutation.status === "pending"}

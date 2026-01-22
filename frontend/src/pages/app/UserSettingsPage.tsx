@@ -32,12 +32,20 @@ const UserSettingsPage = () => {
   };
 
   return (
-    <div className="max-w-xl space-y-4">
-      <div className="card bg-base-100 shadow-xl">
-        <div className="card-body space-y-3">
-          <h2 className="card-title">账户设置</h2>
-          <p className="text-sm text-base-content/70">修改登录密码，保障账户安全。</p>
-          <form className="space-y-3" onSubmit={onSubmit}>
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-3xl font-bold">账户设置</h2>
+        <p className="text-base-content/70 mt-1">管理您的个人账户信息与安全设置。</p>
+      </div>
+
+      <div className="card bg-base-100 shadow-xl border border-base-200 max-w-2xl">
+        <div className="card-body">
+          <div className="flex items-center gap-2 border-b border-base-200 pb-3 mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-primary"><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" /></svg>
+            <h3 className="font-bold text-lg">修改密码</h3>
+          </div>
+
+          <form className="space-y-4" onSubmit={onSubmit}>
             <label className="form-control">
               <span className="label-text">当前密码</span>
               <input
@@ -46,6 +54,7 @@ const UserSettingsPage = () => {
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
                 required
+                placeholder="请输入当前使用的密码"
               />
             </label>
             <label className="form-control">
@@ -57,6 +66,7 @@ const UserSettingsPage = () => {
                 onChange={(e) => setNewPassword(e.target.value)}
                 required
                 minLength={8}
+                placeholder="请输入新密码（至少 8 位）"
               />
             </label>
             <label className="form-control">
@@ -67,15 +77,28 @@ const UserSettingsPage = () => {
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
                 required
+                placeholder="请再次输入新密码"
               />
             </label>
-            <div className="flex gap-2">
-              <button className="btn btn-primary" type="submit" disabled={submitting}>
+
+            {message && (
+              <div role="alert" className="alert alert-success bg-success/10 text-success-content border-success/20 text-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                <span>{message}</span>
+              </div>
+            )}
+            {error && (
+              <div role="alert" className="alert alert-error bg-error/10 text-error-content border-error/20 text-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                <span>{error}</span>
+              </div>
+            )}
+
+            <div className="flex justify-end pt-2">
+              <button className="btn btn-primary min-w-[120px] shadow-lg shadow-primary/30" type="submit" disabled={submitting}>
                 {submitting ? "提交中..." : "保存"}
               </button>
             </div>
-            {message && <p className="text-success">{message}</p>}
-            {error && <p className="text-error">{error}</p>}
           </form>
         </div>
       </div>

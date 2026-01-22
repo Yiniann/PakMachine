@@ -2,7 +2,7 @@ import { useMutation, UseMutationResult, useQueryClient } from "@tanstack/react-
 import api from "../../api/client";
 import { User } from "./queries";
 
-export const useCreateUser = (): UseMutationResult<User, unknown, { email: string; password: string; role?: string }, unknown> => {
+export const useCreateUser = (): UseMutationResult<User, unknown, { email: string; password: string; role?: string; userType?: string }, unknown> => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (variables) => {
@@ -40,6 +40,17 @@ export const useUpdateRole = (): UseMutationResult<{ message: string }, unknown,
   return useMutation({
     mutationFn: async ({ email, role }) => {
       const res = await api.patch<{ message: string }>(`/admin/changeRole`, { email, role });
+      return res.data;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
+  });
+};
+
+export const useUpdateUserType = (): UseMutationResult<{ message: string }, unknown, { email: string; userType: string }, unknown> => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ email, userType }) => {
+      const res = await api.patch<{ message: string }>(`/admin/changeUserType`, { email, userType });
       return res.data;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),

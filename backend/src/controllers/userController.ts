@@ -16,6 +16,7 @@ const REGISTER_CODE_RESEND_SECONDS = 60;
 const isValidEmail = (email: string) =>
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 const isValidPassword = (pwd: string) => typeof pwd === "string" && pwd.length >= 8;
+const isValidUserType = (value: string) => value === "free" || value === "subscriber";
 const hashCode = (code: string) => crypto.createHash("sha256").update(code).digest("hex");
 const generateRegisterCode = () => Math.floor(100000 + Math.random() * 900000).toString();
 
@@ -34,7 +35,7 @@ export const listUsers = async (_req: Request, res: Response, next: NextFunction
 
 export const adminCreateUser = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { email, password, role = "user" } = req.body ?? {};
+    const { email, password, role = "user", userType = "free" } = req.body ?? {};
     if (!email || !password) {
       return res.status(400).json({ error: "Email and password are required" });
     }
@@ -44,6 +45,9 @@ export const adminCreateUser = async (req: Request, res: Response, next: NextFun
     if (!isValidPassword(password)) {
       return res.status(400).json({ error: "Password must be at least 8 characters" });
     }
+    if (userType && !isValidUserType(userType)) {
+      return res.status(400).json({ error: "UserType must be 'free' or 'subscriber'" });
+    }
 
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
@@ -52,7 +56,7 @@ export const adminCreateUser = async (req: Request, res: Response, next: NextFun
 
     const hashed = await bcrypt.hash(password, 10);
     const created = await prisma.user.create({
-      data: { email, password: hashed, role, emailVerified: true },
+      data: { email, password: hashed, role, userType: userType || "free", emailVerified: true },
     });
     const { password: _pw, resetToken, resetTokenExpires, ...rest } = created;
     res.status(201).json(rest);
@@ -66,6 +70,10 @@ export const adminDeleteUser = async (req: Request, res: Response, next: NextFun
     const id = Number(req.params.id);
     if (!Number.isInteger(id)) {
       return res.status(400).json({ error: "Invalid user id" });
+    }
+    const requester = (req as any).user;
+    if (requester?.sub && Number(requester.sub) === id) {
+      return res.status(400).json({ error: "不能删除自己的账号" });
     }
 
     const user = await prisma.user.findUnique({ where: { id } });
@@ -114,12 +122,37 @@ export const adminUpdateRole = async (req: Request, res: Response, next: NextFun
     if (!email) {
       return res.status(400).json({ error: "Email is required" });
     }
+    const requester = (req as any).user;
+    if (requester?.email && requester.email === email) {
+      return res.status(400).json({ error: "不能修改自己的角色" });
+    }
     if (!role || (role !== "user" && role !== "admin")) {
       return res.status(400).json({ error: "Role must be 'user' or 'admin'" });
     }
 
     await prisma.user.update({ where: { email }, data: { role: role as "user" | "admin" } });
     res.json({ message: "Role updated" });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const adminUpdateUserType = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { email, userType } = req.body ?? {};
+    if (!email) {
+      return res.status(400).json({ error: "Email is required" });
+    }
+    const requester = (req as any).user;
+    if (requester?.email && requester.email === email) {
+      return res.status(400).json({ error: "不能修改自己的用户类型" });
+    }
+    if (!isValidUserType(userType)) {
+      return res.status(400).json({ error: "UserType must be 'free' or 'subscriber'" });
+    }
+
+    await prisma.user.update({ where: { email }, data: { userType } });
+    res.json({ message: "UserType updated" });
   } catch (error) {
     next(error);
   }

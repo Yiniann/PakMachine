@@ -62,14 +62,18 @@ const SystemSettingsPage = () => {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-3xl font-bold">系统设置</h2>
+        <p className="text-base-content/70 mt-1">配置平台参数、构建密钥及邮件服务</p>
+      </div>
+
       <div className="card bg-base-100 shadow-xl">
-        <div className="card-body space-y-3">
-          <h2 className="card-title">系统设置</h2>
-          {settingsQuery.isLoading && <p>加载中...</p>}
-          {settingsQuery.error && <p className="text-error">加载失败</p>}
+        <div className="card-body">
+          {settingsQuery.isLoading && <div className="flex justify-center"><span className="loading loading-spinner" /></div>}
+          {settingsQuery.error && <div role="alert" className="alert alert-error"><span>加载失败</span></div>}
           {!settingsQuery.isLoading && (
-            <form className="space-y-4" onSubmit={onSubmit}>
+            <form className="space-y-5" onSubmit={onSubmit}>
               <label className="form-control">
                 <span className="label-text">平台名称（用于展示，与用户构建站点名无关）</span>
                 <input

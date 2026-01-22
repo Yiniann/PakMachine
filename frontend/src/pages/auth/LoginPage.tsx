@@ -21,8 +21,14 @@ const LoginPage = () => {
       { email, password },
       {
         onSuccess: (data) => {
-          login(data.token, data.user?.role);
+          login(data.token, data.user?.role, data.user?.email, data.user?.userType);
           localStorage.setItem("user_role", data.user?.role || "");
+          localStorage.setItem("user_email", data.user?.email || "");
+          if (data.user?.userType) {
+            localStorage.setItem("user_type", data.user.userType);
+          } else {
+            localStorage.removeItem("user_type");
+          }
           setMessage("Logged in");
           navigate(from, { replace: true });
         },

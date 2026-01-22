@@ -17,10 +17,12 @@ RUN apk add --no-cache openssl
 COPY --from=builder /app/backend/dist ./dist
 COPY --from=builder /app/backend/prisma ./prisma
 COPY --from=builder /app/backend/config ./config
+COPY backend/scripts/entrypoint.sh ./scripts/entrypoint.sh
 COPY backend/package*.json ./
 # 安装生产依赖，去掉 dev 体积
 RUN npm ci --omit=dev
 # 上传目录和配置目录可通过卷覆盖
 VOLUME ["/app/uploads", "/app/backend/config"]
 EXPOSE 3000
-CMD ["node", "dist/index.js"]
+RUN chmod +x /app/backend/scripts/entrypoint.sh
+CMD ["/app/backend/scripts/entrypoint.sh"]

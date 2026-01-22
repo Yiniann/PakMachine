@@ -10,7 +10,13 @@ const HomePage = () => {
   const setSiteNameMutation = useSetSiteName();
   const jobsQuery = useBuildJobs();
   const quotaQuery = useBuildQuota();
-  const { role } = useAuth();
+  const auth = useAuth() as any;
+  // 尝试从 auth 直接获取或从 auth.user 中获取用户信息，兼容不同的 useAuth 返回结构
+  const user = auth.user || {};
+  const role = auth.role || user.role;
+  const email = auth.email || user.email;
+  const normalizeUserType = (value?: string | null) => (value ?? "free").toString().trim().toLowerCase();
+  const userType = normalizeUserType(auth.userType ?? user.userType);
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const [cachedSiteName, setCachedSiteName] = useState<string | null>(null);
@@ -161,92 +167,98 @@ const HomePage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="card bg-base-100 shadow-xl">
-        <div className="card-body space-y-5">
-          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-            <div className="space-y-1">
-              <h2 className="card-title">主题打包机</h2>
-              <p className="text-base-content/70 max-w-2xl">
-                设置站点名，提交打包，完成后在“构建下载”获取仅与你账号绑定的产物。
-              </p>
-            </div>
-          </div>
+      <div>
+        <div className="flex items-center gap-3 flex-wrap">
+          <h2 className="text-3xl font-bold">欢迎使用，{email}</h2>
+          {role === 'admin' ? (
+            <div className="badge badge-lg badge-primary">管理员</div>
+          ) : userType === 'subscriber' ? (
+            <div className="badge badge-lg badge-secondary">订阅用户</div>
+          ) : null}
+        </div>
+        <p className="text-base-content/70 mt-1">
+          设置站点名，提交打包，完成后在“构建下载”获取仅与你账号绑定的产物。
+        </p>
+      </div>
 
-          {loadingSiteName && !displaySiteName && <p className="text-sm text-base-content/70">加载站点名称...</p>}
+      <div className="card bg-base-100 shadow-xl">
+        <div className="card-body">
+          <h3 className="card-title text-lg mb-2">站点配置</h3>
+          {loadingSiteName && !displaySiteName && (
+            <div className="flex justify-center p-4"><span className="loading loading-spinner loading-md" /></div>
+          )}
 
           {!showSiteNameForm && (displaySiteName || hasActiveJob) ? (
-            <div className="rounded-box border border-base-200 bg-base-200/60 p-4 md:p-5">
-              <div className="grid gap-4 md:grid-cols-[1.4fr_1fr]">
-                <div className="space-y-2">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <span className="font-semibold">站点名称</span>
-                    <span className="badge badge-lg badge-outline">{displaySiteName || "已设置"}</span>
-                  </div>
-                  <div className="text-xs text-base-content/60">
-                    {isAdmin ? "管理员可随时修改站点名" : "如需更改站点名请联系管理员"}
-                  </div>
+            <div className="flex flex-col md:flex-row gap-6 items-center justify-between p-6 bg-base-200/30 rounded-xl border border-base-200">
+              <div className="flex-1 space-y-1">
+                <div className="text-xs font-bold text-base-content/50 uppercase tracking-wider">当前站点名称</div>
+                <div className="text-3xl font-bold text-primary">{displaySiteName || "已设置"}</div>
+                <div className="text-xs text-base-content/60 flex items-center gap-1">
+                  {isAdmin ? (
+                    <>
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3"><path d="M10 8a3 3 0 100-6 3 3 0 000 6zM3.465 14.493a1.23 1.23 0 00.41 1.412A9.957 9.957 0 0010 18c2.31 0 4.438-.784 6.131-2.1.43-.333.604-.903.408-1.41a7.002 7.002 0 00-13.074.003z" /></svg>
+                      管理员可随时修改
+                    </>
+                  ) : (
+                    <>
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" /></svg>
+                      如需更改请联系管理员
+                    </>
+                  )}
                 </div>
-                {quota && (
-                  <div className="rounded-md bg-base-100/70 p-3">
-                    <div className="text-xs text-base-content/60">今日剩余</div>
-                    <div className="mt-1 flex flex-wrap items-center gap-2">
-                      {isUnlimitedQuota ? (
-                        <span className="badge badge-outline">无限制</span>
-                      ) : (
-                        <span className="badge badge-outline">
-                          {quota.left} / {quota.limit}
-                        </span>
-                      )}
-                      <span className="text-xs text-base-content/60">
-                        {isUnlimitedQuota ? "管理员账号不受限制" : "打包次数每日刷新"}
-                      </span>
+              </div>
+
+              {quota && (
+                <div className="stats shadow bg-base-100 shrink-0">
+                  <div className="stat place-items-center p-4">
+                    <div className="stat-title text-xs">今日剩余构建</div>
+                    <div className={`stat-value text-2xl ${quota.left === 0 && !isUnlimitedQuota ? 'text-error' : 'text-secondary'}`}>
+                      {isUnlimitedQuota ? "∞" : `${quota.left}/${quota.limit}`}
+                    </div>
+                    <div className="stat-desc text-xs mt-1">
+                      {isUnlimitedQuota ? "无限制" : "每日刷新"}
                     </div>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           ) : (
-            <div className="rounded-box border border-base-200 bg-base-200/60 p-4 md:p-5 space-y-4">
-              <div className="alert">
+            <div className="space-y-4 max-w-2xl">
+              <div role="alert" className="alert alert-info bg-info/10 text-info-content border-info/20 text-sm py-3">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="stroke-current shrink-0 w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                 <span>
-                  在前端构建前输入你的站点名，用于打包后主题的站点名称和标题，
-                  {isAdmin ? "管理员可重复修改。" : "后续无法修改。如需更改请联系管理员。"}
+                  在前端构建前输入你的站点名，用于打包后主题的站点名称和标题。{isAdmin ? "管理员可重复修改。" : "确认无误后提交，一旦保存不可修改。"}
                 </span>
               </div>
               {fetchedSiteName && (
-                <>
-                  <form onSubmit={onSubmit} className="flex flex-col sm:flex-row gap-2 items-start">
-                    <input
-                      className="input input-bordered w-full sm:w-auto flex-1"
-                      placeholder="站点名称"
-                      value={input}
-                      onChange={(e) => setInput(e.target.value)}
-                      disabled={setSiteNameMutation.status === "pending"}
-                    />
-                    <button className="btn btn-primary" type="submit" disabled={!input.trim() || setSiteNameMutation.status === "pending"}>
-                      {setSiteNameMutation.status === "pending" ? "提交中..." : isAdmin ? "保存" : "设置"}
-                    </button>
-                  </form>
-                  <p className="text-sm text-base-content/70">
-                    {isAdmin ? "管理员可随时更新站点名称。" : "确认无误后提交，一旦保存不可修改。"}
-                  </p>
-                </>
+                <form onSubmit={onSubmit} className="join w-full">
+                  <input
+                    className="input input-bordered join-item w-full"
+                    placeholder="输入站点名称"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    disabled={setSiteNameMutation.status === "pending"}
+                  />
+                  <button className="btn btn-primary join-item" type="submit" disabled={!input.trim() || setSiteNameMutation.status === "pending"}>
+                    {setSiteNameMutation.status === "pending" ? <span className="loading loading-spinner loading-xs" /> : (isAdmin ? "保存" : "设置")}
+                  </button>
+                </form>
               )}
             </div>
           )}
-          {message && <p className="text-info text-sm">{message}</p>}
+          {message && <div className="text-success text-sm mt-2 font-medium">{message}</div>}
         </div>
       </div>
 
       {buildFailure && (
-        <div className="alert alert-error bg-base-100 shadow-sm flex flex-col sm:flex-row sm:items-center gap-3">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold">构建失败</span>
-            <span className="badge badge-outline">#{buildFailure.jobId}</span>
+        <div role="alert" className="alert alert-error shadow-lg">
+          <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+          <div className="flex-1">
+            <h3 className="font-bold">构建失败 #{buildFailure.jobId}</h3>
+            <div className="text-xs">{buildFailure.message}</div>
           </div>
-          <div className="text-sm text-base-content/80 sm:flex-1">{buildFailure.message}</div>
-          <div className="flex items-center gap-2 sm:ml-auto">
-            <button className="btn btn-sm" onClick={() => navigate("/app/build")}>
+          <div className="flex gap-2">
+            <button className="btn btn-sm bg-white/20 border-0 text-white hover:bg-white/30" onClick={() => navigate("/app/build")}>
               重新提交
             </button>
             <button
@@ -257,60 +269,89 @@ const HomePage = () => {
                 setBuildFailure(null);
               }}
             >
-              知道了
+              关闭
             </button>
           </div>
         </div>
       )}
 
       {(jobId || derivedActiveJob) && (
-        <div className="alert bg-base-100 shadow-sm flex flex-col sm:flex-row sm:items-center gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <span>当前构建任务 ID：{jobId ?? derivedActiveJob?.id ?? "获取中"}</span>
-            <span className="badge badge-outline">
-              {activeJobStatusLabel ??
-                (derivedActiveJob ? (derivedActiveJob.status === "pending" ? "等待中" : "构建中") : "获取状态中...")}
-            </span>
+        <div role="alert" className="alert bg-base-100 shadow-lg border border-base-200">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4 w-full">
+            <div className="flex items-center gap-3">
+              {(activeJobQuery.isFetching || jobsQuery.isFetching || activeJobStatusLabel === "running" || activeJobStatusLabel === "构建中") ?
+                <span className="loading loading-spinner loading-md text-primary"></span> :
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-base-content/70"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" /></svg>
+              }
+              <div>
+                <div className="font-bold">当前任务 #{jobId ?? derivedActiveJob?.id ?? "..."}</div>
+                <div className="text-xs opacity-70">
+                  状态: <span className="font-semibold text-primary">{activeJobStatusLabel ?? (derivedActiveJob ? (derivedActiveJob.status === "pending" ? "等待中" : "构建中") : "获取中...")}</span>
+                </div>
+              </div>
+            </div>
+            {activeJobQuery.data?.status === "failed" && (
+              <div className="text-error text-sm flex-1">{activeJobQuery.data.message || "构建失败"}</div>
+            )}
           </div>
-          {activeJobQuery.data?.status === "failed" && (
-            <span className="text-error text-sm">{activeJobQuery.data.message || "构建失败"}</span>
-          )}
-          {(activeJobQuery.isFetching || jobsQuery.isFetching) && <span className="loading loading-spinner loading-xs" />}
         </div>
       )}
 
-      <div className="card bg-base-100 shadow-xl">
-        <div className="card-body space-y-4">
-          <h3 className="card-title">构建队列</h3>
-          {jobsQuery.isLoading && <p>加载队列...</p>}
-          {jobsQuery.error && <p className="text-error">加载失败</p>}
-          {!jobsQuery.isLoading && jobsQuery.data && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {(() => {
-                const jobs = jobsQuery.data ?? [];
-                const pending = jobs.filter((j) => j.status === "pending").length;
-                const running = jobs.filter((j) => j.status === "running").length;
-                const success = jobs.filter((j) => j.status === "success").length;
-                const failed = jobs.filter((j) => j.status === "failed").length;
-                const cards = [
-                  { label: "等待中", value: pending, color: "bg-warning/20 text-warning-content" },
-                  { label: "构建中", value: running, color: "bg-info/20 text-info-content" },
-                  { label: "已完成", value: success, color: "bg-success/20 text-success-content" },
-                  { label: "失败", value: failed, color: "bg-error/20 text-error-content" },
-                ];
-                if (jobs.length === 0) {
-                  return <p className="col-span-full">暂无任务</p>;
-                }
-                return cards.map((c) => (
-                  <div key={c.label} className={`stat rounded-box border border-base-200 shadow-sm ${c.color}`}>
-                    <div className="stat-title">{c.label}</div>
-                    <div className="stat-value text-3xl">{c.value}</div>
+      <div>
+        <h3 className="text-lg font-bold mb-3 px-1">构建队列</h3>
+        {jobsQuery.isLoading && <div className="w-full h-20 flex items-center justify-center"><span className="loading loading-spinner" /></div>}
+        {!jobsQuery.isLoading && jobsQuery.data && (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {(() => {
+              const jobs = jobsQuery.data ?? [];
+              const pending = jobs.filter((j) => j.status === "pending").length;
+              const running = jobs.filter((j) => j.status === "running").length;
+              const success = jobs.filter((j) => j.status === "success").length;
+              const failed = jobs.filter((j) => j.status === "failed").length;
+
+              return (
+                <>
+                  <div className="stats shadow bg-base-100 border-l-4 border-warning">
+                    <div className="stat p-4">
+                      <div className="stat-figure text-warning">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="inline-block w-8 h-8 stroke-current"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                      </div>
+                      <div className="stat-title">等待中</div>
+                      <div className="stat-value text-warning">{pending}</div>
+                    </div>
                   </div>
-                ));
-              })()}
-            </div>
-          )}
-        </div>
+                  <div className="stats shadow bg-base-100 border-l-4 border-info">
+                    <div className="stat p-4">
+                      <div className="stat-figure text-info">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="inline-block w-8 h-8 stroke-current"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                      </div>
+                      <div className="stat-title">构建中</div>
+                      <div className="stat-value text-info">{running}</div>
+                    </div>
+                  </div>
+                  <div className="stats shadow bg-base-100 border-l-4 border-success">
+                    <div className="stat p-4">
+                      <div className="stat-figure text-success">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="inline-block w-8 h-8 stroke-current"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                      </div>
+                      <div className="stat-title">已完成</div>
+                      <div className="stat-value text-success">{success}</div>
+                    </div>
+                  </div>
+                  <div className="stats shadow bg-base-100 border-l-4 border-error">
+                    <div className="stat p-4">
+                      <div className="stat-figure text-error">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="inline-block w-8 h-8 stroke-current"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                      </div>
+                      <div className="stat-title">失败</div>
+                      <div className="stat-value text-error">{failed}</div>
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        )}
       </div>
     </div>
   );

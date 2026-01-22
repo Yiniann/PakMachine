@@ -45,13 +45,16 @@ const TemplateManagePage = () => {
   };
 
   return (
-    <div className="card bg-base-100 shadow-xl">
-      <div className="card-body space-y-3">
-        <div className="flex items-center justify-between gap-2">
-          <h2 className="card-title">GitHub 模板（私有仓库）</h2>
-        </div>
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-3xl font-bold">模板管理</h2>
+        <p className="text-base-content/70 mt-1">配置 GitHub 私有仓库作为构建模板</p>
+      </div>
 
-        <form className="grid grid-cols-1 md:grid-cols-2 gap-3" onSubmit={onSubmitGithub}>
+      <div className="card bg-base-100 shadow-xl">
+        <div className="card-body space-y-4">
+          <h3 className="card-title text-lg">添加新模板</h3>
+          <form className="grid grid-cols-1 md:grid-cols-2 gap-4" onSubmit={onSubmitGithub}>
           <label className="form-control">
             <span className="label-text">模板名称*</span>
             <input className="input input-bordered" value={ghName} onChange={(e) => setGhName(e.target.value)} placeholder="示例：dashboard-template" />
@@ -87,10 +90,11 @@ const TemplateManagePage = () => {
           </div>
         </form>
 
-        <div className="divider" />
+        <div className="divider my-4" />
 
-        {githubTemplates.isLoading && <p>加载中...</p>}
-        {githubTemplates.error && <p className="text-error">加载失败</p>}
+        <h3 className="card-title text-lg">模板列表</h3>
+        {githubTemplates.isLoading && <div className="flex justify-center"><span className="loading loading-spinner" /></div>}
+        {githubTemplates.error && <div role="alert" className="alert alert-error"><span>加载失败</span></div>}
         {!githubTemplates.isLoading && githubTemplates.data && githubTemplates.data.length === 0 && <p>暂无 GitHub 模板</p>}
         {!githubTemplates.isLoading && githubTemplates.data && githubTemplates.data.length > 0 && (
           <div className="overflow-x-auto">
@@ -135,6 +139,7 @@ const TemplateManagePage = () => {
             </table>
           </div>
         )}
+        </div>
       </div>
     </div>
   );
