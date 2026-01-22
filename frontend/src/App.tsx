@@ -14,7 +14,7 @@ import TemplateManagePage from "./pages/admin/TemplateManagePage";
 import SystemSettingsPage from "./pages/admin/SystemSettingsPage";
 import BuildRecordsPage from "./pages/admin/BuildRecordsPage";
 import TemplateBuildPage from "./pages/app/TemplateBuildPage";
-import TemplateDownloadsPage from "./pages/app/TemplateDownloadsPage";
+import DownloadPages from "./pages/app/DownloadPages";
 import UserSettingsPage from "./pages/app/UserSettingsPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import InitGate from "./components/InitGate";
@@ -42,7 +42,7 @@ const App = () => {
             <Route index element={<HomePage />} />
             <Route path="home" element={<Navigate to="/app" replace />} />
             <Route path="build" element={<TemplateBuildPage />} />
-            <Route path="downloads" element={<TemplateDownloadsPage />} />
+            <Route path="downloads" element={<DownloadPages />} />
             <Route path="settings" element={<UserSettingsPage />} />
           </Route>
           <Route path="/admin" element={<AdminLayout />}>

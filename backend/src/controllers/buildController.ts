@@ -337,6 +337,7 @@ export const listUserArtifacts = async (req: Request, res: Response, next: NextF
     const artifacts = await prisma.buildArtifact.findMany({
       where: { userId: Number(user.sub) },
       orderBy: { id: "desc" },
+      take: 2,
     });
     const data = artifacts.map((a: BuildArtifact) => ({
       id: a.id,

@@ -39,12 +39,26 @@ export const handleGithubBuildWebhook = async (req: Request, res: Response, next
     let artifactId: number | undefined;
     if (status === "success" && artifactUrl) {
       const normalizedArtifactUrl = normalizeArtifactUrl(artifactUrl) ?? artifactUrl;
-      const artifact = await prisma.buildArtifact.create({
-        data: {
-          userId: job.userId,
-          sourceFilename: artifactFilename || job.filename,
-          outputPath: normalizedArtifactUrl,
-        },
+      const artifact = await prisma.$transaction(async (tx) => {
+        const created = await tx.buildArtifact.create({
+          data: {
+            userId: job.userId,
+            sourceFilename: artifactFilename || job.filename,
+            outputPath: normalizedArtifactUrl,
+          },
+        });
+        const oldArtifacts = await tx.buildArtifact.findMany({
+          where: { userId: job.userId },
+          orderBy: { id: "desc" },
+          skip: 2,
+          select: { id: true },
+        });
+        if (oldArtifacts.length > 0) {
+          await tx.buildArtifact.deleteMany({
+            where: { id: { in: oldArtifacts.map((item) => item.id) } },
+          });
+        }
+        return created;
       });
       artifactId = artifact.id;
     }

@@ -1,11 +1,14 @@
+import { useState } from "react";
 import { Artifact, useArtifacts } from "../../features/builds/artifacts";
 import api from "../../api/client";
 
-const TemplateDownloadsPage = () => {
-  const artifacts = useArtifacts();
+const DownloadPages = () => {
+  const artifacts = useArtifacts(2);
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
 
   const onDownload = async (item: Artifact) => {
     try {
+      setDownloadingId(item.id);
       const res = await api.get(`/build/download/${item.id}`, { responseType: "blob" });
       const blobUrl = window.URL.createObjectURL(new Blob([res.data]));
       const a = document.createElement("a");
@@ -25,14 +28,16 @@ const TemplateDownloadsPage = () => {
               ? "文件不存在或已被清理"
               : "下载失败，请稍后再试");
       alert(msg);
+    } finally {
+      setDownloadingId((current) => (current === item.id ? null : current));
     }
   };
 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-3xl font-bold">构建历史</h2>
-        <p className="text-base-content/70 mt-1">查看并下载您生成的站点前端产物。</p>
+        <h2 className="text-3xl font-bold">产物下载</h2>
+        <p className="text-base-content/70 mt-1">查看并下载您生成的站点前端产物，仅保留最新两次构建记录。</p>
       </div>
 
       <div className="card bg-base-100 shadow-xl border border-base-200">
@@ -79,9 +84,17 @@ const TemplateDownloadsPage = () => {
                       <td className="font-medium whitespace-pre-wrap break-all">{item.sourceFilename}</td>
                       <td className="text-sm text-base-content/70">{new Date(item.createdAt).toLocaleString()}</td>
                       <td className="text-right">
-                        <button className="btn btn-sm btn-primary btn-outline gap-2" onClick={() => onDownload(item)}>
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
-                          下载
+                        <button
+                          className="btn btn-sm btn-primary gap-2 rounded-full shadow-sm hover:shadow transition"
+                          onClick={() => onDownload(item)}
+                          disabled={downloadingId === item.id}
+                        >
+                          {downloadingId === item.id ? (
+                            <span className="loading loading-spinner loading-xs"></span>
+                          ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+                          )}
+                          {downloadingId === item.id ? "下载中" : "下载"}
                         </button>
                       </td>
                     </tr>
@@ -96,4 +109,4 @@ const TemplateDownloadsPage = () => {
   );
 };
 
-export default TemplateDownloadsPage;
+export default DownloadPages;

@@ -7,11 +7,11 @@ export type Artifact = {
   createdAt: string;
 };
 
-export const useArtifacts = (): UseQueryResult<Artifact[]> =>
+export const useArtifacts = (limit?: number): UseQueryResult<Artifact[]> =>
   useQuery({
-    queryKey: ["artifacts"],
+    queryKey: ["artifacts", limit],
     queryFn: async () => {
-      const res = await api.get("/build/artifacts");
+      const res = await api.get("/build/artifacts", { params: { limit } });
       return res.data;
     },
   });
