@@ -15,17 +15,22 @@ const githubHeaders = () => {
   };
 };
 
+const parseRepo = (repo: string) => {
+  const [owner, name] = repo.split("/");
+  if (!owner || !name) {
+    throw new Error("repo 格式不正确，需形如 owner/repo");
+  }
+  return { owner, name };
+};
+
 export const dispatchGithubWorkflow = async (template: TemplateEntry, jobId: number, envContent: string) => {
   const settings = loadSettings();
   const workflowFile = settings.workflowFile || process.env.GITHUB_WORKFLOW_FILE || "build.yml";
   if (!template.repo) {
     throw new Error("模板缺少 repo 配置");
   }
-  const [owner, repo] = template.repo.split("/");
-  if (!owner || !repo) {
-    throw new Error("repo 格式不正确，需形如 owner/repo");
-  }
-  const url = `https://api.github.com/repos/${owner}/${repo}/actions/workflows/${workflowFile}/dispatches`;
+  const { owner, name } = parseRepo(template.repo);
+  const url = `https://api.github.com/repos/${owner}/${name}/actions/workflows/${workflowFile}/dispatches`;
   const body = {
     ref: template.branch || "main",
     inputs: {
@@ -45,6 +50,44 @@ export const dispatchGithubWorkflow = async (template: TemplateEntry, jobId: num
     const text = await res.text();
     throw new Error(`GitHub dispatch 失败: ${res.status} ${text}`);
   }
+};
+
+export const deleteGithubRunArtifacts = async (repo: string, runId: number | string) => {
+  const { owner, name } = parseRepo(repo);
+  const perPage = 100;
+  let page = 1;
+  let deleted = 0;
+
+  while (true) {
+    const listUrl = `https://api.github.com/repos/${owner}/${name}/actions/runs/${runId}/artifacts?per_page=${perPage}&page=${page}`;
+    const listRes = await fetch(listUrl, { headers: githubHeaders() });
+    if (!listRes.ok) {
+      const text = await listRes.text();
+      throw new Error(`获取 GitHub artifacts 失败: ${listRes.status} ${text}`);
+    }
+    const data = (await listRes.json()) as { artifacts?: Array<{ id: number }>; total_count?: number };
+    const artifacts = Array.isArray(data.artifacts) ? data.artifacts : [];
+    if (artifacts.length === 0) {
+      break;
+    }
+
+    for (const artifact of artifacts) {
+      const deleteUrl = `https://api.github.com/repos/${owner}/${name}/actions/artifacts/${artifact.id}`;
+      const delRes = await fetch(deleteUrl, { method: "DELETE", headers: githubHeaders() });
+      if (!delRes.ok && delRes.status !== 204) {
+        const text = await delRes.text();
+        throw new Error(`删除 GitHub artifact 失败: ${delRes.status} ${text}`);
+      }
+      deleted += 1;
+    }
+
+    if (artifacts.length < perPage) {
+      break;
+    }
+    page += 1;
+  }
+
+  return deleted;
 };
 
 export const verifyGithubWebhook = (rawBody: Buffer | undefined, signature: string | undefined) => {

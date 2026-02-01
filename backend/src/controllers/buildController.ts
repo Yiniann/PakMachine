@@ -274,11 +274,13 @@ export const downloadBuildArtifact = async (req: Request, res: Response, next: N
       }
 
       let filename = artifact.sourceFilename;
-      try {
-        const u = new URL(remoteUrl);
-        filename = path.basename(u.pathname) || filename;
-      } catch {
-        // fallback to stored sourceFilename
+      if (!filename) {
+        try {
+          const u = new URL(remoteUrl);
+          filename = path.basename(u.pathname);
+        } catch {
+          // fallback to stored sourceFilename
+        }
       }
 
       res.setHeader("Content-Type", remote.headers.get("content-type") || "application/octet-stream");
@@ -295,7 +297,7 @@ export const downloadBuildArtifact = async (req: Request, res: Response, next: N
     if (!fs.existsSync(artifact.outputPath)) {
       return res.status(404).json({ error: "文件已不存在" });
     }
-    return res.download(artifact.outputPath, path.basename(artifact.outputPath));
+    return res.download(artifact.outputPath, artifact.sourceFilename || path.basename(artifact.outputPath));
   } catch (err) {
     next(err);
   }
