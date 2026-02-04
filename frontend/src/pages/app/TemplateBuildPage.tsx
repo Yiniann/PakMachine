@@ -39,6 +39,8 @@ const TemplateBuildPage = () => {
     downloadHarmony: "",
     prodApiUrl: "/api/v1/",
     allowedClientOrigins: "",
+    thirdPartyScripts: "",
+    enableThirdPartyScripts: false,
   });
 
   const siteName = siteNameQuery.data?.siteName || "";
@@ -99,6 +101,7 @@ const TemplateBuildPage = () => {
       `VITE_ENABLE_IDHUB=${form.enableIdhub ? "true" : "false"}`,
       `VITE_PROD_API_URL=${prodApiFinal}`,
       `VITE_ALLOWED_CLIENT_ORIGINS=${normalizeEnvValue(form.allowedClientOrigins)}`,
+      `VITE_THIRD_PARTY_SCRIPTS=${form.enableThirdPartyScripts ? normalizeEnvValue(form.thirdPartyScripts) : ""}`,
       `VITE_ENABLE_DOWNLOAD=${form.enableDownload ? "true" : "false"}`,
     ];
     if (form.enableIdhub) {
@@ -171,6 +174,7 @@ const TemplateBuildPage = () => {
 
     const enableIdhubRaw = getVal("enableIdhub", "VITE_ENABLE_IDHUB", undefined);
     const finalEnableIdhub = Boolean(enableIdhubRaw === true || enableIdhubRaw === "true");
+    const enableThirdPartyScriptsRaw = cfg.enableThirdPartyScripts ?? false;
 
     setForm({
       backendType: getVal("backendType", "VITE_BACKEND_TYPE", ""),
@@ -188,6 +192,8 @@ const TemplateBuildPage = () => {
       downloadHarmony: dlHarmony,
       prodApiUrl: getVal("prodApiUrl", "VITE_PROD_API_URL", "/api/v1/"),
       allowedClientOrigins: getVal("allowedClientOrigins", "VITE_ALLOWED_CLIENT_ORIGINS", ""),
+      thirdPartyScripts: getVal("thirdPartyScripts", "VITE_THIRD_PARTY_SCRIPTS", ""),
+      enableThirdPartyScripts: Boolean(enableThirdPartyScriptsRaw === true || enableThirdPartyScriptsRaw === "true"),
     });
     setAllowedOriginsError(null);
   }, [profileQuery.data]);
@@ -214,6 +220,8 @@ const TemplateBuildPage = () => {
       downloadHarmony: "",
       prodApiUrl: "/api/v1/",
       allowedClientOrigins: "",
+      thirdPartyScripts: "",
+      enableThirdPartyScripts: false,
     });
     setAllowedOriginsError(null);
     setError(null);
@@ -384,144 +392,174 @@ const TemplateBuildPage = () => {
                 </div>
               </div>
 
-
-            <div className="rounded-xl border border-base-200 bg-base-200/50 p-6 space-y-6">
-              <label className="form-control">
-                <div className="flex items-center gap-2 border-b border-base-200 pb-3 mb-4">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-secondary"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
-                  <h3 className="font-bold text-lg">客户端下载配置</h3>
+              <div className="rounded-xl border border-base-200 bg-base-200/50 p-6 space-y-6">
+                <div className="flex items-center gap-2 border-b border-base-200 pb-3">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-info"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.76c0 1.6.88 3.08 2.3 3.86l1.02.56a2.25 2.25 0 001.08.28h9.9a2.25 2.25 0 001.08-.28l1.02-.56a4.5 4.5 0 002.3-3.86v-1.52a4.5 4.5 0 00-2.3-3.86l-1.02-.56a2.25 2.25 0 00-1.08-.28h-9.9a2.25 2.25 0 00-1.08.28l-1.02.56a4.5 4.5 0 00-2.3 3.86v1.52z" /></svg>
+                  <h3 className="font-bold text-lg">三方客服</h3>
                 </div>
-                <span className="label-text font-medium">启用下载卡片</span>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    className="toggle"
-                    checked={form.enableDownload}
-                    onChange={(e) => setForm({ ...form, enableDownload: e.target.checked })}
-                  />
-                  <span className="text-sm text-base-content/70">{form.enableDownload ? "开启" : "关闭"}</span>
-                </div>
-              </label>
-              {form.enableDownload && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <label className="form-control">
-                    <span className="label-text">iOS 下载地址</span>
-                    <input className="input input-bordered" value={form.downloadIos} onChange={(e) => setForm({ ...form, downloadIos: e.target.value })} placeholder="https://example.com/ios" />
-                  </label>
-                  <label className="form-control">
-                    <span className="label-text">Android 下载地址</span>
-                    <input
-                      className="input input-bordered"
-                      value={form.downloadAndroid}
-                      onChange={(e) => setForm({ ...form, downloadAndroid: e.target.value })}
-                      placeholder="https://example.com/android"
-                    />
-                  </label>
-                  <label className="form-control">
-                    <span className="label-text">Windows 下载地址</span>
-                    <input
-                      className="input input-bordered"
-                      value={form.downloadWindows}
-                      onChange={(e) => setForm({ ...form, downloadWindows: e.target.value })}
-                      placeholder="https://example.com/windows"
-                    />
-                  </label>
-                  <label className="form-control">
-                    <span className="label-text">macOS 下载地址</span>
-                    <input className="input input-bordered" value={form.downloadMacos} onChange={(e) => setForm({ ...form, downloadMacos: e.target.value })} placeholder="https://example.com/macos" />
-                  </label>
-                  <label className="form-control">
-                    <span className="label-text">鸿蒙下载地址</span>
-                    <input
-                      className="input input-bordered"
-                      value={form.downloadHarmony}
-                      onChange={(e) => setForm({ ...form, downloadHarmony: e.target.value })}
-                      placeholder="https://example.com/harmony"
-                    />
-                  </label>
-                </div>
-              )}
-                <div className="mt-2 rounded-md border border-info/40 bg-info/15 px-3 py-2 text-sm text-info">
-                下载地址可留空，留空则不显示对应客户端的下载按钮。
-                </div>
-            </div>
-
-            <div className="rounded-xl border border-base-200 bg-base-200/50 p-6 space-y-6">
-              <div className="flex items-center gap-2 border-b border-base-200 pb-3">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-accent"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" /></svg>
-                <h3 className="font-bold text-lg">AppleAutoPro 集成</h3>
-              </div>
-              <div role="alert" className="alert alert-success bg-success/10 text-success-content border-success/20 text-sm">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="stroke-current shrink-0 w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                <span>对接 AppleAutoPro 账号分享页。</span>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <label className="form-control md:col-span-2">
-                  <span className="label-text font-medium">启用分享页</span>
+                <label className="form-control">
+                  <span className="label-text font-medium">启用三方客服</span>
                   <div className="flex items-center gap-3">
-                    <input type="checkbox" className="toggle" checked={form.enableIdhub} onChange={(e) => setForm({ ...form, enableIdhub: e.target.checked })} />
-                    <span className="text-sm text-base-content/70">{form.enableIdhub ? "开启" : "关闭"}</span>
+                    <input
+                      type="checkbox"
+                      className="toggle"
+                      checked={form.enableThirdPartyScripts}
+                      onChange={(e) => setForm({ ...form, enableThirdPartyScripts: e.target.checked })}
+                    />
+                    <span className="text-sm text-base-content/70">{form.enableThirdPartyScripts ? "开启" : "关闭"}</span>
                   </div>
                 </label>
-                {form.enableIdhub && (
-                  <>
-                    <label className="form-control md:col-span-2">
-                      <span className="label-text">AppleAutoPro API 地址*</span>
-                      <input
-                        className="input input-bordered"
-                        value={form.idhubApiUrl}
-                        onChange={(e) => setForm({ ...form, idhubApiUrl: e.target.value })}
-                        placeholder="/idhub-api/"
-                        required={form.enableIdhub}
-                      />
-                      <div className="mt-2 rounded-md border border-warning/40 bg-warning/15 px-3 py-2 text-sm text-warning">
-                        服务器静态部署无需修改（保持 /idhub-api/ 即可，Nginx 会在服务器端反代）；如使用 serverless 部署，请填写对应的反代 Worker 地址。
-                      </div>
-                    </label>
-                    <label className="form-control md:col-span-2">
-                      <span className="label-text">AppleAutoPro API Key*</span>
-                      <input
-                        className="input input-bordered"
-                        value={form.idhubApiKey}
-                        onChange={(e) => setForm({ ...form, idhubApiKey: e.target.value })}
-                        required={form.enableIdhub}
-                      />
-                    </label>
-                  </>
+                {form.enableThirdPartyScripts && (
+                  <label className="form-control">
+                    <span className="label-text">客服脚本</span>
+                    <input
+                      className="input input-bordered"
+                      value={form.thirdPartyScripts}
+                      onChange={(e) => setForm({ ...form, thirdPartyScripts: e.target.value })}
+                      placeholder="<script>...</script>"
+                    />
+                  </label>
                 )}
+                <div className="rounded-md border border-info/40 bg-info/15 px-3 py-2 text-sm text-info">
+                  支持crisp，salesmartly，企业qq等客服脚本，输入完整的脚本内容。
+                </div>
               </div>
-            </div>
+              <div className="rounded-xl border border-base-200 bg-base-200/50 p-6 space-y-6">
+                <label className="form-control">
+                  <div className="flex items-center gap-2 border-b border-base-200 pb-3 mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-secondary"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+                    <h3 className="font-bold text-lg">客户端下载配置</h3>
+                  </div>
+                  <span className="label-text font-medium">启用下载卡片</span>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      className="toggle"
+                      checked={form.enableDownload}
+                      onChange={(e) => setForm({ ...form, enableDownload: e.target.checked })}
+                    />
+                    <span className="text-sm text-base-content/70">{form.enableDownload ? "开启" : "关闭"}</span>
+                  </div>
+                </label>
+                {form.enableDownload && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <label className="form-control">
+                      <span className="label-text">iOS 下载地址</span>
+                      <input className="input input-bordered" value={form.downloadIos} onChange={(e) => setForm({ ...form, downloadIos: e.target.value })} placeholder="https://example.com/ios" />
+                    </label>
+                    <label className="form-control">
+                      <span className="label-text">Android 下载地址</span>
+                      <input
+                        className="input input-bordered"
+                        value={form.downloadAndroid}
+                        onChange={(e) => setForm({ ...form, downloadAndroid: e.target.value })}
+                        placeholder="https://example.com/android"
+                      />
+                    </label>
+                    <label className="form-control">
+                      <span className="label-text">Windows 下载地址</span>
+                      <input
+                        className="input input-bordered"
+                        value={form.downloadWindows}
+                        onChange={(e) => setForm({ ...form, downloadWindows: e.target.value })}
+                        placeholder="https://example.com/windows"
+                      />
+                    </label>
+                    <label className="form-control">
+                      <span className="label-text">macOS 下载地址</span>
+                      <input className="input input-bordered" value={form.downloadMacos} onChange={(e) => setForm({ ...form, downloadMacos: e.target.value })} placeholder="https://example.com/macos" />
+                    </label>
+                    <label className="form-control">
+                      <span className="label-text">鸿蒙下载地址</span>
+                      <input
+                        className="input input-bordered"
+                        value={form.downloadHarmony}
+                        onChange={(e) => setForm({ ...form, downloadHarmony: e.target.value })}
+                        placeholder="https://example.com/harmony"
+                      />
+                    </label>
+                  </div>
+                )}
+                <div className="mt-2 rounded-md border border-info/40 bg-info/15 px-3 py-2 text-sm text-info">
+                  下载地址可留空，留空则不显示对应客户端的下载按钮。
+                </div>
+              </div>
 
-          </form>
-          {buildMutation.status === "pending" && <progress className="progress progress-primary w-full" />}
-          {error && <p className="text-error">{error}</p>}
+              <div className="rounded-xl border border-base-200 bg-base-200/50 p-6 space-y-6">
+                <div className="flex items-center gap-2 border-b border-base-200 pb-3">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-accent"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" /></svg>
+                  <h3 className="font-bold text-lg">AppleAutoPro 集成</h3>
+                </div>
+                <div role="alert" className="alert alert-success bg-success/10 text-success-content border-success/20 text-sm">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="stroke-current shrink-0 w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                  <span>对接 AppleAutoPro 账号分享页。</span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <label className="form-control md:col-span-2">
+                    <span className="label-text font-medium">启用分享页</span>
+                    <div className="flex items-center gap-3">
+                      <input type="checkbox" className="toggle" checked={form.enableIdhub} onChange={(e) => setForm({ ...form, enableIdhub: e.target.checked })} />
+                      <span className="text-sm text-base-content/70">{form.enableIdhub ? "开启" : "关闭"}</span>
+                    </div>
+                  </label>
+                  {form.enableIdhub && (
+                    <>
+                      <label className="form-control md:col-span-2">
+                        <span className="label-text">AppleAutoPro API 地址*</span>
+                        <input
+                          className="input input-bordered"
+                          value={form.idhubApiUrl}
+                          onChange={(e) => setForm({ ...form, idhubApiUrl: e.target.value })}
+                          placeholder="/idhub-api/"
+                          required={form.enableIdhub}
+                        />
+                        <div className="mt-2 rounded-md border border-warning/40 bg-warning/15 px-3 py-2 text-sm text-warning">
+                          服务器静态部署无需修改（保持 /idhub-api/ 即可，Nginx 会在服务器端反代）；如使用 serverless 部署，请填写对应的反代 Worker 地址。
+                        </div>
+                      </label>
+                      <label className="form-control md:col-span-2">
+                        <span className="label-text">AppleAutoPro API Key*</span>
+                        <input
+                          className="input input-bordered"
+                          value={form.idhubApiKey}
+                          onChange={(e) => setForm({ ...form, idhubApiKey: e.target.value })}
+                          required={form.enableIdhub}
+                        />
+                      </label>
+                    </>
+                  )}
+                </div>
+              </div>
+            </form>
+            {buildMutation.status === "pending" && <progress className="progress progress-primary w-full" />}
+            {error && <p className="text-error">{error}</p>}
+          </div>
         </div>
-      </div>
-    )}
-    {step === 2 && (
-      <div className="sticky bottom-0 z-10 -mx-4 mt-8 flex flex-wrap items-center justify-between gap-4 border-t border-base-200 bg-base-100/80 px-6 py-4 shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.1)] backdrop-blur lg:-mx-8 lg:px-8">
-        <button className="btn btn-outline" type="button" onClick={() => setStep(1)}>
-          上一步
-        </button>
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            className="btn btn-ghost text-error hover:bg-error/10"
-            type="button"
-            onClick={resetForm}
-          >
-            清空
+      )}
+      {step === 2 && (
+        <div className="sticky bottom-0 z-10 -mx-4 mt-8 flex flex-wrap items-center justify-between gap-4 border-t border-base-200 bg-base-100/80 px-6 py-4 shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.1)] backdrop-blur lg:-mx-8 lg:px-8">
+          <button className="btn btn-outline" type="button" onClick={() => setStep(1)}>
+            上一步
           </button>
-          <button
-            className="btn btn-primary min-w-[160px] shadow-lg shadow-primary/30"
-            type="submit"
-            form="build-config-form"
-            disabled={!canSubmit || buildMutation.status === "pending"}
-          >
-            {buildMutation.status === "pending" ? "构建中..." : "开始构建"}
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              className="btn btn-ghost text-error hover:bg-error/10"
+              type="button"
+              onClick={resetForm}
+            >
+              清空
+            </button>
+            <button
+              className="btn btn-primary min-w-[160px] shadow-lg shadow-primary/30"
+              type="submit"
+              form="build-config-form"
+              disabled={!canSubmit || buildMutation.status === "pending"}
+            >
+              {buildMutation.status === "pending" ? "构建中..." : "开始构建"}
+            </button>
+          </div>
         </div>
-      </div>
-    )}
+      )}
     </div>
   );
 };
