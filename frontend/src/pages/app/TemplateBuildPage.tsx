@@ -26,6 +26,7 @@ const TemplateBuildPage = () => {
   const [form, setForm] = useState({
     backendType: "",
     enableLanding: true,
+    enableTicket: true,
     siteLogo: "",
     authBackground: "",
     enableIdhub: false,
@@ -96,6 +97,7 @@ const TemplateBuildPage = () => {
       `VITE_SITE_NAME=${normalizeEnvValue(siteName)}`,
       `VITE_BACKEND_TYPE=${normalizeEnvValue(form.backendType)}`,
       `VITE_ENABLE_LANDING=${form.enableLanding ? "true" : "false"}`,
+      `VITE_ENABLE_TICKET=${form.enableTicket ? "true" : "false"}`,
       `VITE_SITE_LOGO=${normalizeEnvValue(form.siteLogo)}`,
       `VITE_AUTH_BACKGROUND=${normalizeEnvValue(form.authBackground)}`,
       `VITE_ENABLE_IDHUB=${form.enableIdhub ? "true" : "false"}`,
@@ -172,6 +174,9 @@ const TemplateBuildPage = () => {
     const enableLandingRaw = getVal("enableLanding", "VITE_ENABLE_LANDING", undefined);
     const finalEnableLanding = enableLandingRaw === undefined ? true : enableLandingRaw === true || enableLandingRaw === "true";
 
+    const enableTicketRaw = getVal("enableTicket", "VITE_ENABLE_TICKET", undefined);
+    const finalEnableTicket = enableTicketRaw === undefined ? true : enableTicketRaw === true || enableTicketRaw === "true";
+
     const enableIdhubRaw = getVal("enableIdhub", "VITE_ENABLE_IDHUB", undefined);
     const finalEnableIdhub = Boolean(enableIdhubRaw === true || enableIdhubRaw === "true");
     const enableThirdPartyScriptsRaw = cfg.enableThirdPartyScripts ?? false;
@@ -179,6 +184,7 @@ const TemplateBuildPage = () => {
     setForm({
       backendType: getVal("backendType", "VITE_BACKEND_TYPE", ""),
       enableLanding: finalEnableLanding,
+      enableTicket: finalEnableTicket,
       siteLogo: getVal("siteLogo", "VITE_SITE_LOGO", ""),
       authBackground: getVal("authBackground", "VITE_AUTH_BACKGROUND", ""),
       enableIdhub: finalEnableIdhub,
@@ -207,6 +213,7 @@ const TemplateBuildPage = () => {
     setForm({
       backendType: "",
       enableLanding: true,
+      enableTicket: true,
       siteLogo: "",
       authBackground: "",
       enableIdhub: false,
@@ -350,6 +357,18 @@ const TemplateBuildPage = () => {
                           onChange={(e) => setForm({ ...form, enableLanding: e.target.checked })}
                         />
                         <span className="text-sm text-base-content/70">{form.enableLanding ? "开启" : "关闭"}</span>
+                      </div>
+                    </label>
+                    <label className="form-control">
+                      <span className="label-text">代办工单开关</span>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          className="toggle"
+                          checked={form.enableTicket}
+                          onChange={(e) => setForm({ ...form, enableTicket: e.target.checked })}
+                        />
+                        <span className="text-sm text-base-content/70">{form.enableTicket ? "开启" : "关闭"}</span>
                       </div>
                     </label>
                   </div>
