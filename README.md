@@ -41,12 +41,20 @@ docker compose exec backend npx prisma migrate deploy
 
 > 如果要改端口或数据库密码，直接编辑 `docker-compose.yml` 后重建：`docker compose up -d --build`
 
-## GitHub 仓库对接（当前使用的 Secrets/变量）
+## GitHub 仓库对接（Secrets/Variables）
 Actions 里需要配置的 Secrets/Variables：
-- `ACTION_DISPATCH_TOKEN`：用于触发/鉴权 workflow 的 token  
+### Secrets（GitHub → Settings → Secrets and variables → Actions）
 - `ACTION_WEBHOOK_SECRET`：后端校验 webhook 签名的密钥  
-- `CF_R2_ACCESS_KEY_ID` / `CF_R2_SECRET_ACCESS_KEY` / `CF_R2_ACCOUNT_ID` / `CF_R2_BUCKET` / `CF_R2_PUBLIC_BASE`：构建产物上传到 Cloudflare R2 的凭据与公开基址  
+- `CF_R2_ACCESS_KEY_ID` / `CF_R2_SECRET_ACCESS_KEY` / `CF_R2_ACCOUNT_ID` / `CF_R2_BUCKET` / `CF_R2_PUBLIC_BASE`：构建产物上传到 Cloudflare R2 的凭据与公开基址（不使用 R2 可不填，会自动跳过上传）
+
+### Variables（Actions Variables）
 - `BACKEND_WEBHOOK_URL`：后端 webhook 接口地址（例如 `https://你的域名/webhooks/`，已在 Nginx 配置中反代到后端）
+
+### 说明
+- `ACTION_DISPATCH_TOKEN` **不要放在 Repository Secrets**。它是后端用来触发 GitHub Actions 的 PAT，应配置在后端环境或系统设置里：
+  - 后台管理页：系统设置 → `Dispatch Token（ACTION_DISPATCH_TOKEN）`
+  - 或后端环境变量：`ACTION_DISPATCH_TOKEN`
+- `ACTION_DISPATCH_TOKEN` 建议设置有效期（例如 30/90/180 天），到期后需重新生成并更新后端配置；如需长期运行，请建立定期轮换流程。
 
 对接步骤（概述）：
 1) 在 GitHub 仓库 Settings → Secrets and variables → Actions，把上述键值全部填好。  
