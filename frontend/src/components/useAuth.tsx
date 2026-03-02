@@ -11,6 +11,23 @@ type AuthState = {
 
 const AuthContext = createContext<AuthState | undefined>(undefined);
 
+const clearStoredAuth = () => {
+  localStorage.removeItem("token");
+  localStorage.removeItem("user_role");
+  localStorage.removeItem("user_email");
+  localStorage.removeItem("user_type");
+};
+
+const isTokenExpired = (rawToken: string) => {
+  try {
+    const payload = JSON.parse(atob(rawToken.split(".")[1])) as { exp?: number };
+    if (!payload.exp) return false;
+    return payload.exp * 1000 <= Date.now();
+  } catch {
+    return true;
+  }
+};
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem("token"));
   const [role, setRole] = useState<string | null>(() => localStorage.getItem("user_role"));
@@ -49,6 +66,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [userType]);
 
+  useEffect(() => {
+    if (!token) return;
+    if (!isTokenExpired(token)) return;
+
+    setToken(null);
+    setRole(null);
+    setEmail(null);
+    setUserType(null);
+    clearStoredAuth();
+  }, [token]);
+
   const login = (nextToken: string, nextRole?: string, nextEmail?: string, nextUserType?: string) => {
     setToken(nextToken);
     if (nextRole) setRole(nextRole);
@@ -60,10 +88,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setRole(null);
     setEmail(null);
     setUserType(null);
-    localStorage.removeItem("token");
-    localStorage.removeItem("user_role");
-    localStorage.removeItem("user_email");
-    localStorage.removeItem("user_type");
+    clearStoredAuth();
   };
 
   return <AuthContext.Provider value={{ token, role, email, userType, login, logout }}>{children}</AuthContext.Provider>;
