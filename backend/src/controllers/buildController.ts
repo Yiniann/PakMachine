@@ -60,6 +60,16 @@ const RUNTIME_TOP_LEVEL_KEYS = new Set([
   "downloadLinks",
 ]);
 const RUNTIME_DOWNLOAD_KEYS = new Set(["ios", "android", "windows", "macos", "harmony"]);
+const parseFrontendOrigins = (value: unknown): string[] => {
+  if (!value || typeof value !== "string") return [];
+  try {
+    const parsed = JSON.parse(value);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+  } catch {
+    return [];
+  }
+};
 
 const validateEnvContent = (content: string) => {
   const lines = (content || "").split("\n");
@@ -305,7 +315,7 @@ export const buildTemplatePackage = async (req: Request, res: Response, next: Ne
 
     const template = getTemplateEntry(filename);
     if (!template) {
-      return res.status(404).json({ error: "模板不存在" });
+      return res.status(404).json({ error: "版本不存在" });
     }
 
     const user = (req as any).user;
@@ -314,12 +324,20 @@ export const buildTemplatePackage = async (req: Request, res: Response, next: Ne
     }
 
     if (template.type !== "github") {
-      return res.status(400).json({ error: "仅支持 GitHub 构建模板" });
+      return res.status(400).json({ error: "当前版本仅支持 GitHub 构建" });
     }
 
-    const dbUser: any = await prisma.user.findUnique({ where: { id: Number(user.sub) }, select: { siteName: true } });
+    const dbUser: any = await prisma.user.findUnique({
+      where: { id: Number(user.sub) },
+      select: { siteName: true, frontendOriginsJson: true },
+    });
+    const frontendOrigins = parseFrontendOrigins(dbUser?.frontendOriginsJson);
+    if (frontendOrigins.length === 0) {
+      return res.status(400).json({ error: "请先在首页绑定至少一个前端域名" });
+    }
     const enforcedFrontendEnv = normalizeEnvLines(finalFrontendEnvContent ?? "", {
       VITE_SITE_NAME: dbUser?.siteName ?? null,
+      VITE_ALLOWED_CLIENT_ORIGINS: frontendOrigins.join(","),
       VITE_API_MODE: buildMode,
     });
     const normalizedServerEnv = (serverEnvContent || "").trim();

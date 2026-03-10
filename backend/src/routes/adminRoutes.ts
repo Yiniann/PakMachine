@@ -2,6 +2,8 @@ import { Router } from "express";
 import {
   adminCreateUser,
   adminDeleteUser,
+  adminRemoveFrontendOrigin,
+  adminResetFrontendOrigins,
   adminResetBuildQuota,
   adminResetSiteName,
   adminUpdatePassword,
@@ -30,6 +32,8 @@ router.patch("/changePwd", adminUpdatePassword);
 router.patch("/changeRole", adminUpdateRole);
 router.patch("/changeUserType", adminUpdateUserType);
 router.patch("/resetSiteName", adminResetSiteName);
+router.patch("/resetFrontendOrigins", adminResetFrontendOrigins);
+router.patch("/removeFrontendOrigin", adminRemoveFrontendOrigin);
 router.patch("/resetBuildQuota", adminResetBuildQuota);
 router.get("/stats", getAdminStats);
 router.get("/build-jobs", listAllBuildJobs);

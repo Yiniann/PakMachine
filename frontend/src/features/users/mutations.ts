@@ -68,6 +68,28 @@ export const useResetSiteName = (): UseMutationResult<{ message: string }, unkno
   });
 };
 
+export const useResetFrontendOrigins = (): UseMutationResult<{ message: string }, unknown, { email: string }, unknown> => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ email }) => {
+      const res = await api.patch<{ message: string }>(`/admin/resetFrontendOrigins`, { email });
+      return res.data;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
+  });
+};
+
+export const useRemoveFrontendOrigin = (): UseMutationResult<{ message: string; frontendOrigins: string[] }, unknown, { email: string; frontendOrigin: string }, unknown> => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ email, frontendOrigin }) => {
+      const res = await api.patch<{ message: string; frontendOrigins: string[] }>(`/admin/removeFrontendOrigin`, { email, frontendOrigin });
+      return res.data;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
+  });
+};
+
 export const useResetBuildQuota = (): UseMutationResult<{ message: string }, unknown, { email: string }, unknown> => {
   const queryClient = useQueryClient();
   return useMutation({

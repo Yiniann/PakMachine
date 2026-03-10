@@ -4,6 +4,8 @@ import { useAuth } from "../../components/useAuth";
 import {
   useCreateUser,
   useDeleteUser,
+  useRemoveFrontendOrigin,
+  useResetFrontendOrigins,
   useResetBuildQuota,
   useResetSiteName,
   useUpdatePassword,
@@ -22,6 +24,8 @@ const UsersPage = () => {
   const updateRole = useUpdateRole();
   const updateUserType = useUpdateUserType();
   const resetSiteName = useResetSiteName();
+  const removeFrontendOrigin = useRemoveFrontendOrigin();
+  const resetFrontendOrigins = useResetFrontendOrigins();
   const resetBuildQuota = useResetBuildQuota();
 
   const [email, setEmail] = useState("");
@@ -81,6 +85,18 @@ const UsersPage = () => {
       ? (resetBuildQuota.error as any).response.data.error
       : resetBuildQuota.error instanceof Error
         ? resetBuildQuota.error.message
+        : null;
+  const resetFrontendOriginsError =
+    resetFrontendOrigins.error && (resetFrontendOrigins.error as any)?.response?.data?.error
+      ? (resetFrontendOrigins.error as any).response.data.error
+      : resetFrontendOrigins.error instanceof Error
+        ? resetFrontendOrigins.error.message
+        : null;
+  const removeFrontendOriginError =
+    removeFrontendOrigin.error && (removeFrontendOrigin.error as any)?.response?.data?.error
+      ? (removeFrontendOrigin.error as any).response.data.error
+      : removeFrontendOrigin.error instanceof Error
+        ? removeFrontendOrigin.error.message
         : null;
 
   const onCreate = (e: FormEvent) => {
@@ -196,6 +212,7 @@ const UsersPage = () => {
                     <th>ID</th>
                     <th>邮箱</th>
                     <th>站点名</th>
+                    <th>已绑定前端</th>
                     <th>今日剩余构建</th>
                     <th>用户类型</th>
                     <th>创建时间</th>
@@ -208,6 +225,7 @@ const UsersPage = () => {
                       <td>{u.id}</td>
                       <td>{u.email}</td>
                       <td>{u.siteName ?? "未设置"}</td>
+                      <td>{u.frontendOrigins?.length ? `${u.frontendOrigins.length} 个` : "未绑定"}</td>
                       <td>
                         {getQuotaLeft(u)} / {BUILD_LIMIT}
                       </td>
@@ -251,6 +269,10 @@ const UsersPage = () => {
                     <div className="flex flex-col">
                       <span className="text-xs text-base-content/60">站点名</span>
                       <span>{u.siteName ?? "未设置"}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-xs text-base-content/60">已绑定前端</span>
+                      <span>{u.frontendOrigins?.length ? `${u.frontendOrigins.length} 个` : "未绑定"}</span>
                     </div>
                     <div className="flex flex-col">
                       <span className="text-xs text-base-content/60">剩余构建</span>
@@ -375,7 +397,7 @@ const UsersPage = () => {
 
             <div className="space-y-5">
               {/* Status Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="border border-base-200 rounded-lg p-3 flex flex-col gap-2">
                   <div className="flex justify-between items-center">
                     <span className="text-xs text-base-content/60">站点名称</span>
@@ -402,6 +424,61 @@ const UsersPage = () => {
                   >
                     {resetSiteName.status === "pending" ? "重置中..." : "重置站点名"}
                   </button>
+                </div>
+
+                <div className="border border-base-200 rounded-lg p-3 flex flex-col gap-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-base-content/60">已绑定前端</span>
+                    {settingsUser.frontendOrigins?.length ? (
+                      <span className="badge badge-xs badge-neutral">{settingsUser.frontendOrigins.length} 个</span>
+                    ) : (
+                      <span className="badge badge-xs badge-ghost">未绑定</span>
+                    )}
+                  </div>
+                  <div className="min-h-10 space-y-2 text-xs text-base-content/80">
+                    {settingsUser.frontendOrigins?.length ? (
+                      settingsUser.frontendOrigins.map((origin) => (
+                        <div key={origin} className="flex items-center gap-2">
+                          <div className="min-w-0 flex-1 truncate" title={origin}>{origin}</div>
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-xs text-error"
+                            disabled={removeFrontendOrigin.status === "pending"}
+                            onClick={() => {
+                              if (!window.confirm(`确定删除 ${settingsUser.email} 的前端域名 ${origin} 吗？`)) return;
+                              removeFrontendOrigin.mutate(
+                                { email: settingsUser.email, frontendOrigin: origin },
+                                {
+                                  onSuccess: (data) =>
+                                    setSettingsUser((prev) => (prev ? { ...prev, frontendOrigins: data.frontendOrigins } : prev)),
+                                },
+                              );
+                            }}
+                          >
+                            删除
+                          </button>
+                        </div>
+                      ))
+                    ) : (
+                      <div>-</div>
+                    )}
+                  </div>
+                  {settingsUser.frontendOrigins?.length ? (
+                    <button
+                      type="button"
+                      className="btn btn-xs btn-outline w-full"
+                      disabled={resetFrontendOrigins.status === "pending"}
+                      onClick={() => {
+                        if (!window.confirm(`确定要清空 ${settingsUser.email} 的全部前端绑定吗？`)) return;
+                        resetFrontendOrigins.mutate(
+                          { email: settingsUser.email },
+                          { onSuccess: () => setSettingsUser((prev) => (prev ? { ...prev, frontendOrigins: [] } : prev)) },
+                        );
+                      }}
+                    >
+                      {resetFrontendOrigins.status === "pending" ? "清空中..." : "清空全部绑定"}
+                    </button>
+                  ) : null}
                 </div>
 
                 <div className="border border-base-200 rounded-lg p-3 flex flex-col gap-2">
@@ -546,12 +623,14 @@ const UsersPage = () => {
               )}
             </div>
 
-            {(updateError || updateRoleError || updateUserTypeError || resetSiteNameError || resetQuotaError) && (
+            {(updateError || updateRoleError || updateUserTypeError || resetSiteNameError || removeFrontendOriginError || resetFrontendOriginsError || resetQuotaError) && (
               <div className="mt-4 p-3 bg-error/10 text-error text-xs rounded-lg space-y-1">
                 {updateError && <p>密码修改失败: {updateError}</p>}
                 {updateRoleError && <p>角色修改失败: {updateRoleError}</p>}
                 {updateUserTypeError && <p>类型修改失败: {updateUserTypeError}</p>}
                 {resetSiteNameError && <p>站点重置失败: {resetSiteNameError}</p>}
+                {removeFrontendOriginError && <p>前端域名删除失败: {removeFrontendOriginError}</p>}
+                {resetFrontendOriginsError && <p>前端绑定重置失败: {resetFrontendOriginsError}</p>}
                 {resetQuotaError && <p>配额重置失败: {resetQuotaError}</p>}
               </div>
             )}

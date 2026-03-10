@@ -19,14 +19,25 @@ const isValidPassword = (pwd: string) => typeof pwd === "string" && pwd.length >
 const isValidUserType = (value: string) => value === "free" || value === "subscriber";
 const hashCode = (code: string) => crypto.createHash("sha256").update(code).digest("hex");
 const generateRegisterCode = () => Math.floor(100000 + Math.random() * 900000).toString();
+const parseFrontendOrigins = (value: unknown): string[] => {
+  if (!value || typeof value !== "string") return [];
+  try {
+    const parsed = JSON.parse(value);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+  } catch {
+    return [];
+  }
+};
 
 
 export const listUsers = async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const users = await prisma.user.findMany({ orderBy: { id: "asc" } });
-    const safe = users.map(
-      ({ password: _pw, resetToken, resetTokenExpires, ...rest }: typeof users[number]) => rest,
-    );
+    const safe = users.map(({ password: _pw, resetToken, resetTokenExpires, frontendOriginsJson, ...rest }: typeof users[number]) => ({
+      ...rest,
+      frontendOrigins: parseFrontendOrigins(frontendOriginsJson),
+    }));
     res.json(safe);
   } catch (error) {
     next(error);
@@ -172,6 +183,56 @@ export const adminResetSiteName = async (req: Request, res: Response, next: Next
 
     await prisma.user.update({ where: { email }, data: { siteName: null } });
     res.json({ message: "Site name reset, user needs to set it again on next login" });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const adminResetFrontendOrigins = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { email } = req.body ?? {};
+    if (!email) {
+      return res.status(400).json({ error: "Email is required" });
+    }
+
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    await prisma.user.update({ where: { email }, data: { frontendOriginsJson: null } as any });
+    res.json({ message: "已绑定前端已重置，用户下次登录后可重新绑定" });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const adminRemoveFrontendOrigin = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { email, frontendOrigin } = req.body ?? {};
+    if (!email) {
+      return res.status(400).json({ error: "Email is required" });
+    }
+    if (!frontendOrigin || typeof frontendOrigin !== "string") {
+      return res.status(400).json({ error: "frontendOrigin is required" });
+    }
+
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const currentOrigins = parseFrontendOrigins((user as any).frontendOriginsJson);
+    if (!currentOrigins.includes(frontendOrigin)) {
+      return res.status(404).json({ error: "前端域名不存在" });
+    }
+
+    const nextOrigins = currentOrigins.filter((item) => item !== frontendOrigin);
+    await prisma.user.update({
+      where: { email },
+      data: { frontendOriginsJson: nextOrigins.length ? JSON.stringify(nextOrigins) : null } as any,
+    });
+    res.json({ message: "前端域名已删除", frontendOrigins: nextOrigins });
   } catch (error) {
     next(error);
   }

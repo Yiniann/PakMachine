@@ -10,6 +10,7 @@ export interface User {
   updatedAt: string;
   emailVerified?: boolean;
   siteName?: string | null;
+  frontendOrigins?: string[];
   buildQuotaUsed?: number | null;
   buildQuotaDate?: string | null;
 }

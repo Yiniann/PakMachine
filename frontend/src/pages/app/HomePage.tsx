@@ -1,13 +1,14 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { useSiteName, useSetSiteName } from "../../features/builds/siteName";
+import { useAddFrontendOrigin, useSetSiteName, useSiteProfile } from "../../features/builds/siteName";
 import { useBuildJob, useBuildJobs } from "../../features/builds/jobs";
 import { useBuildQuota } from "../../features/builds/quota";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../components/useAuth";
 
 const HomePage = () => {
-  const siteNameQuery = useSiteName();
+  const siteProfileQuery = useSiteProfile();
   const setSiteNameMutation = useSetSiteName();
+  const addFrontendOriginMutation = useAddFrontendOrigin();
   const jobsQuery = useBuildJobs();
   const quotaQuery = useBuildQuota();
   const auth = useAuth() as any;
@@ -21,6 +22,7 @@ const HomePage = () => {
   const navigate = useNavigate();
   const [cachedSiteName, setCachedSiteName] = useState<string | null>(null);
   const [input, setInput] = useState("");
+  const [frontendOriginInput, setFrontendOriginInput] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [buildFailure, setBuildFailure] = useState<{ jobId: number; message: string; createdAt: string } | null>(null);
   const [dismissedFailureId, setDismissedFailureId] = useState<number | null>(null);
@@ -34,9 +36,10 @@ const HomePage = () => {
     return Number.isFinite(ts) && Date.now() - ts <= failureWindowMs;
   };
 
-  const siteName = siteNameQuery.data?.siteName || null;
-  const loadingSiteName = siteNameQuery.isPending; // 只在首个请求未返回时认为 loading，避免阻塞展示
-  const fetchedSiteName = siteNameQuery.isSuccess || siteNameQuery.isError;
+  const siteName = siteProfileQuery.data?.siteName || null;
+  const frontendOrigins = siteProfileQuery.data?.frontendOrigins || [];
+  const loadingSiteName = siteProfileQuery.isPending; // 只在首个请求未返回时认为 loading，避免阻塞展示
+  const fetchedSiteName = siteProfileQuery.isSuccess || siteProfileQuery.isError;
   const displaySiteName = cachedSiteName || siteName;
   const jobIdParam = searchParams.get("jobId");
   const jobId = jobIdParam ? Number(jobIdParam) : undefined;
@@ -69,9 +72,26 @@ const HomePage = () => {
         onSuccess: (data) => {
           setMessage(`站点名称已设置为：${data.siteName}`);
           setCachedSiteName(data.siteName);
-          siteNameQuery.refetch();
+          siteProfileQuery.refetch();
         },
         onError: (err: any) => setMessage(err?.response?.data?.error || "设置失败"),
+      },
+    );
+  };
+
+  const onAddFrontendOrigin = (e: FormEvent) => {
+    e.preventDefault();
+    setMessage(null);
+    addFrontendOriginMutation.mutate(
+      { frontendOrigin: frontendOriginInput },
+      {
+        onSuccess: (data) => {
+          const latest = data.frontendOrigins[data.frontendOrigins.length - 1];
+          setMessage(`已绑定前端域名：${latest}`);
+          setFrontendOriginInput("");
+          siteProfileQuery.refetch();
+        },
+        onError: (err: any) => setMessage(err?.response?.data?.error || "绑定前端域名失败"),
       },
     );
   };
@@ -191,7 +211,7 @@ const HomePage = () => {
           {!showSiteNameForm && (displaySiteName || hasActiveJob) ? (
             <div className="flex flex-col md:flex-row gap-6 items-center justify-between p-6 bg-base-200/30 rounded-xl border border-base-200">
               <div className="flex-1 space-y-1">
-                <div className="text-xs font-bold text-base-content/50 uppercase tracking-wider">当前站点名称</div>
+                <div className="text-xs font-bold text-base-content/50 uppercase tracking-wider">站点名</div>
                 <div className="text-3xl font-bold text-primary">{displaySiteName || "已设置"}</div>
                 <div className="text-xs text-base-content/60 flex items-center gap-1">
                   {isAdmin ? (
@@ -224,26 +244,89 @@ const HomePage = () => {
             </div>
           ) : (
             <div className="space-y-4 max-w-2xl">
-              <div role="alert" className="alert alert-info bg-info/10 text-info-content border-info/20 text-sm py-3">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="stroke-current shrink-0 w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                <span>
-                  在前端构建前输入你的站点名，用于打包后主题的站点名称和标题。{isAdmin ? "管理员可重复修改。" : "确认无误后提交，一旦保存不可修改。"}
-                </span>
-              </div>
               {fetchedSiteName && (
-                <form onSubmit={onSubmit} className="join w-full">
+                <div className="space-y-2">
+                  <div className="text-xs font-bold text-base-content/50 uppercase tracking-wider">站点名</div>
+                  <form onSubmit={onSubmit} className="join w-full">
+                    <input
+                      className="input input-bordered join-item w-full"
+                      placeholder="输入站点名称"
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      disabled={setSiteNameMutation.status === "pending"}
+                    />
+                    <button className="btn btn-primary join-item" type="submit" disabled={!input.trim() || setSiteNameMutation.status === "pending"}>
+                      {setSiteNameMutation.status === "pending" ? <span className="loading loading-spinner loading-xs" /> : (isAdmin ? "保存" : "设置")}
+                    </button>
+                  </form>
+                  <div role="alert" className="alert alert-info bg-info/10 text-info-content border-info/20 text-sm py-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="stroke-current shrink-0 w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <span>
+                      在前端构建前输入你的站点名，用于打包后主题的站点名称和标题。{isAdmin ? "管理员可重复修改。" : "确认无误后提交，一旦保存不可修改。"}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {frontendOrigins.length > 0 ? (
+            <div className="space-y-4">
+              <div className="flex flex-col md:flex-row gap-6 items-start justify-between p-6 bg-base-200/30 rounded-xl border border-base-200">
+                <div className="flex-1 space-y-1">
+                  <div className="text-xs font-bold text-base-content/50 uppercase tracking-wider">前端域名</div>
+                  <div className="text-3xl font-bold text-primary">{frontendOrigins.length} / 4</div>
+                  <div className="text-xs text-base-content/60">
+                    已绑定后用户侧不可修改，但在未满 4 个前仍可继续追加；如需调整请联系管理员处理。
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2 md:max-w-[55%]">
+                  {frontendOrigins.map((origin) => (
+                    <span key={origin} className="badge badge-primary badge-outline h-auto py-2 px-3 break-all">
+                      {origin}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {frontendOrigins.length < 4 ? (
+                <form onSubmit={onAddFrontendOrigin} className="join w-full">
                   <input
                     className="input input-bordered join-item w-full"
-                    placeholder="输入站点名称"
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    disabled={setSiteNameMutation.status === "pending"}
+                    placeholder="继续绑定前端域名，每次输入一个，如 https://a.com"
+                    value={frontendOriginInput}
+                    onChange={(e) => setFrontendOriginInput(e.target.value)}
+                    disabled={addFrontendOriginMutation.status === "pending"}
                   />
-                  <button className="btn btn-primary join-item" type="submit" disabled={!input.trim() || setSiteNameMutation.status === "pending"}>
-                    {setSiteNameMutation.status === "pending" ? <span className="loading loading-spinner loading-xs" /> : (isAdmin ? "保存" : "设置")}
+                  <button className="btn btn-primary join-item" type="submit" disabled={!frontendOriginInput.trim() || addFrontendOriginMutation.status === "pending"}>
+                    {addFrontendOriginMutation.status === "pending" ? <span className="loading loading-spinner loading-xs" /> : "添加"}
                   </button>
                 </form>
+              ) : (
+                <p className="text-xs text-base-content/60">已达到 4 个前端域名上限，如需调整请联系管理员重置。</p>
               )}
+            </div>
+          ) : (
+            <div className="space-y-4 max-w-2xl">
+              <div className="space-y-2">
+                <div className="text-xs font-bold text-base-content/50 uppercase tracking-wider">前端域名</div>
+                <form onSubmit={onAddFrontendOrigin} className="join w-full">
+                  <input
+                    className="input input-bordered join-item w-full"
+                    placeholder="请输入完整域名，每次输入一个，如 https://a.com"
+                    value={frontendOriginInput}
+                    onChange={(e) => setFrontendOriginInput(e.target.value)}
+                    disabled={addFrontendOriginMutation.status === "pending"}
+                  />
+                  <button className="btn btn-primary join-item" type="submit" disabled={!frontendOriginInput.trim() || addFrontendOriginMutation.status === "pending"}>
+                    {addFrontendOriginMutation.status === "pending" ? <span className="loading loading-spinner loading-xs" /> : "绑定"}
+                  </button>
+                </form>
+                <div role="alert" className="alert alert-info bg-info/10 text-info-content border-info/20 text-sm py-3">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="stroke-current shrink-0 w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                  <span>请先绑定至少 1 个前端域名。每个账号最多可绑定 4 个，绑定后用户侧不可修改。</span>
+                </div>
+              </div>
             </div>
           )}
           {message && <div className="text-success text-sm mt-2 font-medium">{message}</div>}
