@@ -63,9 +63,29 @@ Actions 里需要配置的 Secrets/Variables：
 4) 构建产物上传依赖 CF_R2_* 变量，确保桶名称和公开地址正确。  
 5) 在 Actions 里查看运行日志确认成功；若有 403/签名错误，检查 `ACTION_WEBHOOK_SECRET` 与后端保持一致。
 
+默认 workflow 文件名为 `.github/workflows/build.yml`。如果后台“系统设置”里仍保存着旧值 `package.yml`，请改回 `build.yml`，否则 dispatch 会因为输入参数不匹配而返回 422。
+
 ## 目录
 - `backend/` Express + Prisma 服务
 - `frontend/` React Vite 客户端
+
+## 本地开发（npm workspaces）
+1) 在根目录安装依赖  
+```bash
+npm install
+```
+
+2) 初始化后端环境变量  
+```bash
+cp backend/.env.example backend/.env
+```
+
+3) 确保本地 MySQL 可用，且 `backend/.env` 中的 `DATABASE_URL` 正确
+
+4) 在根目录同时启动前后端  
+```bash
+npm run dev
+```
 
 ## Nginx 反代模板
 如需自行部署，可参考以下示例（替换域名、证书路径、artifacts 目录）：

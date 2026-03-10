@@ -1,4 +1,4 @@
-import { useMutation, useQuery, UseMutationResult, UseQueryResult } from "@tanstack/react-query";
+import { useMutation, useQuery, UseMutationResult, UseQueryResult, useQueryClient } from "@tanstack/react-query";
 import api from "../../api/client";
 import { useAuth } from "../../components/useAuth";
 
@@ -16,10 +16,15 @@ export const useBuildProfile = (): UseQueryResult<BuildProfile> => {
   });
 };
 
-export const useSaveBuildProfile = (): UseMutationResult<BuildProfile, unknown, BuildProfile, unknown> =>
-  useMutation({
+export const useSaveBuildProfile = (): UseMutationResult<BuildProfile, unknown, BuildProfile, unknown> => {
+  const queryClient = useQueryClient();
+  return useMutation({
     mutationFn: async (config) => {
       const res = await api.put("/build/profile", { config });
       return res.data;
     },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["build-profile"] });
+    },
   });
+};

@@ -9,7 +9,7 @@ const SystemSettingsPage = () => {
   const [allowRegister, setAllowRegister] = useState(true);
   const [actionDispatchToken, setActionDispatchToken] = useState("");
   const [actionWebhookSecret, setActionWebhookSecret] = useState("");
-  const [workflowFile, setWorkflowFile] = useState("build.yml");
+  const [workflowFile, setWorkflowFile] = useState("package.yml");
   const [message, setMessage] = useState<string | null>(null);
   const [mailerHost, setMailerHost] = useState("");
   const [mailerPort, setMailerPort] = useState("");
@@ -25,7 +25,7 @@ const SystemSettingsPage = () => {
       setAllowRegister(settingsQuery.data.allowRegister ?? true);
       setActionDispatchToken(settingsQuery.data.actionDispatchToken || "");
       setActionWebhookSecret(settingsQuery.data.actionWebhookSecret || "");
-      setWorkflowFile(settingsQuery.data.workflowFile || "build.yml");
+      setWorkflowFile(settingsQuery.data.workflowFile || "package.yml");
       setMailerHost(settingsQuery.data.mailerHost || "");
       setMailerPort(settingsQuery.data.mailerPort ? String(settingsQuery.data.mailerPort) : "");
       setMailerSecure(Boolean(settingsQuery.data.mailerSecure));
@@ -123,8 +123,8 @@ const SystemSettingsPage = () => {
                 <input
                   className="input input-bordered"
                   value={workflowFile}
-                  onChange={(e) => setWorkflowFile(e.target.value || "build.yml")}
-                  placeholder="如 build.yml"
+                  onChange={(e) => setWorkflowFile(e.target.value || "package.yml")}
+                  placeholder="如 package.yml / build.yml"
                 />
               </label>
 

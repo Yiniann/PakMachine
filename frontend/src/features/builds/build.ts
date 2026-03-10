@@ -3,7 +3,10 @@ import api from "../../api/client";
 
 export type BuildRequest = {
   filename: string;
-  envContent: string;
+  buildMode?: "legacy" | "bff";
+  frontendEnvContent: string;
+  serverEnvContent?: string;
+  runtimeSettings?: Record<string, unknown> | null;
 };
 
 export type BuildResponse = {

@@ -16,10 +16,12 @@ import { normalizeArtifactUrl } from "../lib/artifactUrl";
 
 const ADMIN_BUILD_JOBS_LIMIT = 200;
 const ALLOWED_ENV_KEYS = new Set([
+  "VITE_API_MODE",
   "VITE_SITE_NAME",
   "VITE_BACKEND_TYPE",
   "VITE_ENABLE_LANDING",
   "VITE_ENABLE_TICKET",
+  "VITE_ENABLE_VANTA",
   "VITE_SITE_LOGO",
   "VITE_AUTH_BACKGROUND",
   "VITE_ENABLE_IDHUB",
@@ -35,6 +37,29 @@ const ALLOWED_ENV_KEYS = new Set([
   "VITE_DOWNLOAD_MACOS",
   "VITE_DOWNLOAD_HARMONY",
 ]);
+
+const ALLOWED_SERVER_ENV_KEYS = new Set([
+  "PANEL_BASE_URL",
+  "IDHUB_BASE_URL",
+  "IDHUB_AUTH_TOKEN",
+  "ADMIN_ALLOWLIST_EMAILS",
+]);
+
+const RUNTIME_PANEL_TYPES = new Set(["xboard", "v2board", "xiaov2board"]);
+const RUNTIME_TOP_LEVEL_KEYS = new Set([
+  "panelType",
+  "landingEnabled",
+  "downloadEnabled",
+  "ticketTodoEnabled",
+  "vantaEnabled",
+  "thirdPartySupportEnabled",
+  "supportScript",
+  "appleAutoProShareEnabled",
+  "appleAutoProApiBaseUrl",
+  "appleAutoProApiKey",
+  "downloadLinks",
+]);
+const RUNTIME_DOWNLOAD_KEYS = new Set(["ios", "android", "windows", "macos", "harmony"]);
 
 const validateEnvContent = (content: string) => {
   const lines = (content || "").split("\n");
@@ -55,6 +80,129 @@ const validateEnvContent = (content: string) => {
     }
   }
   return null;
+};
+
+const normalizeRuntimeString = (value: unknown, field: string) => {
+  if (value === undefined || value === null) return "";
+  if (typeof value !== "string") {
+    throw new Error(`${field} 必须为字符串`);
+  }
+  return value.trim();
+};
+
+const normalizeRuntimeBoolean = (value: unknown, field: string, fallback: boolean) => {
+  if (value === undefined) return fallback;
+  if (typeof value !== "boolean") {
+    throw new Error(`${field} 必须为布尔值`);
+  }
+  return value;
+};
+
+const normalizeUrl = (value: unknown, field: string, required = false) => {
+  if (value === undefined || value === null) {
+    if (required) throw new Error(`${field} 不能为空`);
+    return "";
+  }
+  if (typeof value !== "string") {
+    throw new Error(`${field} 必须为字符串`);
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    if (required) throw new Error(`${field} 不能为空`);
+    return "";
+  }
+  if (!/^https?:\/\//i.test(trimmed)) {
+    throw new Error(`${field} 必须以 http:// 或 https:// 开头`);
+  }
+  return trimmed;
+};
+
+const validateServerEnvContent = (content?: string | null) => {
+  const normalizedContent = (content || "").trim();
+  if (!normalizedContent) return null;
+
+  const lines = normalizedContent.split("\n");
+  for (const line of lines) {
+    if (!line.trim()) continue;
+    if (line.trim().startsWith("#")) continue;
+    const normalized = line.endsWith("\r") ? line.slice(0, -1) : line;
+    if (normalized.includes("\r")) {
+      return "后端环境变量中不允许包含换行";
+    }
+    const eq = normalized.indexOf("=");
+    if (eq <= 0) {
+      return "serverEnvContent 格式不正确";
+    }
+    const key = normalized.slice(0, eq).trim();
+    const value = normalized.slice(eq + 1).trim();
+    if (!ALLOWED_SERVER_ENV_KEYS.has(key)) {
+      return "serverEnvContent 包含非法字段";
+    }
+    if ((key === "PANEL_BASE_URL" || key === "IDHUB_BASE_URL") && value && !/^https?:\/\//i.test(value)) {
+      return `${key} 必须以 http:// 或 https:// 开头`;
+    }
+  }
+
+  return null;
+};
+
+const sanitizeRuntimeSettings = (input: unknown) => {
+  if (input === undefined || input === null) return null;
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    throw new Error("runtimeSettings 格式不正确");
+  }
+
+  const source = input as Record<string, unknown>;
+  const unknownKey = Object.keys(source).find((key) => !RUNTIME_TOP_LEVEL_KEYS.has(key));
+  if (unknownKey) {
+    throw new Error(`runtimeSettings 包含非法字段: ${unknownKey}`);
+  }
+
+  const panelType = normalizeRuntimeString(source.panelType, "runtimeSettings.panelType");
+  if (!RUNTIME_PANEL_TYPES.has(panelType)) {
+    throw new Error("runtimeSettings.panelType 不合法");
+  }
+
+  const downloadLinksSource =
+    source.downloadLinks && typeof source.downloadLinks === "object" && !Array.isArray(source.downloadLinks)
+      ? (source.downloadLinks as Record<string, unknown>)
+      : {};
+  const unknownDownloadKey = Object.keys(downloadLinksSource).find((key) => !RUNTIME_DOWNLOAD_KEYS.has(key));
+  if (unknownDownloadKey) {
+    throw new Error(`runtimeSettings.downloadLinks 包含非法字段: ${unknownDownloadKey}`);
+  }
+
+  const thirdPartySupportEnabled = normalizeRuntimeBoolean(source.thirdPartySupportEnabled, "runtimeSettings.thirdPartySupportEnabled", false);
+  const appleAutoProShareEnabled = normalizeRuntimeBoolean(source.appleAutoProShareEnabled, "runtimeSettings.appleAutoProShareEnabled", false);
+  const supportScript = normalizeRuntimeString(source.supportScript, "runtimeSettings.supportScript");
+  const appleAutoProApiKey = normalizeRuntimeString(source.appleAutoProApiKey, "runtimeSettings.appleAutoProApiKey");
+
+  if (thirdPartySupportEnabled && !supportScript) {
+    throw new Error("runtimeSettings.supportScript 不能为空");
+  }
+  if (appleAutoProShareEnabled && !appleAutoProApiKey) {
+    throw new Error("runtimeSettings.appleAutoProApiKey 不能为空");
+  }
+
+  return {
+    panelType,
+    landingEnabled: normalizeRuntimeBoolean(source.landingEnabled, "runtimeSettings.landingEnabled", true),
+    downloadEnabled: normalizeRuntimeBoolean(source.downloadEnabled, "runtimeSettings.downloadEnabled", false),
+    ticketTodoEnabled: normalizeRuntimeBoolean(source.ticketTodoEnabled, "runtimeSettings.ticketTodoEnabled", true),
+    vantaEnabled: normalizeRuntimeBoolean(source.vantaEnabled, "runtimeSettings.vantaEnabled", true),
+    thirdPartySupportEnabled,
+    supportScript,
+    appleAutoProShareEnabled,
+    appleAutoProApiBaseUrl: normalizeUrl(source.appleAutoProApiBaseUrl, "runtimeSettings.appleAutoProApiBaseUrl", appleAutoProShareEnabled),
+    appleAutoProApiKey,
+    downloadLinks: {
+      ios: normalizeUrl(downloadLinksSource.ios, "runtimeSettings.downloadLinks.ios"),
+      android: normalizeUrl(downloadLinksSource.android, "runtimeSettings.downloadLinks.android"),
+      windows: normalizeUrl(downloadLinksSource.windows, "runtimeSettings.downloadLinks.windows"),
+      macos: normalizeUrl(downloadLinksSource.macos, "runtimeSettings.downloadLinks.macos"),
+      harmony: normalizeUrl(downloadLinksSource.harmony, "runtimeSettings.downloadLinks.harmony"),
+    },
+  };
 };
 
 const normalizeEnvLines = (content: string, overrides: Record<string, string | null | undefined>) => {
@@ -127,14 +275,34 @@ export const removeGithubTemplateEntry = async (req: Request, res: Response, nex
 
 export const buildTemplatePackage = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { filename, envContent } = req.body ?? {};
-    if (!filename || !envContent) {
-      return res.status(400).json({ error: "缺少 filename 或 envContent" });
+    const { filename, buildMode: rawBuildMode, frontendEnvContent, envContent, serverEnvContent, runtimeSettings } = req.body ?? {};
+    const buildMode = rawBuildMode === "bff" ? "bff" : "legacy";
+    const finalFrontendEnvContent = typeof frontendEnvContent === "string" && frontendEnvContent.trim()
+      ? frontendEnvContent
+      : typeof envContent === "string"
+        ? envContent
+        : "";
+
+    if (!filename || !finalFrontendEnvContent) {
+      return res.status(400).json({ error: "缺少 filename 或 frontendEnvContent" });
     }
-    const envError = validateEnvContent(envContent);
+    const envError = validateEnvContent(finalFrontendEnvContent);
     if (envError) {
       return res.status(400).json({ error: envError });
     }
+
+    const serverEnvError = validateServerEnvContent(serverEnvContent);
+    if (serverEnvError) {
+      return res.status(400).json({ error: serverEnvError });
+    }
+
+    let sanitizedRuntimeSettings: Record<string, unknown> | null = null;
+    try {
+      sanitizedRuntimeSettings = sanitizeRuntimeSettings(runtimeSettings);
+    } catch (error: any) {
+      return res.status(400).json({ error: error?.message || "runtimeSettings 校验失败" });
+    }
+
     const template = getTemplateEntry(filename);
     if (!template) {
       return res.status(404).json({ error: "模板不存在" });
@@ -150,9 +318,21 @@ export const buildTemplatePackage = async (req: Request, res: Response, next: Ne
     }
 
     const dbUser: any = await prisma.user.findUnique({ where: { id: Number(user.sub) }, select: { siteName: true } });
-    const enforcedEnv = normalizeEnvLines(envContent ?? "", {
+    const enforcedFrontendEnv = normalizeEnvLines(finalFrontendEnvContent ?? "", {
       VITE_SITE_NAME: dbUser?.siteName ?? null,
+      VITE_API_MODE: buildMode,
     });
+    const normalizedServerEnv = (serverEnvContent || "").trim();
+    const snapshot = JSON.stringify(
+      {
+        buildMode,
+        frontendEnv: enforcedFrontendEnv,
+        serverEnv: normalizedServerEnv || null,
+        runtimeSettings: sanitizedRuntimeSettings,
+      },
+      null,
+      2,
+    );
 
     const job = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const txUser: any = await tx.user.findUnique({
@@ -181,7 +361,7 @@ export const buildTemplatePackage = async (req: Request, res: Response, next: Ne
         data: {
           userId: Number(user.sub),
           filename,
-          envJson: enforcedEnv,
+          envJson: snapshot,
           status: template.type === "github" ? "queued" : "pending",
           message: template.type === "github" ? "已提交到 GitHub Actions" : null,
         },
@@ -189,12 +369,17 @@ export const buildTemplatePackage = async (req: Request, res: Response, next: Ne
     });
 
     try {
-      await dispatchGithubWorkflow(template, job.id, enforcedEnv);
+      await dispatchGithubWorkflow(template, job.id, {
+        buildMode,
+        frontendEnvContent: enforcedFrontendEnv,
+        serverEnvContent: normalizedServerEnv,
+        runtimeSettings: sanitizedRuntimeSettings,
+      });
       await prisma.buildJob.update({
         where: { id: job.id },
         data: { status: "running", message: "GitHub Actions 处理中..." },
       });
-      return res.json({ message: "已提交到 GitHub Actions", jobId: job.id, type: template.type });
+      return res.json({ message: "已提交到 GitHub Actions", jobId: job.id, type: template.type, buildMode });
     } catch (err: any) {
       await prisma.buildJob.update({
         where: { id: job.id },
@@ -203,7 +388,6 @@ export const buildTemplatePackage = async (req: Request, res: Response, next: Ne
       throw err;
     }
   } catch (err) {
-    // surfacing custom quota error
     if ((err as any)?.statusCode === 429) {
       return res.status(429).json({
         error: (err as Error).message,

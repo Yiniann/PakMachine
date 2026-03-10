@@ -2,6 +2,13 @@ import { TemplateEntry } from "./uploadService";
 import crypto from "crypto";
 import { loadSettings } from "../controllers/systemSettingsController";
 
+type DispatchPayload = {
+  buildMode: "legacy" | "bff";
+  frontendEnvContent: string;
+  serverEnvContent?: string;
+  runtimeSettings?: Record<string, unknown> | null;
+};
+
 const githubHeaders = () => {
   const settings = loadSettings();
   const token = settings.actionDispatchToken || process.env.ACTION_DISPATCH_TOKEN || process.env.GITHUB_TOKEN;
@@ -23,33 +30,90 @@ const parseRepo = (repo: string) => {
   return { owner, name };
 };
 
-export const dispatchGithubWorkflow = async (template: TemplateEntry, jobId: number, envContent: string) => {
+const formatDispatchError = (status: number, text: string, repo: string, workflowFile: string, branch: string) => {
+  if (status === 404) {
+    return `GitHub dispatch 失败: 404 ${text}（repo=${repo}, workflow=${workflowFile}, branch=${branch}；请检查仓库名是否正确、目标仓库的 .github/workflows/${workflowFile} 是否存在，以及 ACTION_DISPATCH_TOKEN 是否有该仓库访问权限）`;
+  }
+  if (status === 403) {
+    return `GitHub dispatch 失败: 403 ${text}（repo=${repo}, workflow=${workflowFile}, branch=${branch}；请检查 ACTION_DISPATCH_TOKEN 是否具备 repo/workflow 权限，并确认目标仓库允许 Actions 运行）`;
+  }
+  if (status === 422) {
+    return `GitHub dispatch 失败: 422 ${text}（repo=${repo}, workflow=${workflowFile}, branch=${branch}；请检查 workflow_dispatch.inputs 与后端发送的 inputs 是否一致）`;
+  }
+  return `GitHub dispatch 失败: ${status} ${text}（repo=${repo}, workflow=${workflowFile}, branch=${branch}）`;
+};
+
+const candidateWorkflowFiles = (workflowFile: string) => {
+  const normalized = workflowFile.trim();
+  if (normalized === "package.yml") return ["package.yml", "build.yml"];
+  if (normalized === "build.yml") return ["build.yml", "package.yml"];
+  return [normalized];
+};
+
+export const dispatchGithubWorkflow = async (template: TemplateEntry, jobId: number, payload: DispatchPayload) => {
   const settings = loadSettings();
-  const workflowFile = settings.workflowFile || process.env.GITHUB_WORKFLOW_FILE || "build.yml";
+  const workflowFile = (settings.workflowFile || process.env.GITHUB_WORKFLOW_FILE || "package.yml").trim();
   if (!template.repo) {
     throw new Error("模板缺少 repo 配置");
   }
+  const branch = template.branch || "main";
   const { owner, name } = parseRepo(template.repo);
-  const url = `https://api.github.com/repos/${owner}/${name}/actions/workflows/${workflowFile}/dispatches`;
-  const body = {
-    ref: template.branch || "main",
+
+  const legacyBody = {
+    ref: branch,
+    inputs: {
+      mode: payload.buildMode,
+      job_id: String(jobId),
+      frontend_env: payload.frontendEnvContent,
+      server_env: payload.buildMode === "bff" ? payload.serverEnvContent || "" : "",
+    },
+  };
+
+  const currentBody = {
+    ref: branch,
     inputs: {
       jobId: String(jobId),
-      envJson: envContent,
+      envJson:
+        payload.buildMode === "bff"
+          ? JSON.stringify(
+              {
+                buildMode: payload.buildMode,
+                frontendEnv: payload.frontendEnvContent,
+                serverEnv: payload.serverEnvContent || "",
+                runtimeSettings: payload.runtimeSettings ?? null,
+              },
+              null,
+              2,
+            )
+          : payload.frontendEnvContent,
       workdir: template.workdir || "",
     },
   };
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...githubHeaders() },
-    body: JSON.stringify(body),
-  });
+  let lastError = "";
+  let lastStatus = 0;
+  for (const workflowCandidate of candidateWorkflowFiles(workflowFile)) {
+    const url = `https://api.github.com/repos/${owner}/${name}/actions/workflows/${workflowCandidate}/dispatches`;
+    const body = workflowCandidate === "package.yml" ? legacyBody : currentBody;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...githubHeaders() },
+      body: JSON.stringify(body),
+    });
 
-  if (!res.ok) {
+    if (res.ok) {
+      return;
+    }
+
     const text = await res.text();
-    throw new Error(`GitHub dispatch 失败: ${res.status} ${text}`);
+    lastStatus = res.status;
+    lastError = formatDispatchError(res.status, text, template.repo, workflowCandidate, branch);
+    if (lastStatus !== 404) {
+      break;
+    }
   }
+
+  throw new Error(lastError);
 };
 
 export const deleteGithubRunArtifacts = async (repo: string, runId: number | string) => {
