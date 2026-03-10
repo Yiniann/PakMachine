@@ -56,7 +56,7 @@ const normalizeUserType = (value?: string | null) => (value ?? "free").toString(
 const getOriginsError = (value: string) => (parseOrigins(value).length > 4 ? "最多只能填写 4 个域名" : null);
 
 const createLegacyForm = (): LegacyForm => ({
-  backendType: "",
+  backendType: "xboard",
   enableLanding: true,
   enableTicket: true,
   siteLogo: "",
@@ -99,7 +99,7 @@ const normalizeLegacyForm = (input: unknown): LegacyForm => {
   const hasDownloadLinks = Boolean(dlIos || dlAndroid || dlWindows || dlMacos || dlHarmony);
 
   return {
-    backendType: normalizeString(getVal("backendType", "VITE_BACKEND_TYPE", "")),
+    backendType: normalizeString(getVal("backendType", "VITE_BACKEND_TYPE", "xboard")),
     enableLanding: normalizeFlag(getVal("enableLanding", "VITE_ENABLE_LANDING", true), true),
     enableTicket: normalizeFlag(getVal("enableTicket", "VITE_ENABLE_TICKET", true), true),
     siteLogo: normalizeString(getVal("siteLogo", "VITE_SITE_LOGO", "")),
@@ -388,19 +388,19 @@ const TemplateBuildPage = () => {
           <div className="card-body gap-6">
             <div>
               <h2 className="card-title text-2xl font-bold">选择版本</h2>
-              <p className="text-base-content/70 mt-1">模板选定后，SPA 继续走 legacy，Pro 走 BFF。</p>
+              <p className="text-base-content/70 mt-1">请根据请求链路和部署方式选择构建版本。</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className={`rounded-2xl border p-6 space-y-4 ${selectedMode === "legacy" ? "border-primary bg-primary/5" : "border-base-200"}`}>
-                <div className="flex items-center justify-between gap-3"><div><p className="text-sm text-base-content/60">兼容模式</p><h3 className="text-xl font-bold">SPA 版</h3></div><span className="badge badge-outline">legacy</span></div>
-                <p className="text-sm text-base-content/70">只打包前端，保留当前旧设置页。</p>
-                <button className="btn btn-primary btn-block" type="button" onClick={() => { setSelectedMode("legacy"); setStep(3); }}>进入 SPA 配置</button>
-              </div>
-              <div className={`rounded-2xl border p-6 space-y-4 ${selectedMode === "bff" ? "border-secondary bg-secondary/5" : "border-base-200"} ${!canUseBff ? "opacity-60" : ""}`}>
-                <div className="flex items-center justify-between gap-3"><div><p className="text-sm text-base-content/60">订阅版</p><h3 className="text-xl font-bold">Pro 版</h3></div><span className="badge badge-secondary">BFF</span></div>
-                <p className="text-sm text-base-content/70">打包前端和 BFF 服务端。运行时设置不在这里填，交付后由用户去 `/admin` 配置。</p>
+              <div className={`rounded-2xl border p-6 space-y-4 flex flex-col ${selectedMode === "bff" ? "border-secondary bg-secondary/5" : "border-base-200"} ${!canUseBff ? "opacity-60" : ""}`}>
+                <div className="flex items-start justify-between gap-3"><div><p className="text-sm text-base-content/60">经服务端中转</p><h3 className="text-xl font-bold">Pro 版（BFF）</h3></div><span className="badge badge-secondary">推荐</span></div>
+                <p className="text-sm text-base-content/70">前端先请求 BFF 服务，再由服务端统一转发和处理，适合需要后台管理和更强隔离的场景。</p>
                 {!canUseBff && <p className="text-warning text-sm">仅订阅用户或管理员可用。</p>}
-                <button className="btn btn-secondary btn-block" type="button" disabled={!canUseBff} onClick={() => { setSelectedMode("bff"); setStep(3); }}>进入 Pro 配置</button>
+                <button className="btn btn-secondary btn-block mt-auto" type="button" disabled={!canUseBff} onClick={() => { setSelectedMode("bff"); setStep(3); }}>进入 Pro 配置</button>
+              </div>
+              <div className={`rounded-2xl border p-6 space-y-4 flex flex-col ${selectedMode === "legacy" ? "border-primary bg-primary/5" : "border-base-200"}`}>
+                <div><p className="text-sm text-base-content/60">前端直连面板</p><h3 className="text-xl font-bold">SPA 版（纯前端）</h3></div>
+                <p className="text-sm text-base-content/70">浏览器直接请求面板 API，构建时写入前端环境变量，适合传统前端部署场景。</p>
+                <button className="btn btn-primary btn-block mt-auto" type="button" onClick={() => { setSelectedMode("legacy"); setStep(3); }}>进入 SPA 配置</button>
               </div>
             </div>
             <div className="flex justify-between"><button className="btn btn-outline" type="button" onClick={() => setStep(1)}>上一步</button></div>
@@ -412,57 +412,57 @@ const TemplateBuildPage = () => {
         <div className="card bg-base-100 shadow-xl border border-base-200">
           <div className="card-body gap-6">
             <div>
-              <h2 className="card-title text-2xl font-bold">{selectedMode === "legacy" ? "SPA 配置" : "Pro 配置"}</h2>
-              <p className="text-base-content/70 mt-1">{selectedMode === "legacy" ? "SPA 版只生成前端环境。" : "Pro 版只收集前端环境和 BFF 服务端环境，运行时设置由 /admin 管理。"}</p>
+              <h2 className="card-title text-2xl font-bold">{selectedMode === "legacy" ? "SPA Settings" : "Pro Settings"}</h2>
+              <p className="text-base-content/70 mt-1">{selectedMode === "legacy" ? "SPA 版会在构建时写入前端环境变量，适合前端直连面板的部署方式。" : "Pro 版仅需输入站点基础信息和面板信息，前端环境变量由中后台管理。"}</p>
             </div>
 
             <form id="build-config-form" className="flex min-h-[60vh] flex-col gap-6" onSubmit={onSubmit}>
               {selectedMode === "legacy" ? (
                 <>
                   <div className="rounded-xl border border-base-200 bg-base-200/50 p-6 space-y-6">
-                    <h3 className="font-bold text-lg border-b border-base-200 pb-3">SPA 前端环境</h3>
+                    <h3 className="font-bold text-lg border-b border-base-200 pb-3">站点与面板信息</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <label className="form-control md:col-span-2"><span className="label-text">站点名称</span><input className="input input-bordered bg-base-200 text-base-content/60 cursor-not-allowed" value={siteName} readOnly disabled={siteNameQuery.isLoading} /></label>
+                      <label className="form-control"><span className="label-text">站点名称</span><input className="input input-bordered bg-base-200 text-base-content/60 cursor-not-allowed" value={siteName} readOnly disabled={siteNameQuery.isLoading} /></label>
                       <label className="form-control"><span className="label-text">面板类型</span><select className="select select-bordered" value={legacyForm.backendType} onChange={(e) => updateLegacy("backendType", e.target.value)}><option value="">请选择</option><option value="xboard">xboard</option><option value="v2board">v2board</option><option value="xiaov2board">xiaov2board</option></select></label>
                       <label className="form-control"><span className="label-text">着陆页</span><input type="checkbox" className="toggle" checked={legacyForm.enableLanding} onChange={(e) => updateLegacy("enableLanding", e.target.checked)} /></label>
                       <label className="form-control"><span className="label-text">工单</span><input type="checkbox" className="toggle" checked={legacyForm.enableTicket} onChange={(e) => updateLegacy("enableTicket", e.target.checked)} /></label>
-                      <label className="form-control"><span className="label-text">站点 Logo</span><input className="input input-bordered" value={legacyForm.siteLogo} onChange={(e) => updateLegacy("siteLogo", e.target.value)} /></label>
-                      <label className="form-control"><span className="label-text">登录页背景</span><input className="input input-bordered" value={legacyForm.authBackground} onChange={(e) => updateLegacy("authBackground", e.target.value)} /></label>
-                      <label className="form-control md:col-span-2"><span className="label-text">前端域名（最多 4 个）</span><input className="input input-bordered" value={legacyForm.allowedClientOrigins} onChange={(e) => updateLegacy("allowedClientOrigins", e.target.value)} />{legacyOriginsError && <span className="text-error text-xs">{legacyOriginsError}</span>}</label>
-                      <label className="form-control md:col-span-2"><span className="label-text">后端 API 地址</span><input className="input input-bordered" value={legacyForm.prodApiUrl} onChange={(e) => updateLegacy("prodApiUrl", e.target.value)} placeholder="/api/v1/" /></label>
+                      <label className="form-control"><span className="label-text">站点 Logo</span><input className="input input-bordered" value={legacyForm.siteLogo} onChange={(e) => updateLegacy("siteLogo", e.target.value)} placeholder="请输入站点 Logo 地址，支持本地文件路径或 URL" /></label>
+                      <label className="form-control"><span className="label-text">登录页背景</span><input className="input input-bordered" value={legacyForm.authBackground} onChange={(e) => updateLegacy("authBackground", e.target.value)} placeholder="请输入登录页背景图片地址，支持本地文件路径或 URL" /></label>
+                      <label className="form-control md:col-span-2"><span className="label-text">前端域名（最多 4 个）</span><input className="input input-bordered" value={legacyForm.allowedClientOrigins} onChange={(e) => updateLegacy("allowedClientOrigins", e.target.value)} placeholder="请输入完整域名，如 https://a.com，多个域名请用英文逗号分隔" />{legacyOriginsError && <span className="text-error text-xs">{legacyOriginsError}</span>}</label>
+                      <label className="form-control md:col-span-2"><span className="label-text">后端 API 地址</span><input className="input input-bordered" value={legacyForm.prodApiUrl} onChange={(e) => updateLegacy("prodApiUrl", e.target.value)} placeholder="请输入后端 API 地址，如 https://api.example.com/api/v1/" /><span className="label-text-alt text-base-content/60">默认情况下无需修改；如果不通过 Nginx 转发，可以直接填写面板地址加 `/api/v1/`，例如 `https://panel.example.com/api/v1/`。</span></label>
                     </div>
                   </div>
 
                   <div className="rounded-xl border border-base-200 bg-base-200/50 p-6 space-y-6">
                     <h3 className="font-bold text-lg border-b border-base-200 pb-3">三方客服与下载</h3>
                     <label className="form-control"><span className="label-text">启用三方客服</span><input type="checkbox" className="toggle" checked={legacyForm.enableThirdPartyScripts} onChange={(e) => updateLegacy("enableThirdPartyScripts", e.target.checked)} /></label>
-                    {legacyForm.enableThirdPartyScripts && <label className="form-control"><span className="label-text">客服脚本</span><input className="input input-bordered" value={legacyForm.thirdPartyScripts} onChange={(e) => updateLegacy("thirdPartyScripts", e.target.value)} /></label>}
+                    {legacyForm.enableThirdPartyScripts && <label className="form-control"><span className="label-text">客服脚本</span><input className="input input-bordered" value={legacyForm.thirdPartyScripts} onChange={(e) => updateLegacy("thirdPartyScripts", e.target.value)} placeholder="请输入脚本内容或脚本地址，如 &lt;script src='https://example.com/chat.js'&gt;&lt;/script&gt;" /></label>}
                     <label className="form-control"><span className="label-text">启用下载卡片</span><input type="checkbox" className="toggle" checked={legacyForm.enableDownload} onChange={(e) => updateLegacy("enableDownload", e.target.checked)} /></label>
-                    {legacyForm.enableDownload && <div className="grid grid-cols-1 md:grid-cols-2 gap-3"><input className="input input-bordered" value={legacyForm.downloadIos} onChange={(e) => updateLegacy("downloadIos", e.target.value)} placeholder="iOS 下载地址" /><input className="input input-bordered" value={legacyForm.downloadAndroid} onChange={(e) => updateLegacy("downloadAndroid", e.target.value)} placeholder="Android 下载地址" /><input className="input input-bordered" value={legacyForm.downloadWindows} onChange={(e) => updateLegacy("downloadWindows", e.target.value)} placeholder="Windows 下载地址" /><input className="input input-bordered" value={legacyForm.downloadMacos} onChange={(e) => updateLegacy("downloadMacos", e.target.value)} placeholder="macOS 下载地址" /><input className="input input-bordered" value={legacyForm.downloadHarmony} onChange={(e) => updateLegacy("downloadHarmony", e.target.value)} placeholder="鸿蒙下载地址" /></div>}
+                    {legacyForm.enableDownload && <div className="grid grid-cols-1 md:grid-cols-2 gap-3"><label className="form-control"><span className="label-text">iOS 下载地址</span><input className="input input-bordered" value={legacyForm.downloadIos} onChange={(e) => updateLegacy("downloadIos", e.target.value)} placeholder="请输入 iOS 下载地址" /></label><label className="form-control"><span className="label-text">Android 下载地址</span><input className="input input-bordered" value={legacyForm.downloadAndroid} onChange={(e) => updateLegacy("downloadAndroid", e.target.value)} placeholder="请输入 Android 下载地址" /></label><label className="form-control"><span className="label-text">Windows 下载地址</span><input className="input input-bordered" value={legacyForm.downloadWindows} onChange={(e) => updateLegacy("downloadWindows", e.target.value)} placeholder="请输入 Windows 下载地址" /></label><label className="form-control"><span className="label-text">macOS 下载地址</span><input className="input input-bordered" value={legacyForm.downloadMacos} onChange={(e) => updateLegacy("downloadMacos", e.target.value)} placeholder="请输入 macOS 下载地址" /></label><label className="form-control md:col-span-2"><span className="label-text">鸿蒙下载地址</span><input className="input input-bordered" value={legacyForm.downloadHarmony} onChange={(e) => updateLegacy("downloadHarmony", e.target.value)} placeholder="请输入鸿蒙下载地址" /></label></div>}
                   </div>
 
                   <div className="rounded-xl border border-base-200 bg-base-200/50 p-6 space-y-6">
                     <h3 className="font-bold text-lg border-b border-base-200 pb-3">AppleAutoPro 集成</h3>
                     <label className="form-control"><span className="label-text">启用分享页</span><input type="checkbox" className="toggle" checked={legacyForm.enableIdhub} onChange={(e) => updateLegacy("enableIdhub", e.target.checked)} /></label>
-                    {legacyForm.enableIdhub && <div className="grid grid-cols-1 gap-3"><input className="input input-bordered" value={legacyForm.idhubApiUrl} onChange={(e) => updateLegacy("idhubApiUrl", e.target.value)} placeholder="AppleAutoPro API 地址" /><input className="input input-bordered" value={legacyForm.idhubApiKey} onChange={(e) => updateLegacy("idhubApiKey", e.target.value)} placeholder="AppleAutoPro API Key" /></div>}
+                    {legacyForm.enableIdhub && <div className="grid grid-cols-1 gap-3"><label className="form-control"><span className="label-text">AppleAutoPro API 地址</span><input className="input input-bordered" value={legacyForm.idhubApiUrl} onChange={(e) => updateLegacy("idhubApiUrl", e.target.value)} placeholder="请输入 AppleAutoPro API 地址，如 https://example.com/api" /><span className="label-text-alt text-base-content/60">默认情况下无需修改；如果不通过 Nginx 转发，可以直接填写面板地址加 `/api/`，例如 `https://panel.example.com/api/`。</span></label><label className="form-control"><span className="label-text">AppleAutoPro API Key</span><input className="input input-bordered" value={legacyForm.idhubApiKey} onChange={(e) => updateLegacy("idhubApiKey", e.target.value)} placeholder="请输入 AppleAutoPro API Key" /></label></div>}
                   </div>
                 </>
               ) : (
                 <>
                   <div className="rounded-xl border border-base-200 bg-base-200/50 p-6 space-y-6">
-                    <h3 className="font-bold text-lg border-b border-base-200 pb-3">Pro 前端环境</h3>
+                    <h3 className="font-bold text-lg border-b border-base-200 pb-3">站点基础信息</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <label className="form-control md:col-span-2"><span className="label-text">站点名称</span><input className="input input-bordered bg-base-200 text-base-content/60 cursor-not-allowed" value={siteName} readOnly disabled={siteNameQuery.isLoading} /></label>
-                      <input className="input input-bordered" value={bffForm.frontend.siteLogo} onChange={(e) => updateBffFrontend("siteLogo", e.target.value)} placeholder="站点 Logo" />
-                      <input className="input input-bordered" value={bffForm.frontend.authBackground} onChange={(e) => updateBffFrontend("authBackground", e.target.value)} placeholder="登录页背景" />
-                      <label className="form-control md:col-span-2"><span className="label-text">前端域名（最多 4 个）</span><input className="input input-bordered" value={bffForm.frontend.allowedClientOrigins} onChange={(e) => updateBffFrontend("allowedClientOrigins", e.target.value)} />{bffOriginsError && <span className="text-error text-xs">{bffOriginsError}</span>}</label>
+                      <label className="form-control"><span className="label-text">站点 Logo</span><input className="input input-bordered" value={bffForm.frontend.siteLogo} onChange={(e) => updateBffFrontend("siteLogo", e.target.value)} placeholder="请输入站点 Logo 地址，支持本地文件路径或 URL" /></label>
+                      <label className="form-control"><span className="label-text">登录页背景</span><input className="input input-bordered" value={bffForm.frontend.authBackground} onChange={(e) => updateBffFrontend("authBackground", e.target.value)} placeholder="请输入登录页背景图片地址，支持本地文件路径或 URL" /></label>
+                      <label className="form-control md:col-span-2"><span className="label-text">前端域名（最多 4 个）</span><input className="input input-bordered" value={bffForm.frontend.allowedClientOrigins} onChange={(e) => updateBffFrontend("allowedClientOrigins", e.target.value)} placeholder="请输入完整域名，如 https://a.com，多个域名请用英文逗号分隔" />{bffOriginsError && <span className="text-error text-xs">{bffOriginsError}</span>}</label>
                     </div>
                   </div>
 
                   <div className="rounded-xl border border-base-200 bg-base-200/50 p-6 space-y-6">
-                    <h3 className="font-bold text-lg border-b border-base-200 pb-3">BFF 服务端环境</h3>
+                    <h3 className="font-bold text-lg border-b border-base-200 pb-3">面板环境</h3>
                     <div className="grid grid-cols-1 gap-3">
-                      <input className="input input-bordered" value={bffForm.server.panelBaseUrl} onChange={(e) => updateBffServer("panelBaseUrl", e.target.value)} placeholder="PANEL_BASE_URL" />
+                      <label className="form-control"><span className="label-text">面板地址</span><input className="input input-bordered" value={bffForm.server.panelBaseUrl} onChange={(e) => updateBffServer("panelBaseUrl", e.target.value)} placeholder="请输入面板完整地址，如 https://panel.example.com" /></label>
                     </div>
                   </div>
                 </>
