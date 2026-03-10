@@ -49,6 +49,13 @@ type StoredProfiles = {
 const parseOrigins = (value: string) => value.split(",").map((item) => item.trim()).filter(Boolean);
 const normalizeEnvValue = (value: string) => value.replace(/[\r\n]+/g, " ").trim();
 const hasNewline = (value: string) => /[\r\n]/.test(value);
+const formatDateTime = (value?: string) => {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  const pad = (num: number) => num.toString().padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+};
 const isRecord = (value: unknown): value is Record<string, any> => Boolean(value) && typeof value === "object" && !Array.isArray(value);
 const normalizeFlag = (value: unknown, fallback = false) => (value === undefined ? fallback : value === true || value === "true");
 const normalizeString = (value: unknown, fallback = "") => (typeof value === "string" ? value : fallback);
@@ -364,7 +371,7 @@ const TemplateBuildPage = () => {
           <div className="rounded-2xl border border-base-200 bg-base-100 p-4 shadow-sm">
             <p className="text-xs uppercase tracking-wide text-base-content/50">当前版本</p>
             <p className="mt-2 truncate font-semibold">{selected || "未选择版本"}</p>
-            <p className="mt-1 text-sm text-base-content/60">{selectedTemplate?.description || "请选择一个版本后继续。"}</p>
+            <p className="mt-1 text-sm text-base-content/60">{formatDateTime(selectedTemplate?.modifiedAt)}</p>
           </div>
           <div className="rounded-2xl border border-base-200 bg-base-100 p-4 shadow-sm">
             <p className="text-xs uppercase tracking-wide text-base-content/50">构建方式</p>
@@ -402,7 +409,7 @@ const TemplateBuildPage = () => {
                           <td><input type="radio" name="template" className="radio" checked={selected === item.filename} onChange={() => setSelected(item.filename)} /></td>
                           <td className="font-medium">{item.filename}</td>
                           <td className="max-w-xs whitespace-pre-wrap break-words text-sm text-base-content/80">{item.description || "-"}</td>
-                          <td className="text-sm text-base-content/60">{item.modifiedAt ? new Date(item.modifiedAt).toLocaleString() : "-"}</td>
+                          <td className="text-sm text-base-content/60">{formatDateTime(item.modifiedAt)}</td>
                         </tr>
                       ))}
                     </tbody>

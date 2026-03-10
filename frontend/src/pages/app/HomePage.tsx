@@ -275,14 +275,14 @@ const HomePage = () => {
               <div className="flex flex-col md:flex-row gap-6 items-start justify-between p-6 bg-base-200/30 rounded-xl border border-base-200">
                 <div className="flex-1 space-y-1">
                   <div className="text-xs font-bold text-base-content/50 uppercase tracking-wider">前端域名</div>
-                  <div className="text-3xl font-bold text-primary">{frontendOrigins.length} / 4</div>
+                  <div className="text-3xl font-bold text-pink-600">{frontendOrigins.length} / 4</div>
                   <div className="text-xs text-base-content/60">
                     已绑定后用户侧不可修改，但在未满 4 个前仍可继续追加；如需调整请联系管理员处理。
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2 md:max-w-[55%]">
                   {frontendOrigins.map((origin) => (
-                    <span key={origin} className="badge badge-primary badge-outline h-auto py-2 px-3 break-all">
+                    <span key={origin} className="badge h-auto border-pink-200 bg-pink-50 py-2 px-3 break-all text-pink-700">
                       {origin}
                     </span>
                   ))}
@@ -303,7 +303,10 @@ const HomePage = () => {
                   </button>
                 </form>
               ) : (
-                <p className="text-xs text-base-content/60">已达到 4 个前端域名上限，如需调整请联系管理员重置。</p>
+                <div role="alert" className="alert border border-pink-200 bg-pink-50 text-pink-700 text-sm py-3">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="stroke-current shrink-0 w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                  <span>已达到 4 个前端域名上限，如需调整请联系管理员重置。</span>
+                </div>
               )}
             </div>
           ) : (
@@ -322,7 +325,7 @@ const HomePage = () => {
                     {addFrontendOriginMutation.status === "pending" ? <span className="loading loading-spinner loading-xs" /> : "绑定"}
                   </button>
                 </form>
-                <div role="alert" className="alert alert-info bg-info/10 text-info-content border-info/20 text-sm py-3">
+                <div role="alert" className="alert border border-pink-200 bg-pink-50 text-pink-700 text-sm py-3">
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="stroke-current shrink-0 w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                   <span>请先绑定至少 1 个前端域名。每个账号最多可绑定 4 个，绑定后用户侧不可修改。</span>
                 </div>
