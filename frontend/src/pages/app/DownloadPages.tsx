@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { Artifact, useArtifacts } from "../../features/builds/artifacts";
 import api from "../../api/client";
 
@@ -38,6 +39,18 @@ const DownloadPages = () => {
       <div>
         <h2 className="text-3xl font-bold">产物下载</h2>
         <p className="text-base-content/70 mt-1">查看并下载您生成的站点前端产物，仅保留最新两次构建记录。</p>
+      </div>
+
+      <div className="card border border-base-200 bg-base-100 shadow-sm">
+        <div className="card-body flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h3 className="card-title text-lg">部署教程</h3>
+            <p className="text-sm text-base-content/70">下载完成后，可按教程快速完成 SPA 或 BFF 部署。</p>
+          </div>
+          <Link to="/app/downloads/deploy-guide" className="btn btn-outline">
+            查看部署教程
+          </Link>
+        </div>
       </div>
 
       <div className="card bg-base-100 shadow-xl border border-base-200">

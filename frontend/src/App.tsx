@@ -15,6 +15,9 @@ import SystemSettingsPage from "./pages/admin/SystemSettingsPage";
 import BuildRecordsPage from "./pages/admin/BuildRecordsPage";
 import TemplateBuildPage from "./pages/app/TemplateBuildPage";
 import DownloadPages from "./pages/app/DownloadPages";
+import DeployGuidePage from "./pages/app/DeployGuidePage";
+import DeployGuideBffPage from "./pages/app/DeployGuideBffPage";
+import DeployGuideSpaPage from "./pages/app/DeployGuideSpaPage";
 import UserSettingsPage from "./pages/app/UserSettingsPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import InitGate from "./components/InitGate";
@@ -43,6 +46,9 @@ const App = () => {
             <Route path="home" element={<Navigate to="/app" replace />} />
             <Route path="build" element={<TemplateBuildPage />} />
             <Route path="downloads" element={<DownloadPages />} />
+            <Route path="downloads/deploy-guide" element={<DeployGuidePage />} />
+            <Route path="downloads/deploy-guide/bff" element={<DeployGuideBffPage />} />
+            <Route path="downloads/deploy-guide/spa" element={<DeployGuideSpaPage />} />
             <Route path="settings" element={<UserSettingsPage />} />
           </Route>
           <Route path="/admin" element={<AdminLayout />}>
