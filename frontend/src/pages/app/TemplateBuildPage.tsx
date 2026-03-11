@@ -37,6 +37,7 @@ type BffForm = {
   };
   server: {
     panelBaseUrl: string;
+    adminBasePath: string;
   };
 };
 
@@ -89,6 +90,7 @@ const createBffForm = (): BffForm => ({
   },
   server: {
     panelBaseUrl: "",
+    adminBasePath: "/admin",
   },
 });
 
@@ -139,6 +141,7 @@ const normalizeBffForm = (input: unknown): BffForm => {
     },
     server: {
       panelBaseUrl: normalizeString(server.panelBaseUrl, ""),
+      adminBasePath: normalizeString(server.adminBasePath, "/admin"),
     },
   };
 };
@@ -199,7 +202,10 @@ const buildBffFrontendEnvContent = (siteName: string, frontendOriginsValue: stri
 };
 
 const buildBffServerEnvContent = (form: BffForm) => {
-  return `PANEL_BASE_URL=${normalizeEnvValue(form.server.panelBaseUrl)}`;
+  return [
+    `PANEL_BASE_URL=${normalizeEnvValue(form.server.panelBaseUrl)}`,
+    `ADMIN_BASE_PATH=${normalizeEnvValue(form.server.adminBasePath) || "/admin"}`,
+  ].join("\n");
 };
 
 const TemplateBuildPage = () => {
@@ -245,7 +251,7 @@ const TemplateBuildPage = () => {
   );
 
   const bffHasInvalidNewline = useMemo(
-    () => [siteName, bffForm.frontend.siteLogo, bffForm.frontend.authBackground, bffForm.server.panelBaseUrl].some(hasNewline),
+    () => [siteName, bffForm.frontend.siteLogo, bffForm.frontend.authBackground, bffForm.server.panelBaseUrl, bffForm.server.adminBasePath].some(hasNewline),
     [siteName, bffForm],
   );
 
@@ -513,7 +519,8 @@ const TemplateBuildPage = () => {
                   <div className="rounded-2xl border border-base-200 bg-base-200/40 p-6 shadow-sm space-y-6">
                     <h3 className="font-bold text-lg border-b border-base-200 pb-3">面板环境</h3>
                     <div className="grid grid-cols-1 gap-3">
-                      <label className="form-control"><span className="label-text">面板地址</span><input className="input input-bordered" value={bffForm.server.panelBaseUrl} onChange={(e) => updateBffServer("panelBaseUrl", e.target.value)} placeholder="请输入面板完整地址，如 https://panel.example.com" /></label>
+                      <label className="form-control"><span className="label-text">面板地址</span><input className="input input-bordered" value={bffForm.server.panelBaseUrl} onChange={(e) => updateBffServer("panelBaseUrl", e.target.value)} placeholder="请输入面板地址，如 https://panel.example.com" /></label>
+                      <label className="form-control"><span className="label-text">管理中台路径</span><input className="input input-bordered" value={bffForm.server.adminBasePath} onChange={(e) => updateBffServer("adminBasePath", e.target.value)} placeholder="请输入管理中台路径，如 /admin" /><span className="label-text-alt text-base-content/60">管理中台路径，默认为/admin。</span></label>
                     </div>
                   </div>
                   </>
