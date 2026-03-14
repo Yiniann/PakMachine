@@ -228,6 +228,8 @@ const TemplateBuildPage = () => {
   const siteName = siteProfileQuery.data?.siteName || "";
   const frontendOrigins = siteProfileQuery.data?.frontendOrigins || [];
   const frontendOriginsValue = frontendOrigins.join(",");
+  const adminBasePathPreview = bffForm.server.adminBasePath.trim() || "/admin";
+  const previewFrontendOrigin = frontendOrigins[0] || "https://your-domain.com";
   const canUseBff = role === "admin" || normalizeUserType(userType) === "subscriber";
   const selectedTemplate = useMemo(() => templates.data?.find((item) => item.filename === selected) ?? null, [selected, templates.data]);
   const selectedModeLabel = selectedMode === "legacy" ? "SPA 版（纯前端）" : selectedMode === "bff" ? "Pro 版（BFF）" : "未选择";
@@ -486,7 +488,7 @@ const TemplateBuildPage = () => {
                         <label className="form-control"><span className="label-text">站点 Logo</span><input className="input input-bordered" value={legacyForm.siteLogo} onChange={(e) => updateLegacy("siteLogo", e.target.value)} placeholder="请输入站点 Logo 地址，支持本地文件路径或 URL" /></label>
                         <label className="form-control"><span className="label-text">登录页背景</span><input className="input input-bordered" value={legacyForm.authBackground} onChange={(e) => updateLegacy("authBackground", e.target.value)} placeholder="请输入登录页背景图片地址，支持本地文件路径或 URL" /></label>
                         <label className="form-control md:col-span-2"><span className="label-text">已绑定前端域名</span><textarea className="textarea textarea-bordered min-h-24 bg-base-200 text-base-content/60 cursor-not-allowed" value={frontendOrigins.length ? frontendOrigins.join("\n") : "请先前往首页绑定前端域名"} readOnly />{!frontendOrigins.length && <span className="text-warning text-xs">请先在首页绑定至少 1 个前端域名后再构建。</span>}</label>
-                        <label className="form-control md:col-span-2"><span className="label-text">后端 API 地址</span><input className="input input-bordered" value={legacyForm.prodApiUrl} onChange={(e) => updateLegacy("prodApiUrl", e.target.value)} placeholder="请输入后端 API 地址，如 https://api.example.com/api/v1/" /><span className="label-text-alt text-base-content/60">默认情况下无需修改；如果不通过 Nginx 转发，可以直接填写面板地址加 `/api/v1/`，例如 `https://panel.example.com/api/v1/`。</span></label>
+                        <label className="form-control md:col-span-2"><span className="label-text">面板 API 地址</span><input className="input input-bordered" value={legacyForm.prodApiUrl} onChange={(e) => updateLegacy("prodApiUrl", e.target.value)} placeholder="请输入后端 API 地址，如 https://api.example.com/api/v1/" /><span className="label-text-alt text-base-content/60">默认情况下无需修改；如果不通过 Nginx 转发，可以直接填写面板地址加 `/api/v1/`，例如 `https://panel.example.com/api/v1/`。</span></label>
                       </div>
                     </div>
 
@@ -513,15 +515,45 @@ const TemplateBuildPage = () => {
                         <label className="form-control"><span className="label-text">站点 Logo</span><input className="input input-bordered" value={bffForm.frontend.siteLogo} onChange={(e) => updateBffFrontend("siteLogo", e.target.value)} placeholder="请输入站点 Logo 地址，支持本地文件路径或 URL" /></label>
                         <label className="form-control"><span className="label-text">登录页背景</span><input className="input input-bordered" value={bffForm.frontend.authBackground} onChange={(e) => updateBffFrontend("authBackground", e.target.value)} placeholder="请输入登录页背景图片地址，支持本地文件路径或 URL" /></label>
                         <label className="form-control md:col-span-2"><span className="label-text">已绑定前端域名</span><textarea className="textarea textarea-bordered min-h-24 bg-base-200 text-base-content/60 cursor-not-allowed" value={frontendOrigins.length ? frontendOrigins.join("\n") : "请先前往首页绑定前端域名"} readOnly />{!frontendOrigins.length && <span className="text-warning text-xs">请先在首页绑定至少 1 个前端域名后再构建。</span>}</label>
+                        <label className="form-control md:col-span-2">
+                          <span className="label-text">管理中台访问路径</span>
+                          <div className="join w-full">
+                            <span className="join-item flex items-center rounded-l-btn border border-base-300 bg-base-200 px-3 text-sm text-base-content/70">
+                              {previewFrontendOrigin}
+                            </span>
+                            <input
+                              className="input input-bordered join-item w-full"
+                              value={bffForm.server.adminBasePath}
+                              onChange={(e) => updateBffServer("adminBasePath", e.target.value)}
+                              placeholder="请输入管理中台访问路径，如 /admin"
+                            />
+                          </div>
+                          <span className="label-text-alt text-base-content/60">上面先展示第一个已绑定前端域名作为示例；实际上所有已绑定前端域名都可以访问管理中台，访问方式相同。</span>
+                          {frontendOrigins.length > 0 && (
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {frontendOrigins.map((origin) => (
+                                <span key={origin} className="rounded-full bg-base-200 px-3 py-1 text-xs text-base-content/70">
+                                  {origin}
+                                  {adminBasePathPreview}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </label>
                       </div>
                     </div>
 
                   <div className="rounded-2xl border border-base-200 bg-base-200/40 p-6 shadow-sm space-y-6">
                     <h3 className="font-bold text-lg border-b border-base-200 pb-3">面板环境</h3>
-                    <div className="grid grid-cols-1 gap-3">
-                      <label className="form-control"><span className="label-text">面板地址</span><input className="input input-bordered" value={bffForm.server.panelBaseUrl} onChange={(e) => updateBffServer("panelBaseUrl", e.target.value)} placeholder="请输入面板地址，如 https://panel.example.com" /></label>
-                      <label className="form-control"><span className="label-text">管理中台路径</span><input className="input input-bordered" value={bffForm.server.adminBasePath} onChange={(e) => updateBffServer("adminBasePath", e.target.value)} placeholder="请输入管理中台路径，如 /admin" /><span className="label-text-alt text-base-content/60">管理中台路径，默认为/admin。</span></label>
-                    </div>
+                    <label className="form-control">
+                      <span className="label-text font-medium">面板地址</span>
+                      <input
+                        className="input input-bordered"
+                        value={bffForm.server.panelBaseUrl}
+                        onChange={(e) => updateBffServer("panelBaseUrl", e.target.value)}
+                        placeholder="请输入面板地址，如 https://panel.example.com"
+                      />
+                    </label>
                   </div>
                   </>
                 )}
