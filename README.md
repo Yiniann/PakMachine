@@ -65,6 +65,41 @@ Actions 里需要配置的 Secrets/Variables：
 
 默认 workflow 文件名为 `.github/workflows/build.yml`。如果后台“系统设置”里仍保存着旧值 `package.yml`，请改回 `build.yml`，否则 dispatch 会因为输入参数不匹配而返回 422。
 
+## 打包机自身的 CI/CD
+如果希望这个仓库本身在推送后自动部署，可以直接使用仓库内置的 GitHub Actions：
+
+- `CI`：每次 `push` / `pull_request` 执行 `npm ci` 和 `npm run build`
+- `Deploy`：当 `main` 分支上的 `CI` 成功后，自动 SSH 到服务器执行部署
+
+### 服务器前置条件
+- 服务器已安装 `git`、`docker`、`docker compose`
+- 服务器上已经把本仓库克隆到固定目录，例如 `/opt/pakmachine`
+- 部署用户对该目录有读写权限，并可直接执行 `docker compose`
+
+### 需要配置的 GitHub Secrets
+- `DEPLOY_HOST`：服务器地址
+- `DEPLOY_PORT`：SSH 端口，可选，不填默认 `22`
+- `DEPLOY_USER`：SSH 用户名
+- `DEPLOY_SSH_KEY`：用于登录服务器的私钥内容
+- `DEPLOY_PATH`：服务器上的项目目录，例如 `/opt/pakmachine`
+
+### 部署流程
+工作流会在服务器项目目录执行：
+```bash
+bash ./scripts/deploy.sh main
+```
+
+脚本内部会完成这些动作：
+```bash
+git fetch origin main
+git checkout main
+git pull --ff-only origin main
+docker compose up -d --build
+docker compose exec -T backend npx prisma migrate deploy
+```
+
+如果你想手动部署，也可以直接在服务器仓库根目录执行同一个脚本。
+
 ## 目录
 - `backend/` Express + Prisma 服务
 - `frontend/` React Vite 客户端
