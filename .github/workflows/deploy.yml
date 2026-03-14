@@ -93,6 +93,7 @@ jobs:
             --exclude "backend/config/" \
             --exclude "backend/.env" \
             --exclude ".env" \
+            --exclude ".user.ini" \
             --exclude ".DS_Store" \
             -e "ssh -p $DEPLOY_PORT" \
             ./ "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/"
