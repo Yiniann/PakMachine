@@ -12,7 +12,7 @@ const DeployGuideBffPage = () => {
       <div>
         <div className="breadcrumbs text-sm text-base-content/60">
           <ul>
-            <li><Link to="/app/downloads/deploy-guide">部署教程</Link></li>
+            <li><Link to="/app/deploy-guide">部署教程</Link></li>
             <li>Pro 版（BFF）</li>
           </ul>
         </div>

@@ -13,7 +13,7 @@ const DeployGuidePage = () => {
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <Link to="/app/downloads/deploy-guide/bff" className="rounded-2xl border border-secondary bg-secondary/5 p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md">
+        <Link to="/app/deploy-guide/bff" className="rounded-2xl border border-secondary bg-secondary/5 p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-sm text-base-content/60">经服务端中转</p>
@@ -26,7 +26,7 @@ const DeployGuidePage = () => {
           </div>
         </Link>
 
-        <Link to="/app/downloads/deploy-guide/spa" className="rounded-2xl border border-primary bg-primary/5 p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md">
+        <Link to="/app/deploy-guide/spa" className="rounded-2xl border border-primary bg-primary/5 p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md">
           <div>
             <p className="text-sm text-base-content/60">前端直连面板</p>
             <h3 className="text-xl font-bold">SPA 版（纯前端）</h3>

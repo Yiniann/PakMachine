@@ -12,7 +12,7 @@ const DeployGuideSpaPage = () => {
       <div>
         <div className="breadcrumbs text-sm text-base-content/60">
           <ul>
-            <li><Link to="/app/downloads/deploy-guide">部署教程</Link></li>
+            <li><Link to="/app/deploy-guide">部署教程</Link></li>
             <li>SPA 版（纯前端）</li>
           </ul>
         </div>

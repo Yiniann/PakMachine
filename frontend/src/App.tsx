@@ -46,9 +46,12 @@ const App = () => {
             <Route path="home" element={<Navigate to="/app" replace />} />
             <Route path="build" element={<TemplateBuildPage />} />
             <Route path="downloads" element={<DownloadPages />} />
-            <Route path="downloads/deploy-guide" element={<DeployGuidePage />} />
-            <Route path="downloads/deploy-guide/bff" element={<DeployGuideBffPage />} />
-            <Route path="downloads/deploy-guide/spa" element={<DeployGuideSpaPage />} />
+            <Route path="deploy-guide" element={<DeployGuidePage />} />
+            <Route path="deploy-guide/bff" element={<DeployGuideBffPage />} />
+            <Route path="deploy-guide/spa" element={<DeployGuideSpaPage />} />
+            <Route path="downloads/deploy-guide" element={<Navigate to="/app/deploy-guide" replace />} />
+            <Route path="downloads/deploy-guide/bff" element={<Navigate to="/app/deploy-guide/bff" replace />} />
+            <Route path="downloads/deploy-guide/spa" element={<Navigate to="/app/deploy-guide/spa" replace />} />
             <Route path="settings" element={<UserSettingsPage />} />
           </Route>
           <Route path="/admin" element={<AdminLayout />}>

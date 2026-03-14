@@ -47,7 +47,7 @@ const DownloadPages = () => {
             <h3 className="card-title text-lg">部署教程</h3>
             <p className="text-sm text-base-content/70">下载完成后，可按教程快速完成 SPA 或 BFF 部署。</p>
           </div>
-          <Link to="/app/downloads/deploy-guide" className="btn btn-outline">
+          <Link to="/app/deploy-guide" className="btn btn-outline">
             查看部署教程
           </Link>
         </div>
