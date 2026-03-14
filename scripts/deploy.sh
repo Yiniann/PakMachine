@@ -4,6 +4,7 @@ set -euo pipefail
 branch="${1:-main}"
 attempts="${DEPLOY_DB_RETRY_COUNT:-20}"
 sleep_seconds="${DEPLOY_DB_RETRY_INTERVAL:-5}"
+skip_git_sync="${DEPLOY_SKIP_GIT_SYNC:-0}"
 
 if ! command -v docker >/dev/null 2>&1; then
   echo "docker is required on the deployment host" >&2
@@ -15,15 +16,19 @@ if ! docker compose version >/dev/null 2>&1; then
   exit 1
 fi
 
-if [ ! -d .git ]; then
+if [ "${skip_git_sync}" != "1" ] && [ ! -d .git ]; then
   echo "deploy.sh must run from the repository root on the server" >&2
   exit 1
 fi
 
-echo "[deploy] syncing branch ${branch}"
-git fetch origin "${branch}"
-git checkout "${branch}"
-git pull --ff-only origin "${branch}"
+if [ "${skip_git_sync}" = "1" ]; then
+  echo "[deploy] skipping git sync and using uploaded workspace"
+else
+  echo "[deploy] syncing branch ${branch}"
+  git fetch origin "${branch}"
+  git checkout "${branch}"
+  git pull --ff-only origin "${branch}"
+fi
 
 echo "[deploy] rebuilding services"
 docker compose up -d --build

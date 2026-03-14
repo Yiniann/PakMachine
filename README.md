@@ -69,18 +69,18 @@ Actions 里需要配置的 Secrets/Variables：
 如果希望这个仓库本身在推送后自动部署，可以直接使用仓库内置的 GitHub Actions：
 
 - `CI`：每次 `push` / `pull_request` 执行 `npm ci` 和 `npm run build`
-- `Deploy`：当 `main` 分支上的 `CI` 成功后，自动 SSH 到服务器执行部署
+- `Deploy`：当 `main` 分支上的 `CI` 成功后，自动通过 SSH 同步代码到服务器并执行部署
 
 ### 服务器前置条件
-- 服务器已安装 `git`、`docker`、`docker compose`
-- 服务器上已经把本仓库克隆到固定目录，例如 `/opt/pakmachine`
-- 部署用户对该目录有读写权限，并可直接执行 `docker compose`
+- 服务器已安装 `docker`、`docker compose`
+- 部署用户对目标目录有读写权限，并可直接执行 `docker compose`
+- 目标目录建议固定，例如 `/opt/pakmachine`
 
 ### 需要配置的 GitHub Secrets
 - `DEPLOY_HOST`：服务器地址
 - `DEPLOY_PORT`：SSH 端口，可选，不填默认 `22`
 - `DEPLOY_USER`：SSH 用户名
-- `DEPLOY_SSH_KEY`：用于登录服务器的私钥内容
+- `DEPLOY_SSH_KEY`：GitHub Actions 用于登录服务器的私钥内容
 - `DEPLOY_PATH`：服务器上的项目目录，例如 `/opt/pakmachine`
 
 ### 部署流程
@@ -89,16 +89,13 @@ Actions 里需要配置的 Secrets/Variables：
 bash ./scripts/deploy.sh main
 ```
 
-脚本内部会完成这些动作：
+GitHub Actions 会先把当前仓库同步到服务器目录，再执行脚本。脚本内部会完成这些动作：
 ```bash
-git fetch origin main
-git checkout main
-git pull --ff-only origin main
 docker compose up -d --build
 docker compose exec -T backend npx prisma migrate deploy
 ```
 
-如果你想手动部署，也可以直接在服务器仓库根目录执行同一个脚本。
+如果你想手动部署，并且服务器目录本身就是 git 仓库，也可以直接在服务器执行同一个脚本；默认会先 `git pull`，只有 GitHub Actions 触发时才会跳过这一步。
 
 ## 目录
 - `backend/` Express + Prisma 服务
