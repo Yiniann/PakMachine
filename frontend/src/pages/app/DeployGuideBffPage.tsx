@@ -119,10 +119,16 @@ const DeployGuideBffPage = () => {
                       <h5 className="font-semibold">1. 启动容器</h5>
                       <p>进入部署目录后，先执行启动命令：</p>
                       <CodeBlock code={`cd /www/wwwroot/你的部署目录\ndocker compose up -d --build`} />
-                      <p>默认对外端口一般为 `8081`。如果你要改成 80 或其它端口，可以在启动前设置：</p>
-                      <CodeBlock code={`export SHUTTLE_HTTP_PORT=80\ndocker compose up -d --build`} />
-                      <p>如果后续需要停止或重建容器，再执行：</p>
-                      <CodeBlock code={`docker compose down`} />
+                      <div className="collapse collapse-arrow rounded-xl border border-base-200 bg-base-100">
+                        <input type="checkbox" />
+                        <div className="collapse-title py-3 text-sm font-medium">
+                          可选：自定义对外端口
+                        </div>
+                        <div className="collapse-content space-y-3 text-sm text-base-content/80">
+                          <p>默认对外端口一般为 `8081`。如果你要改成 `80` 或其它端口，可以在启动前设置：</p>
+                          <CodeBlock code={`export SHUTTLE_HTTP_PORT=80\ndocker compose up -d --build`} />
+                        </div>
+                      </div>
                       <ul className="list-disc space-y-1 pl-5">
                         <li>`gateway`：统一入口，负责转发 `/`、`/api/*`、`/_next/*` 和管理台路径。</li>
                         <li>`frontend`：提供静态前端资源。</li>
@@ -130,21 +136,36 @@ const DeployGuideBffPage = () => {
                       </ul>
                     </div>
                     <div className="space-y-3">
-                      <h5 className="font-semibold">2. 配置宝塔站点反代</h5>
-                      <p>接下来到这个站点的宝塔配置文件里补一段反代，让这个正式域名的所有请求统一转发到 Docker 暴露出来的 `gateway` 端口，例如 `127.0.0.1:8081`。</p>
+                      <h5 className="font-semibold">2. 配置宝塔站点 Nginx</h5>
+                      <p>接下来到这个站点的 Nginx 配置文件里按下面顺序调整：先删除默认缓存规则，再补把正式域名请求统一转发到 Docker `gateway` 的配置。</p>
                       <div className="rounded-xl border border-base-200 p-4">
                         <p className="font-semibold">宝塔配置入口</p>
                         <ol className="mt-2 list-decimal space-y-2 pl-5 text-sm text-base-content/80">
                           <li>进入宝塔面板。</li>
                           <li>打开“网站”。</li>
                           <li>找到前端域名对应的站点，点击“设置”。</li>
-                          <li>进入“配置”页签。</li>
+                          <li>进入“配置文件”页签。</li>
                           <li>在站点现有配置里找到原本的 `location /` 段，直接替换成下面这段；如果没有 `location /`，就把这段加到 `server` 块内部。</li>
                         </ol>
                       </div>
-                      <CodeBlock
-                        code={`location / {\n    proxy_pass http://127.0.0.1:8081;\n    proxy_http_version 1.1;\n    proxy_set_header Host $host;\n    proxy_set_header X-Real-IP $remote_addr;\n    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n    proxy_set_header X-Forwarded-Proto $scheme;\n}`}
-                      />
+                      <div className="rounded-xl border border-warning/30 bg-warning/5 p-4">
+                        <p className="font-semibold">先删除这两段默认缓存规则</p>
+                        <p className="mt-2 text-sm text-base-content/80">如果站点当前配置里已经带了下面这两段按文件后缀缓存的 `location`，先删掉，避免静态资源请求被 Nginx 提前拦截，不走 `gateway`。</p>
+                        <div className="mt-3">
+                          <CodeBlock
+                            code={`location ~ .*\\.(gif|jpg|jpeg|png|bmp|swf)$\n{\n    expires 30d;\n    error_log /dev/null;\n    access_log /dev/null;\n}\n\nlocation ~ .*\\.(js|css)?$\n{\n    expires 12h;\n    error_log /dev/null;\n    access_log /dev/null; \n}`}
+                          />
+                        </div>
+                      </div>
+                      <div className="rounded-xl border border-base-200 p-4">
+                        <p className="font-semibold">再补下面这段 Nginx 配置</p>
+                        <p className="mt-2 text-sm text-base-content/80">删除完成后，再把域名请求统一转发到 Docker 暴露出来的 `gateway` 端口，例如转发到默认端口为 8081（取决于你docker compose启动时设置的端口号）。</p>
+                        <div className="mt-3">
+                          <CodeBlock
+                            code={`location / {\n    proxy_pass http://127.0.0.1:8081;\n    proxy_http_version 1.1;\n    proxy_set_header Host $host;\n    proxy_set_header X-Real-IP $remote_addr;\n    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n    proxy_set_header X-Forwarded-Proto $scheme;\n}`}
+                          />
+                        </div>
+                      </div>
                       <p>路径分发由容器里的 `gateway` 继续处理，你不需要在宝塔站点的 Nginx 配置里再单独拆 `/api`、`/admin`、`/_next`，也不用去改宝塔自动生成的 `server`、SSL 等外层配置。</p>
                     </div>
                   </div>
@@ -165,8 +186,8 @@ const DeployGuideBffPage = () => {
                       <CodeBlock code={`export PORT=3000\nexport BFF_HOSTNAME=0.0.0.0`} />
                     </div>
                     <div className="space-y-3">
-                      <h5 className="font-semibold">2. 配置宝塔站点反代</h5>
-                      <p>接下来在宝塔站点的配置文件里补前端静态目录和 BFF 路由分发规则。</p>
+                      <h5 className="font-semibold">2. 配置宝塔站点 Nginx</h5>
+                      <p>接下来在宝塔站点的 Nginx 配置文件里按下面顺序调整：先删除默认缓存规则，再补前端静态目录和 BFF 路由分发规则。</p>
                       <div className="rounded-xl border border-base-200 p-4">
                         <p className="font-semibold">宝塔配置入口</p>
                         <ol className="mt-2 list-decimal space-y-2 pl-5 text-sm text-base-content/80">
@@ -177,9 +198,15 @@ const DeployGuideBffPage = () => {
                           <li>在站点当前的 `server` 块里，按下面示例调整 `root` 和各个 `location`；如果已有旧的 `location /`，通常需要一起替换，避免冲突。</li>
                         </ol>
                       </div>
-                      <CodeBlock
-                        code={`root /www/wwwroot/你的部署目录/frontend/dist;\nindex index.html;\n\nlocation = /admin {\n    proxy_pass http://127.0.0.1:3000/admin;\n    proxy_http_version 1.1;\n    proxy_set_header Host $host;\n    proxy_set_header X-Real-IP $remote_addr;\n    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n    proxy_set_header X-Forwarded-Proto $scheme;\n}\n\nlocation ^~ /admin/ {\n    proxy_pass http://127.0.0.1:3000/admin/;\n    proxy_http_version 1.1;\n    proxy_set_header Host $host;\n    proxy_set_header X-Real-IP $remote_addr;\n    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n    proxy_set_header X-Forwarded-Proto $scheme;\n}\n\nlocation ^~ /api/ {\n    proxy_pass http://127.0.0.1:3000/api/;\n    proxy_http_version 1.1;\n    proxy_set_header Host $host;\n    proxy_set_header X-Real-IP $remote_addr;\n    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n    proxy_set_header X-Forwarded-Proto $scheme;\n}\n\nlocation ^~ /_next/ {\n    proxy_pass http://127.0.0.1:3000/_next/;\n    proxy_http_version 1.1;\n    proxy_set_header Host $host;\n    proxy_set_header X-Real-IP $remote_addr;\n    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n    proxy_set_header X-Forwarded-Proto $scheme;\n}\n\nlocation / {\n    try_files $uri $uri/ /index.html;\n}`}
-                      />
+                      <div className="rounded-xl border border-base-200 p-4">
+                        <p className="font-semibold">补下面这段 Nginx 配置</p>
+                        <p className="mt-2 text-sm text-base-content/80">把前端静态目录和 BFF 路由规则补进当前站点的 `server` 块里。</p>
+                        <div className="mt-3">
+                          <CodeBlock
+                            code={`root /www/wwwroot/你的部署目录/frontend/dist;\nindex index.html;\n\nlocation = /admin {\n    proxy_pass http://127.0.0.1:3000/admin;\n    proxy_http_version 1.1;\n    proxy_set_header Host $host;\n    proxy_set_header X-Real-IP $remote_addr;\n    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n    proxy_set_header X-Forwarded-Proto $scheme;\n}\n\nlocation ^~ /admin/ {\n    proxy_pass http://127.0.0.1:3000/admin/;\n    proxy_http_version 1.1;\n    proxy_set_header Host $host;\n    proxy_set_header X-Real-IP $remote_addr;\n    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n    proxy_set_header X-Forwarded-Proto $scheme;\n}\n\nlocation ^~ /api/ {\n    proxy_pass http://127.0.0.1:3000/api/;\n    proxy_http_version 1.1;\n    proxy_set_header Host $host;\n    proxy_set_header X-Real-IP $remote_addr;\n    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n    proxy_set_header X-Forwarded-Proto $scheme;\n}\n\nlocation ^~ /_next/ {\n    proxy_pass http://127.0.0.1:3000/_next/;\n    proxy_http_version 1.1;\n    proxy_set_header Host $host;\n    proxy_set_header X-Real-IP $remote_addr;\n    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n    proxy_set_header X-Forwarded-Proto $scheme;\n}\n\nlocation / {\n    try_files $uri $uri/ /index.html;\n}`}
+                          />
+                        </div>
+                      </div>
                       <p>如果你自定义了 `ADMIN_BASE_PATH`，记得把示例里的 `/admin` 全部替换成你的实际路径。</p>
                     </div>
                   </div>
