@@ -18,6 +18,7 @@ import DownloadPages from "./pages/app/DownloadPages";
 import DeployGuidePage from "./pages/app/DeployGuidePage";
 import DeployGuideBffPage from "./pages/app/DeployGuideBffPage";
 import DeployGuideSpaPage from "./pages/app/DeployGuideSpaPage";
+import DeployGuidePrinciplePage from "./pages/app/DeployGuidePrinciplePage";
 import UserSettingsPage from "./pages/app/UserSettingsPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import InitGate from "./components/InitGate";
@@ -49,6 +50,7 @@ const App = () => {
             <Route path="deploy-guide" element={<DeployGuidePage />} />
             <Route path="deploy-guide/bff" element={<DeployGuideBffPage />} />
             <Route path="deploy-guide/spa" element={<DeployGuideSpaPage />} />
+            <Route path="deploy-guide/principle" element={<DeployGuidePrinciplePage />} />
             <Route path="downloads/deploy-guide" element={<Navigate to="/app/deploy-guide" replace />} />
             <Route path="downloads/deploy-guide/bff" element={<Navigate to="/app/deploy-guide/bff" replace />} />
             <Route path="downloads/deploy-guide/spa" element={<Navigate to="/app/deploy-guide/spa" replace />} />

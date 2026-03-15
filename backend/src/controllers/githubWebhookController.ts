@@ -14,6 +14,8 @@ type GithubWebhookPayload = {
   githubRunId?: number | string;
 };
 
+const artifactSuffixes = [".tar.gz", ".tgz", ".zip"];
+
 const formatArtifactTimestamp = (date: Date) => {
   const formatter = new Intl.DateTimeFormat("en-US", {
     timeZone: "Asia/Shanghai",
@@ -35,7 +37,9 @@ const formatArtifactTimestamp = (date: Date) => {
 };
 
 const buildArtifactFilename = (siteName: string | null | undefined, baseName: string | undefined, createdAt?: Date) => {
-  const ext = path.extname(baseName || "") || ".zip";
+  const normalizedBaseName = baseName || "";
+  const lowerBaseName = normalizedBaseName.toLowerCase();
+  const ext = artifactSuffixes.find((suffix) => lowerBaseName.endsWith(suffix)) || path.extname(normalizedBaseName) || ".zip";
   const safeSiteName = (siteName || "site").trim().replace(/[\\/:*?"<>|\u0000-\u001F]+/g, "_") || "site";
   const stamp = formatArtifactTimestamp(createdAt ?? new Date());
   return `${safeSiteName}-${stamp}${ext}`;
