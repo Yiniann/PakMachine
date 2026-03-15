@@ -1,8 +1,8 @@
 import { Request, Response, NextFunction } from "express";
-import path from "path";
 import prisma from "../lib/prisma";
 import { deleteGithubRunArtifacts, verifyGithubWebhook } from "../services/githubWorkflowService";
 import { normalizeArtifactUrl } from "../lib/artifactUrl";
+import { detectArtifactExtension } from "../lib/artifactFilename";
 import { getTemplateEntry } from "../services/uploadService";
 
 type GithubWebhookPayload = {
@@ -13,8 +13,6 @@ type GithubWebhookPayload = {
   artifactFilename?: string;
   githubRunId?: number | string;
 };
-
-const artifactSuffixes = [".tar.gz", ".tgz", ".zip"];
 
 const formatArtifactTimestamp = (date: Date) => {
   const formatter = new Intl.DateTimeFormat("en-US", {
@@ -37,9 +35,7 @@ const formatArtifactTimestamp = (date: Date) => {
 };
 
 const buildArtifactFilename = (siteName: string | null | undefined, baseName: string | undefined, createdAt?: Date) => {
-  const normalizedBaseName = baseName || "";
-  const lowerBaseName = normalizedBaseName.toLowerCase();
-  const ext = artifactSuffixes.find((suffix) => lowerBaseName.endsWith(suffix)) || path.extname(normalizedBaseName) || ".zip";
+  const ext = detectArtifactExtension(baseName) || ".zip";
   const safeSiteName = (siteName || "site").trim().replace(/[\\/:*?"<>|\u0000-\u001F]+/g, "_") || "site";
   const stamp = formatArtifactTimestamp(createdAt ?? new Date());
   return `${safeSiteName}-${stamp}${ext}`;

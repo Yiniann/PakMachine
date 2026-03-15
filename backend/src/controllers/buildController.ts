@@ -13,6 +13,7 @@ import path from "path";
 import { Readable } from "stream";
 import { URL } from "url";
 import { normalizeArtifactUrl } from "../lib/artifactUrl";
+import { resolveArtifactFilename } from "../lib/artifactFilename";
 
 const ADMIN_BUILD_JOBS_LIMIT = 200;
 const ALLOWED_ENV_KEYS = new Set([
@@ -478,7 +479,7 @@ export const downloadBuildArtifact = async (req: Request, res: Response, next: N
         return res.status(404).json({ error: "远程文件不可用" });
       }
 
-      let filename = artifact.sourceFilename;
+      let filename = resolveArtifactFilename(artifact.sourceFilename, artifact.outputPath);
       if (!filename) {
         try {
           const u = new URL(remoteUrl);
@@ -548,7 +549,7 @@ export const listUserArtifacts = async (req: Request, res: Response, next: NextF
     });
     const data = artifacts.map((a: BuildArtifact) => ({
       id: a.id,
-      sourceFilename: a.sourceFilename,
+      sourceFilename: resolveArtifactFilename(a.sourceFilename, a.outputPath),
       createdAt: a.createdAt,
     }));
     res.json(data);
