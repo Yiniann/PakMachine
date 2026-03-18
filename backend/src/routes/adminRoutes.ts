@@ -19,6 +19,7 @@ import {
   listGithubTemplateEntries,
   removeGithubTemplateEntry,
 } from "../controllers/buildController";
+import { addAdminTicketMessage, getAdminTicket, listAdminTickets, updateAdminTicket } from "../controllers/ticketController";
 import { authenticate, requireAdmin } from "../middleware/auth";
 import { UploadError } from "../services/uploadService";
 
@@ -39,6 +40,10 @@ router.get("/stats", getAdminStats);
 router.get("/build-jobs", listAllBuildJobs);
 router.get("/settings", getSystemSettings);
 router.put("/settings", updateSystemSettings);
+router.get("/tickets", listAdminTickets);
+router.get("/tickets/:id", getAdminTicket);
+router.post("/tickets/:id/messages", addAdminTicketMessage);
+router.patch("/tickets/:id", updateAdminTicket);
 router.get("/github-templates", listGithubTemplateEntries);
 router.post("/github-templates", createGithubTemplateEntry);
 router.delete("/github-templates/:name", removeGithubTemplateEntry);

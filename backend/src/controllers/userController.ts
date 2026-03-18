@@ -102,6 +102,7 @@ export const adminDeleteUser = async (req: Request, res: Response, next: NextFun
         await tx.buildJob.deleteMany({ where: { userId: id } });
         await tx.buildProfile.deleteMany({ where: { userId: id } });
         await tx.buildArtifact.deleteMany({ where: { userId: id } });
+        await tx.supportTicket.deleteMany({ where: { userId: id } });
         await tx.user.delete({ where: { id } });
       },
       {
