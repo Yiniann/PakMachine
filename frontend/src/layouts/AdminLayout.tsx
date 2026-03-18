@@ -7,6 +7,7 @@ const navLinks = [
   { to: "/admin/users", label: "用户管理" },
   { to: "/admin/templates", label: "模板管理" },
   { to: "/admin/builds", label: "构建记录" },
+  { to: "/admin/tickets", label: "工单处理" },
   { to: "/admin/settings", label: "系统设置" },
 ];
 
@@ -67,7 +68,18 @@ const AdminLayout = () => {
           </li>
           {navLinks.map((link) => (
             <li key={link.to}>
-              <Link className={pathname === link.to ? "active" : ""} to={link.to}>
+              <Link
+                className={
+                  link.to === "/admin"
+                    ? pathname === link.to
+                      ? "active"
+                      : ""
+                    : pathname === link.to || pathname.startsWith(`${link.to}/`)
+                      ? "active"
+                      : ""
+                }
+                to={link.to}
+              >
                 {link.label}
               </Link>
             </li>

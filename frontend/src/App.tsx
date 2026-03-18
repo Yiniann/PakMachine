@@ -20,9 +20,13 @@ import DeployGuideBffPage from "./pages/app/DeployGuideBffPage";
 import DeployGuideSpaPage from "./pages/app/DeployGuideSpaPage";
 import DeployGuidePrinciplePage from "./pages/app/DeployGuidePrinciplePage";
 import UserSettingsPage from "./pages/app/UserSettingsPage";
+import TicketSupportPage from "./pages/app/TicketSupportPage";
+import TicketDetailPage from "./pages/app/TicketDetailPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import InitGate from "./components/InitGate";
 import InitPage from "./pages/InitPage";
+import AdminTicketsPage from "./pages/admin/TicketsPage";
+import AdminTicketDetailPage from "./pages/admin/TicketDetailPage";
 
 const App = () => {
   return (
@@ -55,6 +59,8 @@ const App = () => {
             <Route path="downloads/deploy-guide/bff" element={<Navigate to="/app/deploy-guide/bff" replace />} />
             <Route path="downloads/deploy-guide/spa" element={<Navigate to="/app/deploy-guide/spa" replace />} />
             <Route path="settings" element={<UserSettingsPage />} />
+            <Route path="tickets" element={<TicketSupportPage />} />
+            <Route path="tickets/:id" element={<TicketDetailPage />} />
           </Route>
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<AdminHomePage />} />
@@ -62,6 +68,8 @@ const App = () => {
             <Route path="templates" element={<TemplateManagePage />} />
             <Route path="settings" element={<SystemSettingsPage />} />
             <Route path="builds" element={<BuildRecordsPage />} />
+            <Route path="tickets" element={<AdminTicketsPage />} />
+            <Route path="tickets/:id" element={<AdminTicketDetailPage />} />
           </Route>
         </Route>
 

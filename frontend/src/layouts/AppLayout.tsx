@@ -7,6 +7,7 @@ const navLinks = [
   { to: "/app/build", label: "前端构建" },
   { to: "/app/downloads", label: "构建下载" },
   { to: "/app/deploy-guide", label: "部署教程" },
+  { to: "/app/tickets", label: "工单支持" },
   { to: "/app/settings", label: "用户设置" },
 ];
 
