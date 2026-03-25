@@ -13,6 +13,7 @@ type LegacyForm = {
   enableLanding: boolean;
   enableTicket: boolean;
   siteLogo: string;
+  landingHeroImage: string;
   authBackground: string;
   enableIdhub: boolean;
   idhubApiUrl: string;
@@ -66,6 +67,7 @@ const createLegacyForm = (): LegacyForm => ({
   enableLanding: true,
   enableTicket: true,
   siteLogo: "",
+  landingHeroImage: "/landingbg.png",
   authBackground: "",
   enableIdhub: false,
   idhubApiUrl: "/idhub-api/",
@@ -110,6 +112,7 @@ const normalizeLegacyForm = (input: unknown): LegacyForm => {
     enableLanding: normalizeFlag(getVal("enableLanding", "VITE_ENABLE_LANDING", true), true),
     enableTicket: normalizeFlag(getVal("enableTicket", "VITE_ENABLE_TICKET", true), true),
     siteLogo: normalizeString(getVal("siteLogo", "VITE_SITE_LOGO", "")),
+    landingHeroImage: normalizeString(getVal("landingHeroImage", "VITE_LANDING_HERO_IMAGE", "/landingbg.png"), "/landingbg.png"),
     authBackground: normalizeString(getVal("authBackground", "VITE_AUTH_BACKGROUND", "")),
     enableIdhub: normalizeFlag(getVal("enableIdhub", "VITE_ENABLE_IDHUB", false), false),
     idhubApiUrl: normalizeString(getVal("idhubApiUrl", "VITE_IDHUB_API_URL", "/idhub-api/"), "/idhub-api/"),
@@ -169,6 +172,7 @@ const buildLegacyEnvContent = (siteName: string, frontendOriginsValue: string, f
     `VITE_ENABLE_LANDING=${form.enableLanding ? "true" : "false"}`,
     `VITE_ENABLE_TICKET=${form.enableTicket ? "true" : "false"}`,
     `VITE_SITE_LOGO=${normalizeEnvValue(form.siteLogo)}`,
+    `VITE_LANDING_HERO_IMAGE=${normalizeEnvValue(form.landingHeroImage) || "/landingbg.png"}`,
     `VITE_AUTH_BACKGROUND=${normalizeEnvValue(form.authBackground)}`,
     `VITE_ENABLE_IDHUB=${form.enableIdhub ? "true" : "false"}`,
     `VITE_PROD_API_URL=${normalizeEnvValue(form.prodApiUrl) || "/api/v1/"}`,
@@ -238,6 +242,7 @@ const TemplateBuildPage = () => {
     () => [
       siteName,
       legacyForm.siteLogo,
+      legacyForm.landingHeroImage,
       legacyForm.authBackground,
       legacyForm.idhubApiUrl,
       legacyForm.idhubApiKey,
@@ -486,6 +491,7 @@ const TemplateBuildPage = () => {
                         <label className="form-control"><span className="label-text">着陆页</span><input type="checkbox" className="toggle" checked={legacyForm.enableLanding} onChange={(e) => updateLegacy("enableLanding", e.target.checked)} /></label>
                         <label className="form-control"><span className="label-text">工单</span><input type="checkbox" className="toggle" checked={legacyForm.enableTicket} onChange={(e) => updateLegacy("enableTicket", e.target.checked)} /></label>
                         <label className="form-control"><span className="label-text">站点 Logo</span><input className="input input-bordered" value={legacyForm.siteLogo} onChange={(e) => updateLegacy("siteLogo", e.target.value)} placeholder="请输入站点 Logo 地址，支持本地文件路径或 URL" /></label>
+                        <label className="form-control"><span className="label-text">着陆页右侧主图</span><input className="input input-bordered" value={legacyForm.landingHeroImage} onChange={(e) => updateLegacy("landingHeroImage", e.target.value)} placeholder="请输入着陆页主图地址，默认 /landingbg.png，展示在站点 Logo 右侧" /></label>
                         <label className="form-control"><span className="label-text">登录页背景</span><input className="input input-bordered" value={legacyForm.authBackground} onChange={(e) => updateLegacy("authBackground", e.target.value)} placeholder="请输入登录页背景图片地址，支持本地文件路径或 URL" /></label>
                         <label className="form-control md:col-span-2"><span className="label-text">已绑定前端域名</span><textarea className="textarea textarea-bordered min-h-24 bg-base-200 text-base-content/60 cursor-not-allowed" value={frontendOrigins.length ? frontendOrigins.join("\n") : "请先前往首页绑定前端域名"} readOnly />{!frontendOrigins.length && <span className="text-warning text-xs">请先在首页绑定至少 1 个前端域名后再构建。</span>}</label>
                         <label className="form-control md:col-span-2"><span className="label-text">面板 API 地址</span><input className="input input-bordered" value={legacyForm.prodApiUrl} onChange={(e) => updateLegacy("prodApiUrl", e.target.value)} placeholder="请输入后端 API 地址，如 https://api.example.com/api/v1/" /><span className="label-text-alt text-base-content/60">默认情况下无需修改；如果不通过 Nginx 转发，可以直接填写面板地址加 `/api/v1/`，例如 `https://panel.example.com/api/v1/`。</span></label>

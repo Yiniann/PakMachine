@@ -45,6 +45,10 @@ const DeployGuideSpaPage = () => {
                         <td>支持 URL 和本地图片，本地图片放到产物的 `dist` 下即可。</td>
                       </tr>
                       <tr>
+                        <td className="font-medium">`着陆页右侧主图`</td>
+                        <td>对应环境变量 `VITE_LANDING_HERO_IMAGE`，默认值是 `/landingbg.png`，会展示在站点 Logo 右侧；支持 URL 和本地图片，本地图片同样放到产物的 `dist` 下即可。</td>
+                      </tr>
+                      <tr>
                         <td className="font-medium">`面板类型`</td>
                         <td>按你的实际面板类型选择。</td>
                       </tr>
