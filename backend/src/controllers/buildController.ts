@@ -54,6 +54,7 @@ const RUNTIME_TOP_LEVEL_KEYS = new Set([
   "downloadEnabled",
   "ticketTodoEnabled",
   "vantaEnabled",
+  "authBackground",
   "thirdPartySupportEnabled",
   "supportScript",
   "appleAutoProShareEnabled",
@@ -129,6 +130,18 @@ const normalizeUrl = (value: unknown, field: string, required = false) => {
   return trimmed;
 };
 
+const normalizeUrlOrPath = (value: unknown, field: string) => {
+  if (value === undefined || value === null) return "";
+  if (typeof value !== "string") {
+    throw new Error(`${field} 必须为字符串`);
+  }
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (trimmed.startsWith("/") && !trimmed.startsWith("//")) return trimmed;
+  throw new Error(`${field} 必须以 http://、https:// 或 / 开头`);
+};
+
 const validateServerEnvContent = (content?: string | null) => {
   const normalizedContent = (content || "").trim();
   if (!normalizedContent) return null;
@@ -202,17 +215,18 @@ const sanitizeRuntimeSettings = (input: unknown) => {
     downloadEnabled: normalizeRuntimeBoolean(source.downloadEnabled, "runtimeSettings.downloadEnabled", false),
     ticketTodoEnabled: normalizeRuntimeBoolean(source.ticketTodoEnabled, "runtimeSettings.ticketTodoEnabled", true),
     vantaEnabled: normalizeRuntimeBoolean(source.vantaEnabled, "runtimeSettings.vantaEnabled", true),
+    authBackground: normalizeUrlOrPath(source.authBackground, "runtimeSettings.authBackground"),
     thirdPartySupportEnabled,
     supportScript,
     appleAutoProShareEnabled,
     appleAutoProApiBaseUrl: normalizeUrl(source.appleAutoProApiBaseUrl, "runtimeSettings.appleAutoProApiBaseUrl", appleAutoProShareEnabled),
     appleAutoProApiKey,
     downloadLinks: {
-      ios: normalizeUrl(downloadLinksSource.ios, "runtimeSettings.downloadLinks.ios"),
-      android: normalizeUrl(downloadLinksSource.android, "runtimeSettings.downloadLinks.android"),
-      windows: normalizeUrl(downloadLinksSource.windows, "runtimeSettings.downloadLinks.windows"),
-      macos: normalizeUrl(downloadLinksSource.macos, "runtimeSettings.downloadLinks.macos"),
-      harmony: normalizeUrl(downloadLinksSource.harmony, "runtimeSettings.downloadLinks.harmony"),
+      ios: normalizeUrlOrPath(downloadLinksSource.ios, "runtimeSettings.downloadLinks.ios"),
+      android: normalizeUrlOrPath(downloadLinksSource.android, "runtimeSettings.downloadLinks.android"),
+      windows: normalizeUrlOrPath(downloadLinksSource.windows, "runtimeSettings.downloadLinks.windows"),
+      macos: normalizeUrlOrPath(downloadLinksSource.macos, "runtimeSettings.downloadLinks.macos"),
+      harmony: normalizeUrlOrPath(downloadLinksSource.harmony, "runtimeSettings.downloadLinks.harmony"),
     },
   };
 };

@@ -41,24 +41,12 @@ const DeployGuideSpaPage = () => {
                         <td>主题前端的站点名，网站标题和品牌名，通常用于页面标题和导航栏显示。在主页设置后自动获取。</td>
                       </tr>
                       <tr>
-                        <td className="font-medium">`站点 Logo`、`登录页背景`</td>
-                        <td>支持 URL 和本地图片，本地图片放到产物的 `dist` 下即可。</td>
-                      </tr>
-                      <tr>
-                        <td className="font-medium">`着陆页右侧主图`</td>
-                        <td>对应环境变量 `VITE_LANDING_HERO_IMAGE`，默认值是 `/landingbg.png`，会展示在站点 Logo 右侧；支持 URL 和本地图片，本地图片同样放到产物的 `dist` 下即可。</td>
+                        <td className="font-medium">`站点 Logo`</td>
+                        <td>这是 SPA 构建时保留的前端环境变量之一，支持 URL 和本地图片，本地图片放到产物的 `dist` 下即可。</td>
                       </tr>
                       <tr>
                         <td className="font-medium">`面板类型`</td>
-                        <td>按你的实际面板类型选择。</td>
-                      </tr>
-                      <tr>
-                        <td className="font-medium">`着陆页`</td>
-                        <td>控制前端是否展示首页着陆页入口。需要展示品牌首页时开启，不需要时可关闭。</td>
-                      </tr>
-                      <tr>
-                        <td className="font-medium">`工单`</td>
-                        <td>控制前端是否展示工单相关入口和按钮。如果你的面板支持工单功能并希望用户可见，就保持开启。</td>
+                        <td>按你的实际面板类型选择，对应 SPA 构建时的 `VITE_BACKEND_TYPE`。</td>
                       </tr>
                       <tr>
                         <td className="font-medium">`后端 API 地址`</td>
@@ -66,24 +54,28 @@ const DeployGuideSpaPage = () => {
                       </tr>
                       <tr>
                         <td className="font-medium">`已绑定前端域名`</td>
-                        <td>在主页设置后自动获取，要和你最终部署的前端域名保持一致。</td>
+                        <td>在主页设置后自动获取，要和你最终部署的前端域名保持一致。SPA 构建会把它写到 `VITE_ALLOWED_CLIENT_ORIGINS`。</td>
                       </tr>
                       <tr>
-                        <td className="font-medium">`三方客服`</td>
-                        <td>如果你要在前端接入客服脚本，就在构建时开启，并把脚本内容一并填好。</td>
+                        <td className="font-medium">`登录页背景`</td>
+                        <td>这类运行时配置不再写进前端 env，而是写进产物里的 `runtime-config.json`。</td>
                       </tr>
                       <tr>
                         <td className="font-medium">`下载卡片`</td>
-                        <td>如果要在站点里展示 iOS、Android、Windows、macOS、鸿蒙等下载入口，就在构建时开启并填好对应下载地址。</td>
+                        <td>下载开关和各平台下载地址会写入 `runtime-config.json`，不再通过 `VITE_DOWNLOAD_*` 注入。</td>
+                      </tr>
+                      <tr>
+                        <td className="font-medium">`三方客服`</td>
+                        <td>客服开关和脚本内容会写入 `runtime-config.json`，前端运行时再读取。</td>
                       </tr>
                       <tr>
                         <td className="font-medium">`AppleAutoPro`</td>
-                        <td>分享页功能，在构建时把 API 地址和 API Key 一起填好；如果不用这个能力，就保持关闭。</td>
+                        <td>相关开关、API 地址和 API Key 也会写入 `runtime-config.json`，不再通过前端 env 注入。</td>
                       </tr>
                     </tbody>
                   </table>
                 </div>
-                <p>点击 开始构建 获取构建产物。SPA 版会把这些内容直接写进前端产物，所以后面部署时如果域名或接口地址变了，通常需要重新构建。</p>
+                <p>点击 开始构建 获取构建产物。SPA 版现在会把最小前端 env 写入构建结果，同时把登录背景、下载卡片、三方客服、AppleAutoPro 写进 `runtime-config.json`。如果域名、接口地址、品牌 env 发生变化，通常仍需要重新构建。</p>
               </div>
             </div>
           </section>
@@ -92,10 +84,11 @@ const DeployGuideSpaPage = () => {
             <div className="card-body space-y-4">
               <h3 className="card-title text-xl">2. 先确认拿到的是 SPA 产物</h3>
               <div className="space-y-3 text-sm text-base-content/80">
-                <p>SPA 版下载包解压后，通常主要就是一个前端静态目录，核心是 `dist/`。</p>
-                <CodeBlock code={`打包产物（通常为站点名+时间）/\n  dist/`} />
+                <p>SPA 版下载包解压后，通常主要就是一个前端静态目录，核心是 `dist/`。其中运行时配置文件会一起放在 `dist` 下。</p>
+                <CodeBlock code={`打包产物（通常为站点名+时间）/\n  dist/\n    runtime-config.json`} />
                 <ul className="list-disc space-y-1 pl-5">
                   <li>`dist/` 是前端静态资源目录。</li>
+                  <li>`runtime-config.json` 是前端运行时配置文件，包含登录背景、下载卡片、三方客服、AppleAutoPro 等内容。</li>
                   <li>这种产物只负责前端页面。</li>
                   <li>接口仍由你的面板或现有后端提供。</li>
                 </ul>
@@ -148,7 +141,7 @@ const DeployGuideSpaPage = () => {
                     code={`location /api/v1/ {\n    proxy_pass https://api.example.com/api/v1/;\n    proxy_set_header Host api.example.com;\n    proxy_set_header X-Real-IP $remote_addr;\n    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n    proxy_ssl_server_name on;\n}\n\nlocation /idhub-api/ {\n    proxy_pass https://id.example.com/;\n    proxy_set_header Host id.example.com;\n    proxy_set_header X-Real-IP $remote_addr;\n    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n    proxy_ssl_server_name on;\n}`}
                   />
                   <p>上面示例里的 `api.example.com` 和 `id.example.com` 都只是占位写法，实际部署时必须改成你自己的面板地址或对应服务地址。</p>
-                  <p>具体是否需要 `/idhub-api/`，取决于你构建时有没有启用相关能力。</p>
+                  <p>具体是否需要 `/idhub-api/`，取决于你在 `runtime-config.json` 里有没有启用 AppleAutoPro 并配置对应 API 地址。</p>
                 </div>
               </div>
             </div>
@@ -165,6 +158,7 @@ const DeployGuideSpaPage = () => {
                     <li>前端刷新子路由是否会返回 `index.html`。</li>
                     <li>`/api/v1/` 请求是否命中预期后端。</li>
                     <li>线上域名是否与构建时配置保持一致。</li>
+                    <li>`runtime-config.json` 是否随产物一起发布成功。</li>
                   </ul>
                 </div>
                 <div className="rounded-xl border border-base-200 p-4">

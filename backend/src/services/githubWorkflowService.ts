@@ -66,6 +66,7 @@ export const dispatchGithubWorkflow = async (template: TemplateEntry, jobId: num
       job_id: String(jobId),
       frontend_env: payload.frontendEnvContent,
       server_env: payload.buildMode === "bff" ? payload.serverEnvContent || "" : "",
+      runtime_settings: payload.buildMode === "legacy" ? JSON.stringify(payload.runtimeSettings ?? null) : "",
     },
   };
 

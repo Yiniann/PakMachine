@@ -27,7 +27,7 @@ const DeployGuidePage = () => {
             <p className="text-sm text-base-content/60">前端直连面板</p>
             <h3 className="text-xl font-bold">SPA 版（纯前端）</h3>
           </div>
-          <p className="mt-4 text-sm text-base-content/70">浏览器直接请求面板 API，构建时写入前端环境变量，适合传统前端部署场景。</p>
+          <p className="mt-4 text-sm text-base-content/70">浏览器直接请求面板 API，构建时只写入最小前端 env，运行时配置单独写入 `runtime-config.json`，适合传统前端部署场景。</p>
           <div className="mt-auto pt-6">
             <div className="flex items-center justify-between rounded-xl border border-primary/20 bg-base-100/70 px-4 py-3 text-sm text-base-content/70">
               <span className="font-medium text-primary">查看教程</span>
