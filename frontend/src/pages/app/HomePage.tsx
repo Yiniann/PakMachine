@@ -75,6 +75,11 @@ const HomePage = () => {
       failed: jobs.filter((j) => j.status === "failed").length,
     };
   }, [jobsQuery.data]);
+  const isTaskInProgress =
+    activeJobStatusLabel === "等待中" ||
+    activeJobStatusLabel === "构建中" ||
+    derivedActiveJob?.status === "pending" ||
+    derivedActiveJob?.status === "running";
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -448,9 +453,12 @@ const HomePage = () => {
                     这里展示当前进行中的构建任务；如果暂时没有任务，会显示空闲状态，你可以直接前往构建页提交新任务。
                   </p>
                 </div>
-                <button className="landing-button-secondary rounded-2xl px-5 py-3 text-sm" onClick={() => navigate("/app/build")}>
-                  前往构建页
-                </button>
+                <div className="flex items-center gap-3">
+                  {isTaskInProgress ? <span className="loading loading-spinner loading-md text-[#6d6bf4]" /> : null}
+                  <button className="landing-button-secondary rounded-2xl px-5 py-3 text-sm" onClick={() => navigate("/app/build")}>
+                    前往构建页
+                  </button>
+                </div>
               </div>
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
                 <div className="workspace-card-soft p-4">
