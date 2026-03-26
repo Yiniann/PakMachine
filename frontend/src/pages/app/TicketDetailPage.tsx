@@ -43,21 +43,21 @@ const TicketDetailPage = () => {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div className="breadcrumbs text-sm">
+          <div className="breadcrumbs text-sm text-slate-500">
             <ul>
               <li><Link to="/app/tickets">工单支持</Link></li>
               <li>工单详情</li>
             </ul>
           </div>
-          <h2 className="text-3xl font-bold mt-2">工单详情</h2>
+          <h2 className="mt-3 text-4xl font-bold tracking-[-0.05em] text-slate-900">工单详情</h2>
         </div>
         <div className="flex gap-2">
-          <Link to="/app/tickets" className="btn btn-ghost btn-sm">返回列表</Link>
+          <Link to="/app/tickets" className="landing-button-secondary rounded-2xl px-5 py-3 text-base">返回列表</Link>
         </div>
       </div>
 
       {errorMessage && (
-        <div role="alert" className="alert alert-error">
+        <div role="alert" className="workspace-alert alert alert-error">
           <span>{errorMessage}</span>
         </div>
       )}
@@ -66,7 +66,7 @@ const TicketDetailPage = () => {
 
       {!isLoading && ticket && (
         <div className="space-y-6">
-          <div className="card bg-base-100 shadow-xl">
+          <div className="workspace-card">
             <div className="card-body space-y-5">
               <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                 <div>
@@ -91,8 +91,8 @@ const TicketDetailPage = () => {
                   const isMine = message.senderRole === "user";
                   return (
                     <div key={message.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
-                      <div className={`max-w-3xl rounded-2xl px-4 py-3 ${isMine ? "border border-slate-200 bg-slate-50 text-slate-900 shadow-sm" : "bg-base-200 text-base-content"}`}>
-                        <div className="text-xs mb-2 text-base-content/50">
+                      <div className={`max-w-3xl rounded-2xl px-4 py-3 ${isMine ? "border border-slate-200 bg-slate-50 text-slate-900 shadow-sm" : "bg-white/75 text-slate-800 shadow-[0_12px_30px_rgba(15,23,42,0.05)]"}`}>
+                        <div className="mb-2 text-xs text-slate-500">
                           {isMine ? "我" : message.author?.email ?? "管理员"} · {new Date(message.createdAt).toLocaleString()}
                         </div>
                         <div className="whitespace-pre-wrap break-words text-sm">
@@ -106,7 +106,7 @@ const TicketDetailPage = () => {
             </div>
           </div>
 
-          <div className="card bg-base-100 shadow-xl">
+          <div className="workspace-card">
             <div className="card-body">
               <div>
                 <h3 className="card-title">继续回复</h3>
@@ -121,7 +121,7 @@ const TicketDetailPage = () => {
 
               <label className="form-control">
                 <textarea
-                  className="textarea textarea-bordered min-h-40"
+                  className="workspace-textarea textarea textarea-bordered min-h-40"
                   value={reply}
                   onChange={(e) => setReply(e.target.value)}
                   maxLength={5000}
@@ -132,14 +132,14 @@ const TicketDetailPage = () => {
               </label>
 
               {replyError && (
-                <div role="alert" className="alert alert-error text-sm">
+                <div role="alert" className="workspace-alert alert alert-error text-sm">
                   <span>{replyError}</span>
                 </div>
               )}
 
               <div className="flex justify-end">
                 <button
-                  className="btn btn-primary min-w-[120px]"
+                  className="landing-button-primary min-w-[120px] rounded-2xl px-6 py-3 text-base"
                   onClick={onSubmit}
                   disabled={!canReply || addMessage.isPending || !reply.trim()}
                 >

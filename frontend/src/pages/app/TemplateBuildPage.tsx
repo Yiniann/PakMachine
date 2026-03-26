@@ -378,7 +378,7 @@ const TemplateBuildPage = () => {
   };
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="space-y-6">
       <div className="flex justify-center py-4">
         <ul className="steps w-full max-w-2xl">
           <li className={`step ${step >= 1 ? "step-primary" : ""} cursor-pointer`} onClick={() => setStep(1)}>选择版本</li>
@@ -388,21 +388,21 @@ const TemplateBuildPage = () => {
       </div>
 
       {(selected || selectedMode || siteName) && (
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-          <div className="rounded-2xl border border-base-200 bg-base-100 p-4 shadow-sm">
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
+          <div className="rounded-2xl border border-base-200 bg-base-100 p-3 shadow-sm sm:p-4">
             <p className="text-xs uppercase tracking-wide text-base-content/50">当前版本</p>
-            <p className="mt-2 truncate font-semibold">{selected || "未选择版本"}</p>
-            <p className="mt-1 text-sm text-base-content/60">{formatDateTime(selectedTemplate?.modifiedAt)}</p>
+            <p className="mt-2 truncate text-sm font-semibold sm:text-base">{selected || "未选择版本"}</p>
+            <p className="mt-1 text-xs text-base-content/60 sm:text-sm">{formatDateTime(selectedTemplate?.modifiedAt)}</p>
           </div>
-          <div className="rounded-2xl border border-base-200 bg-base-100 p-4 shadow-sm">
+          <div className="rounded-2xl border border-base-200 bg-base-100 p-3 shadow-sm sm:p-4">
             <p className="text-xs uppercase tracking-wide text-base-content/50">构建方式</p>
-            <p className="mt-2 font-semibold">{selectedModeLabel}</p>
-            <p className="mt-1 text-sm text-base-content/60">{selectedMode === "bff" ? "请求通过服务端中转，更适合增强隔离场景。" : selectedMode === "legacy" ? "浏览器直连面板 API，适合传统部署场景。" : "先选择版本，再进入详细配置。"}</p>
+            <p className="mt-2 truncate text-sm font-semibold sm:text-base">{selectedModeLabel}</p>
+            <p className="mt-1 text-xs text-base-content/60 sm:text-sm">{selectedMode === "bff" ? "请求通过服务端中转，更适合增强隔离场景。" : selectedMode === "legacy" ? "浏览器直连面板 API，适合传统部署场景。" : "先选择版本，再进入详细配置。"}</p>
           </div>
-          <div className="rounded-2xl border border-base-200 bg-base-100 p-4 shadow-sm">
+          <div className="rounded-2xl border border-base-200 bg-base-100 p-3 shadow-sm sm:p-4">
             <p className="text-xs uppercase tracking-wide text-base-content/50">站点名称</p>
-            <p className="mt-2 font-semibold">{siteName || "未设置站点名称"}</p>
-            <p className="mt-1 text-sm text-base-content/60">{siteName ? "名称将自动带入本次构建配置。" : "请先在首页完成站点名称设置。"}</p>
+            <p className="mt-2 truncate text-sm font-semibold sm:text-base">{siteName || "未设置站点名称"}</p>
+            <p className="mt-1 text-xs text-base-content/60 sm:text-sm">{siteName ? "名称将自动带入本次构建配置。" : "请先在首页完成站点名称设置。"}</p>
           </div>
         </div>
       )}

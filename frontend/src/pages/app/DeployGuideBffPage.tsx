@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 
 const CodeBlock = ({ code }: { code: string }) => (
-  <pre className="overflow-x-auto rounded-xl bg-base-200/80 p-4 text-xs leading-6">
+  <pre className="workspace-code">
     <code>{code}</code>
   </pre>
 );
@@ -10,19 +10,19 @@ const DeployGuideBffPage = () => {
   return (
     <div className="space-y-6">
       <div>
-        <div className="breadcrumbs text-sm text-base-content/60">
+        <div className="breadcrumbs text-sm text-slate-500">
           <ul>
             <li><Link to="/app/deploy-guide">部署教程</Link></li>
             <li>Pro 版（BFF）</li>
           </ul>
         </div>
-        <h2 className="text-3xl font-bold">Pro 版（BFF）部署教程</h2>
-        <p className="mt-1 text-base-content/70">适用于已经从打包机下载到 BFF 产物包，准备把前端和 BFF 一起部署到服务器的场景。</p>
+        <h2 className="mt-3 text-4xl font-bold tracking-[-0.05em] text-slate-900">Pro 版（BFF）部署教程</h2>
+        <p className="mt-2 max-w-3xl text-lg leading-8 text-slate-500">适用于已经从打包机下载到 BFF 产物包，准备把前端和 BFF 一起部署到服务器的场景。</p>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-6">
-          <section className="card border border-base-200 bg-base-100 shadow-sm">
+          <section className="workspace-card">
             <div className="card-body space-y-4">
               <h3 className="card-title text-xl">1. 填写构建配置</h3>
               <div className="space-y-3 text-sm text-base-content/80">
@@ -64,7 +64,7 @@ const DeployGuideBffPage = () => {
             </div>
           </section>
 
-          <section className="card border border-base-200 bg-base-100 shadow-sm">
+          <section className="workspace-card">
             <div className="card-body space-y-4">
               <h3 className="card-title text-xl">2. 先确认拿到的是 BFF 产物</h3>
               <div className="space-y-3 text-sm text-base-content/80">
@@ -84,7 +84,7 @@ const DeployGuideBffPage = () => {
             </div>
           </section>
 
-          <section className="card border border-base-200 bg-base-100 shadow-sm">
+          <section className="workspace-card">
             <div className="card-body space-y-4">
               <h3 className="card-title text-xl">3. 在宝塔新增站点并上传产物</h3>
               <div className="rounded-xl border border-base-200 p-4 text-sm text-base-content/80">
@@ -101,7 +101,7 @@ const DeployGuideBffPage = () => {
             </div>
           </section>
 
-          <section className="card border border-base-200 bg-base-100 shadow-sm">
+          <section className="workspace-card">
             <div className="card-body space-y-4">
               <h3 className="card-title text-xl">4. 选择部署方式</h3>
               <div className="space-y-4 text-sm text-base-content/80">
@@ -215,7 +215,7 @@ const DeployGuideBffPage = () => {
             </div>
           </section>
 
-          <section className="card border border-base-200 bg-base-100 shadow-sm">
+          <section className="workspace-card">
             <div className="card-body space-y-4">
               <h3 className="card-title text-xl">5. 上线后验收</h3>
               <div className="grid gap-4 md:grid-cols-2">
@@ -242,7 +242,7 @@ const DeployGuideBffPage = () => {
 
         <aside>
           <div className="sticky top-6 space-y-4">
-            <div className="card border border-base-200 bg-base-100 shadow-sm">
+            <div className="workspace-card-soft">
               <div className="card-body">
                 <h3 className="card-title text-lg">默认流程</h3>
                 <ul className="list-disc space-y-1 pl-5 text-sm text-base-content/80">
@@ -254,7 +254,7 @@ const DeployGuideBffPage = () => {
               </div>
             </div>
 
-            <div className="card border border-base-200 bg-base-100 shadow-sm">
+            <div className="workspace-card-soft">
               <div className="card-body">
                 <h3 className="card-title text-lg">部署要点</h3>
                 <ul className="list-disc space-y-1 pl-5 text-sm text-base-content/80">

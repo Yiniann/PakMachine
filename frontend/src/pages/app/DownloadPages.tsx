@@ -37,26 +37,27 @@ const DownloadPages = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-3xl font-bold">产物下载</h2>
-        <p className="text-base-content/70 mt-1">查看并下载您生成的站点前端产物，仅保留最新两次构建记录。</p>
+        <p className="workspace-kicker">Downloads</p>
+        <h2 className="mt-3 text-4xl font-bold tracking-[-0.05em] text-slate-900">产物下载</h2>
+        <p className="mt-2 text-lg leading-8 text-slate-500">查看并下载您生成的站点前端产物，仅保留最新两次构建记录。</p>
       </div>
 
-      <div className="card border border-base-200 bg-base-100 shadow-sm">
+      <div className="workspace-card-soft">
         <div className="card-body flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h3 className="card-title text-lg">部署教程</h3>
-            <p className="text-sm text-base-content/70">下载完成后，可按教程快速完成 SPA 或 BFF 部署。</p>
+            <h3 className="text-xl font-bold tracking-[-0.03em] text-slate-900">部署教程</h3>
+            <p className="mt-1 text-sm text-slate-500">下载完成后，可按教程快速完成 SPA 或 BFF 部署。</p>
           </div>
-          <Link to="/app/deploy-guide" className="btn btn-outline">
+          <Link to="/app/deploy-guide" className="landing-button-secondary rounded-2xl px-5 py-3 text-base">
             查看部署教程
           </Link>
         </div>
       </div>
 
-      <div className="card bg-base-100 shadow-xl border border-base-200">
+      <div className="workspace-card">
         <div className="card-body">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="card-title text-lg">历史记录</h3>
+            <h3 className="text-xl font-bold tracking-[-0.03em] text-slate-900">历史记录</h3>
           </div>
 
           {artifacts.isLoading && (
@@ -66,7 +67,7 @@ const DownloadPages = () => {
           )}
 
           {artifacts.error && (
-            <div role="alert" className="alert alert-error">
+            <div role="alert" className="workspace-alert alert alert-error">
               <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
               <span>加载失败，请稍后重试</span>
             </div>
@@ -80,7 +81,7 @@ const DownloadPages = () => {
           )}
 
           {!artifacts.isLoading && artifacts.data && artifacts.data.length > 0 && (
-            <div className="overflow-x-auto">
+            <div className="workspace-table-shell overflow-x-auto">
               <table className="table table-zebra">
                 <thead>
                   <tr>
@@ -98,7 +99,7 @@ const DownloadPages = () => {
                       <td className="text-sm text-base-content/70">{new Date(item.createdAt).toLocaleString()}</td>
                       <td className="text-right">
                         <button
-                          className="btn btn-sm btn-primary gap-2 rounded-full shadow-sm hover:shadow transition"
+                          className="landing-button-primary btn btn-sm min-h-0 gap-2 rounded-full px-4 py-2 shadow-sm transition hover:shadow"
                           onClick={() => onDownload(item)}
                           disabled={downloadingId === item.id}
                         >

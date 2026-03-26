@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import prisma from "../lib/prisma";
+import { canBuildSpa, normalizeUserType } from "../lib/userAccess";
 
 const parseFrontendOrigins = (value: unknown): string[] => {
   if (!value || typeof value !== "string") return [];
@@ -20,10 +21,16 @@ const normalizeFrontendOrigin = (value: unknown) => {
   try {
     parsed = new URL(value.trim());
   } catch {
-    throw Object.assign(new Error("前端域名格式不正确"), { statusCode: 400 });
+    throw Object.assign(
+      new Error("前端域名格式不正确，请输入完整地址并带上协议头，例如 https://demo.com 或 http://demo.com"),
+      { statusCode: 400 },
+    );
   }
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-    throw Object.assign(new Error("前端域名必须以 http:// 或 https:// 开头"), { statusCode: 400 });
+    throw Object.assign(
+      new Error("前端域名必须以 http:// 或 https:// 开头，例如 https://demo.com"),
+      { statusCode: 400 },
+    );
   }
   return parsed.origin;
 };
@@ -51,6 +58,10 @@ export const setSiteName = async (req: Request, res: Response, next: NextFunctio
     }
     const existing = await prisma.user.findUnique({ where: { id: Number(user.sub) } });
     const isAdmin = (existing as any)?.role === "admin";
+    const normalizedUserType = normalizeUserType((existing as any)?.userType);
+    if (!canBuildSpa((existing as any)?.role, normalizedUserType)) {
+      return res.status(403).json({ error: "当前账号为待开通状态，暂不支持设置站点名" });
+    }
     const current = (existing as any)?.siteName;
     if (current && !isAdmin) {
       return res.status(409).json({ error: "站点名称已设置，不能修改" });
@@ -77,6 +88,10 @@ export const addFrontendOrigin = async (req: Request, res: Response, next: NextF
     const existing = await prisma.user.findUnique({ where: { id: Number(user.sub) } });
     if (!existing) {
       return res.status(404).json({ error: "用户不存在" });
+    }
+    const normalizedUserType = normalizeUserType((existing as any)?.userType);
+    if (!canBuildSpa((existing as any)?.role, normalizedUserType)) {
+      return res.status(403).json({ error: "当前账号为待开通状态，暂不支持绑定前端域名" });
     }
 
     const currentOrigins = parseFrontendOrigins((existing as any)?.frontendOriginsJson);

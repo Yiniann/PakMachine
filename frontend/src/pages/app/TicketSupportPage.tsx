@@ -58,15 +58,16 @@ const TicketSupportPage = () => {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 className="text-3xl font-bold">工单支持</h2>
-          <p className="text-base-content/70 mt-1">点击工单进入详情，可和管理员持续沟通。</p>
+          <p className="workspace-kicker">Support</p>
+          <h2 className="mt-3 text-4xl font-bold tracking-[-0.05em] text-slate-900">工单支持</h2>
+          <p className="mt-2 text-lg leading-8 text-slate-500">点击工单进入详情，可和管理员持续沟通。</p>
         </div>
-        <button className="btn btn-primary" type="button" onClick={() => setIsCreateOpen(true)}>
+        <button className="landing-button-primary rounded-2xl px-6 py-3 text-base" type="button" onClick={() => setIsCreateOpen(true)}>
           发起工单
         </button>
       </div>
 
-      <div className="card bg-base-100 shadow-xl border border-base-200">
+      <div className="workspace-card">
         <div className="card-body">
           <div>
             <div>
@@ -76,7 +77,7 @@ const TicketSupportPage = () => {
           </div>
 
           {errorMessage && (
-            <div role="alert" className="alert alert-error text-sm">
+            <div role="alert" className="workspace-alert alert alert-error text-sm">
               <span>{errorMessage}</span>
             </div>
           )}
@@ -84,7 +85,7 @@ const TicketSupportPage = () => {
           {isLoading && <div className="flex justify-center py-10"><span className="loading loading-spinner loading-md" /></div>}
 
           {!isLoading && tickets.length === 0 && !errorMessage && (
-            <div className="rounded-2xl border border-dashed border-base-300 px-6 py-12 text-center text-base-content/60">
+            <div className="rounded-2xl border border-dashed border-slate-300 px-6 py-12 text-center text-slate-500">
               还没有工单，点击右上角按钮即可发起工单。
             </div>
           )}
@@ -95,7 +96,7 @@ const TicketSupportPage = () => {
                 key={ticket.id}
                 role="button"
                 tabIndex={0}
-                className="w-full cursor-pointer rounded-2xl border border-base-200 bg-base-100 p-5 text-left transition hover:border-primary/30 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary/20"
+                className="workspace-card-soft w-full cursor-pointer p-5 text-left transition hover:border-[#6d6bf4]/30 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#6d6bf4]/20"
                 onClick={() => navigate(`/app/tickets/${ticket.id}`)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
@@ -116,7 +117,7 @@ const TicketSupportPage = () => {
                     <div className="text-sm text-base-content/60">
                       工单 #{ticket.id} · {categoryLabel[ticket.category] ?? ticket.category}
                     </div>
-                    <div className="rounded-xl bg-base-200/60 px-4 py-3 text-sm text-base-content/80">
+                    <div className="rounded-xl bg-slate-100/80 px-4 py-3 text-sm text-slate-700">
                       {ticket.lastMessage?.content ?? "暂无消息"}
                     </div>
                   </div>
@@ -132,8 +133,8 @@ const TicketSupportPage = () => {
       </div>
 
       {isCreateOpen && (
-        <div className="modal modal-open bg-transparent">
-          <div className="modal-box max-w-2xl">
+        <div className="modal modal-open bg-transparent backdrop-blur-sm">
+          <div className="modal-box workspace-card max-w-2xl border-0 bg-white/95">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h3 className="text-xl font-semibold">发起工单</h3>
@@ -141,7 +142,7 @@ const TicketSupportPage = () => {
               </div>
               <button
                 type="button"
-                className="btn btn-sm btn-ghost btn-circle"
+                  className="landing-button-secondary btn btn-sm btn-circle min-h-0 !h-10 !w-10 !rounded-full !p-0"
                 onClick={() => setIsCreateOpen(false)}
                 disabled={createTicket.isPending}
               >
@@ -154,7 +155,7 @@ const TicketSupportPage = () => {
                 <span className="label-text">工单标题</span>
                 <input
                   type="text"
-                  className="input input-bordered"
+                  className="workspace-input input input-bordered"
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
                   maxLength={120}
@@ -166,7 +167,7 @@ const TicketSupportPage = () => {
               <label className="form-control">
                 <span className="label-text">问题分类</span>
                 <select
-                  className="select select-bordered"
+                  className="workspace-select select select-bordered"
                   value={category}
                   onChange={(e) => setCategory(e.target.value as TicketCategory)}
                   required
@@ -185,7 +186,7 @@ const TicketSupportPage = () => {
               <label className="form-control">
                 <span className="label-text">问题描述</span>
                 <textarea
-                  className="textarea textarea-bordered min-h-40"
+                  className="workspace-textarea textarea textarea-bordered min-h-40"
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
                   maxLength={5000}
@@ -196,7 +197,7 @@ const TicketSupportPage = () => {
               </label>
 
               {createError && (
-                <div role="alert" className="alert alert-error text-sm">
+                <div role="alert" className="workspace-alert alert alert-error text-sm">
                   <span>{createError}</span>
                 </div>
               )}
@@ -204,13 +205,13 @@ const TicketSupportPage = () => {
               <div className="modal-action mt-6">
                 <button
                   type="button"
-                  className="btn btn-ghost"
+                  className="landing-button-secondary rounded-2xl px-5 py-3 text-base"
                   onClick={() => setIsCreateOpen(false)}
                   disabled={createTicket.isPending}
                 >
                   取消
                 </button>
-                <button className="btn btn-primary min-w-[120px]" type="submit" disabled={createTicket.isPending}>
+                <button className="landing-button-primary min-w-[120px] rounded-2xl px-6 py-3 text-base" type="submit" disabled={createTicket.isPending}>
                   {createTicket.isPending ? "提交中..." : "提交工单"}
                 </button>
               </div>

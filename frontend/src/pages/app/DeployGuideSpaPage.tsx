@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 
 const CodeBlock = ({ code }: { code: string }) => (
-  <pre className="overflow-x-auto rounded-xl bg-base-200/80 p-4 text-xs leading-6">
+  <pre className="workspace-code">
     <code>{code}</code>
   </pre>
 );
@@ -10,19 +10,19 @@ const DeployGuideSpaPage = () => {
   return (
     <div className="space-y-6">
       <div>
-        <div className="breadcrumbs text-sm text-base-content/60">
+        <div className="breadcrumbs text-sm text-slate-500">
           <ul>
             <li><Link to="/app/deploy-guide">部署教程</Link></li>
             <li>SPA 版（纯前端）</li>
           </ul>
         </div>
-        <h2 className="text-3xl font-bold">SPA 版（纯前端）部署教程</h2>
-        <p className="mt-1 text-base-content/70">适用于已经从打包机下载到 SPA 静态产物，准备直接部署到 Nginx、宝塔或其它静态站点环境的场景。</p>
+        <h2 className="mt-3 text-4xl font-bold tracking-[-0.05em] text-slate-900">SPA 版（纯前端）部署教程</h2>
+        <p className="mt-2 max-w-3xl text-lg leading-8 text-slate-500">适用于已经从打包机下载到 SPA 静态产物，准备直接部署到 Nginx、宝塔或其它静态站点环境的场景。</p>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-6">
-          <section className="card border border-base-200 bg-base-100 shadow-sm">
+          <section className="workspace-card">
             <div className="card-body space-y-4">
               <h3 className="card-title text-xl">1. 填写构建配置</h3>
               <div className="space-y-3 text-sm text-base-content/80">
@@ -80,7 +80,7 @@ const DeployGuideSpaPage = () => {
             </div>
           </section>
 
-          <section className="card border border-base-200 bg-base-100 shadow-sm">
+          <section className="workspace-card">
             <div className="card-body space-y-4">
               <h3 className="card-title text-xl">2. 先确认拿到的是 SPA 产物</h3>
               <div className="space-y-3 text-sm text-base-content/80">
@@ -96,7 +96,7 @@ const DeployGuideSpaPage = () => {
             </div>
           </section>
 
-          <section className="card border border-base-200 bg-base-100 shadow-sm">
+          <section className="workspace-card">
             <div className="card-body space-y-4">
               <h3 className="card-title text-xl">3. 在宝塔新增站点并上传产物</h3>
               <div className="rounded-xl border border-base-200 p-4 text-sm text-base-content/80">
@@ -113,7 +113,7 @@ const DeployGuideSpaPage = () => {
             </div>
           </section>
 
-          <section className="card border border-base-200 bg-base-100 shadow-sm">
+          <section className="workspace-card">
             <div className="card-body space-y-4">
               <h3 className="card-title text-xl">4. 配置宝塔站点</h3>
               <div className="space-y-4 text-sm text-base-content/80">
@@ -147,7 +147,7 @@ const DeployGuideSpaPage = () => {
             </div>
           </section>
 
-          <section className="card border border-base-200 bg-base-100 shadow-sm">
+          <section className="workspace-card">
             <div className="card-body space-y-4">
               <h3 className="card-title text-xl">5. 上线后验收</h3>
               <div className="grid gap-4 md:grid-cols-2">
@@ -176,7 +176,7 @@ const DeployGuideSpaPage = () => {
 
         <aside>
           <div className="sticky top-6 space-y-4">
-            <div className="card border border-base-200 bg-base-100 shadow-sm">
+            <div className="workspace-card-soft">
               <div className="card-body">
                 <h3 className="card-title text-lg">默认流程</h3>
                 <ul className="list-disc space-y-1 pl-5 text-sm text-base-content/80">
@@ -188,7 +188,7 @@ const DeployGuideSpaPage = () => {
               </div>
             </div>
 
-            <div className="card border border-base-200 bg-base-100 shadow-sm">
+            <div className="workspace-card-soft">
               <div className="card-body">
                 <h3 className="card-title text-lg">部署要点</h3>
                 <ul className="list-disc space-y-1 pl-5 text-sm text-base-content/80">

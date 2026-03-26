@@ -34,15 +34,16 @@ const UserSettingsPage = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-3xl font-bold">账户设置</h2>
-        <p className="text-base-content/70 mt-1">管理您的个人账户信息与安全设置。</p>
+        <p className="workspace-kicker">Account</p>
+        <h2 className="mt-3 text-4xl font-bold tracking-[-0.05em] text-slate-900">账户设置</h2>
+        <p className="mt-2 text-lg leading-8 text-slate-500">管理您的个人账户信息与安全设置。</p>
       </div>
 
-      <div className="card bg-base-100 shadow-xl border border-base-200 max-w-2xl">
+      <div className="workspace-card max-w-2xl">
         <div className="card-body">
-          <div className="flex items-center gap-2 border-b border-base-200 pb-3 mb-4">
+          <div className="mb-4 flex items-center gap-2 border-b border-slate-200 pb-3">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-primary"><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" /></svg>
-            <h3 className="font-bold text-lg">修改密码</h3>
+            <h3 className="text-lg font-bold tracking-[-0.03em] text-slate-900">修改密码</h3>
           </div>
 
           <form className="space-y-4" onSubmit={onSubmit}>
@@ -50,7 +51,7 @@ const UserSettingsPage = () => {
               <span className="label-text">当前密码</span>
               <input
                 type="password"
-                className="input input-bordered"
+                className="workspace-input input input-bordered"
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
                 required
@@ -61,7 +62,7 @@ const UserSettingsPage = () => {
               <span className="label-text">新密码</span>
               <input
                 type="password"
-                className="input input-bordered"
+                className="workspace-input input input-bordered"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 required
@@ -73,7 +74,7 @@ const UserSettingsPage = () => {
               <span className="label-text">确认新密码</span>
               <input
                 type="password"
-                className="input input-bordered"
+                className="workspace-input input input-bordered"
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
                 required
@@ -82,13 +83,13 @@ const UserSettingsPage = () => {
             </label>
 
             {message && (
-              <div role="alert" className="alert alert-success bg-success/10 text-success-content border-success/20 text-sm">
+              <div role="alert" className="workspace-alert alert alert-success bg-success/10 text-success-content border-success/20 text-sm">
                 <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                 <span>{message}</span>
               </div>
             )}
             {error && (
-              <div role="alert" className="alert alert-error bg-error/10 text-error-content border-error/20 text-sm">
+              <div role="alert" className="workspace-alert alert alert-error bg-error/10 text-error-content border-error/20 text-sm">
                 <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                 <span>{error}</span>
               </div>
