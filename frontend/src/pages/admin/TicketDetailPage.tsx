@@ -80,21 +80,16 @@ const TicketDetailPage = () => {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div className="breadcrumbs text-sm">
-            <ul>
-              <li><Link to="/admin/tickets">工单处理</Link></li>
-              <li>工单详情</li>
-            </ul>
-          </div>
-          <h2 className="text-3xl font-bold mt-2">工单详情</h2>
+          <p className="workspace-kicker">Ticket Detail</p>
+          <h2 className="mt-2 text-3xl font-bold tracking-[-0.04em] text-slate-900">工单详情</h2>
         </div>
         <div className="flex gap-2">
-          <Link to="/admin/tickets" className="btn btn-ghost btn-sm">返回列表</Link>
+          <Link to="/admin/tickets" className="landing-button-secondary rounded-2xl px-5 py-3 text-sm">返回列表</Link>
         </div>
       </div>
 
       {errorMessage && (
-        <div role="alert" className="alert alert-error">
+        <div role="alert" className="workspace-alert border border-rose-200 bg-rose-50 px-4 py-3 text-rose-700">
           <span>{errorMessage}</span>
         </div>
       )}
@@ -103,8 +98,8 @@ const TicketDetailPage = () => {
 
       {!isLoading && ticket && (
         <div className="space-y-6">
-          <div className="card bg-base-100 shadow-xl">
-            <div className="card-body space-y-5">
+          <div className="workspace-card p-6">
+            <div className="space-y-5">
               <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
@@ -120,7 +115,7 @@ const TicketDetailPage = () => {
                 </div>
               </div>
 
-              <div className="rounded-2xl bg-base-200/60 p-4 grid gap-2 text-sm">
+              <div className="workspace-card-soft grid gap-2 p-4 text-sm">
                 <div>用户邮箱：{ticket.user?.email ?? `用户 ${ticket.userId}`}</div>
                 <div>站点名称：{ticket.user?.siteName ?? "未设置"}</div>
                 <div>提交时间：{new Date(ticket.createdAt).toLocaleString()}</div>
@@ -147,16 +142,16 @@ const TicketDetailPage = () => {
             </div>
           </div>
 
-          <div className="card bg-base-100 shadow-xl">
-            <div className="card-body space-y-4">
+          <div className="workspace-card p-6">
+            <div className="space-y-4">
               <div>
-                <h3 className="card-title">处理工单</h3>
+                <h3 className="text-xl font-bold tracking-[-0.03em] text-slate-900">处理工单</h3>
               </div>
 
               <label className="form-control max-w-xs">
                 <span className="label-text">处理状态</span>
                 <select
-                  className="select select-bordered"
+                  className="workspace-select select select-bordered"
                   value={editStatus}
                   onChange={(e) => setEditStatus(e.target.value as TicketStatus)}
                 >
@@ -171,7 +166,7 @@ const TicketDetailPage = () => {
               <label className="form-control">
                 <span className="label-text">新增回复</span>
                 <textarea
-                  className="textarea textarea-bordered min-h-48"
+                  className="workspace-textarea textarea textarea-bordered min-h-48"
                   value={reply}
                   onChange={(e) => setReply(e.target.value)}
                   maxLength={5000}
@@ -181,14 +176,14 @@ const TicketDetailPage = () => {
               </label>
 
               {saveError && (
-                <div role="alert" className="alert alert-error text-sm">
+                <div role="alert" className="workspace-alert border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
                   <span>{saveError}</span>
                 </div>
               )}
 
               <div className="flex justify-end">
                 <button
-                  className="btn btn-primary min-w-[120px]"
+                  className="landing-button-primary min-w-[120px] rounded-2xl px-5 py-3 text-sm"
                   onClick={onSubmit}
                   disabled={isSaving || (!reply.trim() && editStatus === ticket.status)}
                 >

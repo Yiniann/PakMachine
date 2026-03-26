@@ -64,20 +64,21 @@ const SystemSettingsPage = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-3xl font-bold">系统设置</h2>
-        <p className="text-base-content/70 mt-1">配置平台参数、构建密钥及邮件服务</p>
+        <p className="workspace-kicker">System Settings</p>
+        <h2 className="mt-2 text-3xl font-bold tracking-[-0.04em] text-slate-900">系统设置</h2>
+        <p className="mt-2 text-[15px] text-slate-500">配置平台参数、构建密钥及邮件服务。</p>
       </div>
 
-      <div className="card bg-base-100 shadow-xl">
-        <div className="card-body">
+      <div className="workspace-card p-6">
+        <div>
           {settingsQuery.isLoading && <div className="flex justify-center"><span className="loading loading-spinner" /></div>}
-          {settingsQuery.error && <div role="alert" className="alert alert-error"><span>加载失败</span></div>}
+          {settingsQuery.error && <div role="alert" className="workspace-alert border border-rose-200 bg-rose-50 px-4 py-3 text-rose-700"><span>加载失败</span></div>}
           {!settingsQuery.isLoading && (
             <form className="space-y-5" onSubmit={onSubmit}>
               <label className="form-control">
                 <span className="label-text">平台名称（用于展示，与用户构建站点名无关）</span>
                 <input
-                  className="input input-bordered"
+                  className="workspace-input input input-bordered"
                   value={siteName}
                   onChange={(e) => setSiteName(e.target.value)}
                   placeholder="用于展示的站点名称"
@@ -102,7 +103,7 @@ const SystemSettingsPage = () => {
                 <span className="label-text">Dispatch Token（ACTION_DISPATCH_TOKEN）</span>
                 <input
                   type="password"
-                  className="input input-bordered"
+                  className="workspace-input input input-bordered"
                   value={actionDispatchToken}
                   onChange={(e) => setActionDispatchToken(e.target.value)}
                   placeholder="PAT，最小 workflow/repo 权限"
@@ -112,7 +113,7 @@ const SystemSettingsPage = () => {
                 <span className="label-text">Webhook Secret（ACTION_WEBHOOK_SECRET）</span>
                 <input
                   type="password"
-                  className="input input-bordered"
+                  className="workspace-input input input-bordered"
                   value={actionWebhookSecret}
                   onChange={(e) => setActionWebhookSecret(e.target.value)}
                   placeholder="用于校验回调签名"
@@ -121,7 +122,7 @@ const SystemSettingsPage = () => {
               <label className="form-control">
                 <span className="label-text">Workflow 文件名</span>
                 <input
-                  className="input input-bordered"
+                  className="workspace-input input input-bordered"
                   value={workflowFile}
                   onChange={(e) => setWorkflowFile(e.target.value || "package.yml")}
                   placeholder="如 package.yml / build.yml"
@@ -132,7 +133,7 @@ const SystemSettingsPage = () => {
               <label className="form-control">
                 <span className="label-text">SMTP Host</span>
                 <input
-                  className="input input-bordered"
+                  className="workspace-input input input-bordered"
                   value={mailerHost}
                   onChange={(e) => setMailerHost(e.target.value)}
                   placeholder="smtp.example.com"
@@ -142,7 +143,7 @@ const SystemSettingsPage = () => {
                 <label className="form-control">
                   <span className="label-text">SMTP Port</span>
                   <input
-                    className="input input-bordered"
+                    className="workspace-input input input-bordered"
                     type="number"
                     min={1}
                     value={mailerPort}
@@ -166,7 +167,7 @@ const SystemSettingsPage = () => {
               <label className="form-control">
                 <span className="label-text">SMTP 用户名</span>
                 <input
-                  className="input input-bordered"
+                  className="workspace-input input input-bordered"
                   value={mailerUser}
                   onChange={(e) => setMailerUser(e.target.value)}
                   placeholder="可为空，取决于服务商"
@@ -176,7 +177,7 @@ const SystemSettingsPage = () => {
                 <span className="label-text">SMTP 密码/密钥</span>
                 <input
                   type="password"
-                  className="input input-bordered"
+                  className="workspace-input input input-bordered"
                   value={mailerPass}
                   onChange={(e) => setMailerPass(e.target.value)}
                   placeholder="不会自动隐藏，请妥善保存文件权限"
@@ -185,7 +186,7 @@ const SystemSettingsPage = () => {
               <label className="form-control">
                 <span className="label-text">发件人（From）</span>
                 <input
-                  className="input input-bordered"
+                  className="workspace-input input input-bordered"
                   value={mailerFrom}
                   onChange={(e) => setMailerFrom(e.target.value)}
                   placeholder="PacMachine <noreply@example.com>"
@@ -194,7 +195,7 @@ const SystemSettingsPage = () => {
               <label className="form-control">
                 <span className="label-text">重置链接基础地址</span>
                 <input
-                  className="input input-bordered"
+                  className="workspace-input input input-bordered"
                   value={passwordResetBaseUrl}
                   onChange={(e) => setPasswordResetBaseUrl(e.target.value)}
                   placeholder="https://your-frontend.com/auth/reset"
@@ -203,7 +204,7 @@ const SystemSettingsPage = () => {
               </label>
 
               <div className="flex gap-2">
-                <button className="btn btn-primary" type="submit" disabled={updateSettings.status === "pending"}>
+                <button className="landing-button-primary rounded-2xl px-5 py-3 text-sm" type="submit" disabled={updateSettings.status === "pending"}>
                   {updateSettings.status === "pending" ? "保存中..." : "保存设置"}
                 </button>
                 {message && <span className="text-sm text-base-content/70">{message}</span>}

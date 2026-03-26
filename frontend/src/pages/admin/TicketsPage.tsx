@@ -37,12 +37,13 @@ const TicketsPage = () => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-bold">工单处理</h2>
-          <p className="text-base-content/70 mt-1">查看用户提交的问题，点击进入详情页处理会话。列表每 4 秒自动更新。</p>
+          <p className="workspace-kicker">Tickets</p>
+          <h2 className="mt-2 text-3xl font-bold tracking-[-0.04em] text-slate-900">工单处理</h2>
+          <p className="mt-2 text-[15px] text-slate-500">查看用户提交的问题，点击进入详情页处理会话。列表每 4 秒自动更新。</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <select
-            className="select select-bordered select-sm"
+            className="workspace-select select select-bordered select-sm"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as TicketStatus | "all")}
           >
@@ -56,13 +57,13 @@ const TicketsPage = () => {
       </div>
 
       {errorMessage && (
-        <div role="alert" className="alert alert-error">
+        <div role="alert" className="workspace-alert border border-rose-200 bg-rose-50 px-4 py-3 text-rose-700">
           <span>{errorMessage}</span>
         </div>
       )}
 
-      <div className="card bg-base-100 shadow-xl">
-        <div className="card-body p-0 sm:p-6">
+      <div className="workspace-card p-0 sm:p-6">
+        <div className="p-0">
           {isLoading && <div className="flex justify-center p-8"><span className="loading loading-spinner loading-md" /></div>}
 
           {!isLoading && tickets.length === 0 && !errorMessage && (
@@ -70,6 +71,7 @@ const TicketsPage = () => {
           )}
 
           <div className="hidden md:block overflow-x-auto">
+            <div className="workspace-table-shell">
             <table className="table table-zebra">
               <thead>
                 <tr>
@@ -114,9 +116,10 @@ const TicketsPage = () => {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
 
-          <div className="md:hidden flex flex-col divide-y divide-base-200">
+          <div className="workspace-table-shell md:hidden flex flex-col divide-y divide-base-200">
             {tickets.map((ticket) => (
               <div
                 key={ticket.id}

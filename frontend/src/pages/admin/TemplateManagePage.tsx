@@ -47,34 +47,35 @@ const TemplateManagePage = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-3xl font-bold">模板管理</h2>
-        <p className="text-base-content/70 mt-1">配置 GitHub 私有仓库作为构建模板</p>
+        <p className="workspace-kicker">Templates</p>
+        <h2 className="mt-2 text-3xl font-bold tracking-[-0.04em] text-slate-900">模板管理</h2>
+        <p className="mt-2 text-[15px] text-slate-500">配置 GitHub 私有仓库作为构建模板。</p>
       </div>
 
-      <div className="card bg-base-100 shadow-xl">
-        <div className="card-body space-y-4">
-          <h3 className="card-title text-lg">添加新模板</h3>
+      <div className="workspace-card p-6">
+        <div className="space-y-4">
+          <h3 className="text-xl font-bold tracking-[-0.03em] text-slate-900">添加新模板</h3>
           <form className="grid grid-cols-1 md:grid-cols-2 gap-4" onSubmit={onSubmitGithub}>
           <label className="form-control">
             <span className="label-text">模板名称*</span>
-            <input className="input input-bordered" value={ghName} onChange={(e) => setGhName(e.target.value)} placeholder="示例：dashboard-template" />
+            <input className="workspace-input input input-bordered" value={ghName} onChange={(e) => setGhName(e.target.value)} placeholder="示例：dashboard-template" />
           </label>
           <label className="form-control">
             <span className="label-text">仓库（owner/repo）*</span>
-            <input className="input input-bordered" value={ghRepo} onChange={(e) => setGhRepo(e.target.value)} placeholder="org/project" />
+            <input className="workspace-input input input-bordered" value={ghRepo} onChange={(e) => setGhRepo(e.target.value)} placeholder="org/project" />
           </label>
           <label className="form-control">
             <span className="label-text">分支/Tag</span>
-            <input className="input input-bordered" value={ghBranch} onChange={(e) => setGhBranch(e.target.value)} placeholder="main" />
+            <input className="workspace-input input input-bordered" value={ghBranch} onChange={(e) => setGhBranch(e.target.value)} placeholder="main" />
           </label>
           <label className="form-control">
             <span className="label-text">子目录（可选）</span>
-            <input className="input input-bordered" value={ghWorkdir} onChange={(e) => setGhWorkdir(e.target.value)} placeholder="packages/webapp" />
+            <input className="workspace-input input input-bordered" value={ghWorkdir} onChange={(e) => setGhWorkdir(e.target.value)} placeholder="packages/webapp" />
           </label>
           <label className="form-control md:col-span-2">
             <span className="label-text">描述（可选）</span>
             <textarea
-              className="textarea textarea-bordered"
+              className="workspace-textarea textarea textarea-bordered"
               rows={2}
               value={ghDescription}
               onChange={(e) => setGhDescription(e.target.value)}
@@ -82,7 +83,7 @@ const TemplateManagePage = () => {
             />
           </label>
           <div className="md:col-span-2 flex flex-wrap gap-2">
-            <button className="btn btn-primary" type="submit" disabled={createGithubTemplate.status === "pending"}>
+            <button className="landing-button-primary rounded-2xl px-5 py-3 text-sm" type="submit" disabled={createGithubTemplate.status === "pending"}>
               {createGithubTemplate.status === "pending" ? "提交中..." : "添加 GitHub 模板"}
             </button>
             {ghMessage && <span className="text-success">{ghMessage}</span>}
@@ -92,12 +93,12 @@ const TemplateManagePage = () => {
 
         <div className="divider my-4" />
 
-        <h3 className="card-title text-lg">模板列表</h3>
+        <h3 className="text-xl font-bold tracking-[-0.03em] text-slate-900">模板列表</h3>
         {githubTemplates.isLoading && <div className="flex justify-center"><span className="loading loading-spinner" /></div>}
-        {githubTemplates.error && <div role="alert" className="alert alert-error"><span>加载失败</span></div>}
+        {githubTemplates.error && <div role="alert" className="workspace-alert border border-rose-200 bg-rose-50 px-4 py-3 text-rose-700"><span>加载失败</span></div>}
         {!githubTemplates.isLoading && githubTemplates.data && githubTemplates.data.length === 0 && <p>暂无 GitHub 模板</p>}
         {!githubTemplates.isLoading && githubTemplates.data && githubTemplates.data.length > 0 && (
-          <div className="overflow-x-auto">
+          <div className="workspace-table-shell overflow-x-auto">
             <table className="table">
               <thead>
                 <tr>
@@ -121,7 +122,7 @@ const TemplateManagePage = () => {
                     <td className="text-sm">{item.createdAt ? new Date(item.createdAt).toLocaleString() : "-"}</td>
                     <td>
                       <button
-                        className="btn btn-sm btn-error text-white"
+                        className="rounded-2xl bg-rose-500 px-4 py-2 text-sm font-semibold text-white"
                         disabled={deleteGithubTemplate.status === "pending"}
                         onClick={() =>
                           deleteGithubTemplate.mutate(item.name, {

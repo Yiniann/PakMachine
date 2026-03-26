@@ -1,4 +1,5 @@
 import { FormEvent, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useUsersQuery, User } from "../../features/users/queries";
 import { useAuth } from "../../components/useAuth";
 import {
@@ -172,12 +173,13 @@ const UsersPage = () => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-bold">用户管理</h2>
-          <p className="text-base-content/70 mt-1">管理注册用户、权限及配额</p>
+          <p className="workspace-kicker">Users</p>
+          <h2 className="mt-2 text-3xl font-bold tracking-[-0.04em] text-slate-900">用户管理</h2>
+          <p className="mt-2 text-[15px] text-slate-500">管理注册用户、权限及配额。</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <select
-            className="select select-bordered select-sm"
+            className="workspace-select select select-bordered select-sm"
             value={userTypeFilter}
             onChange={(e) => setUserTypeFilter(e.target.value)}
           >
@@ -187,7 +189,7 @@ const UsersPage = () => {
             <option value="basic">基础版</option>
             <option value="pending">待开通</option>
           </select>
-          <button className="btn btn-primary btn-sm gap-2" onClick={() => setCreateOpen(true)}>
+          <button className="landing-button-primary rounded-2xl px-5 py-3 text-sm" onClick={() => setCreateOpen(true)}>
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
             </svg>
@@ -197,18 +199,19 @@ const UsersPage = () => {
       </div>
 
       {errorMessage && (
-        <div role="alert" className="alert alert-error">
+        <div role="alert" className="workspace-alert flex items-center gap-3 border border-rose-200 bg-rose-50 px-4 py-3 text-rose-700">
           <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
           <span>{errorMessage}</span>
         </div>
       )}
 
-      <div className="card bg-base-100 shadow-xl">
-        <div className="card-body p-0 sm:p-6">
+      <div className="workspace-card p-0 sm:p-6">
+        <div className="p-0">
           {isLoading && <div className="flex justify-center p-4"><span className="loading loading-spinner loading-md" /></div>}
           {!isLoading && !errorMessage && (
             <>
             <div className="overflow-x-auto hidden md:block">
+              <div className="workspace-table-shell">
               <table className="table table-zebra">
                 <thead>
                   <tr>
@@ -248,13 +251,14 @@ const UsersPage = () => {
                         </button>
                       </td>
                     </tr>
-                  ))}
-                </tbody>
+                ))}
+              </tbody>
               </table>
+              </div>
             </div>
 
             {/* Mobile List View */}
-            <div className="md:hidden flex flex-col divide-y divide-base-200">
+            <div className="workspace-table-shell md:hidden flex flex-col divide-y divide-base-200">
               {formattedUsers.map((u) => (
                 <div key={u.id} className="p-4 space-y-3">
                   <div className="flex justify-between items-start">
@@ -299,12 +303,12 @@ const UsersPage = () => {
       </div>
 
       {/* Create User Modal */}
-      {createOpen && (
-        <div className="modal modal-open bg-transparent backdrop-blur-sm">
-          <div className="modal-box">
+      {createOpen && createPortal(
+        <div className="modal modal-open !fixed inset-0 z-[80] bg-slate-900/18 backdrop-blur-sm">
+          <div className="modal-box workspace-card max-w-2xl border-0 bg-white/95">
             <div className="flex justify-between items-center">
-              <h3 className="font-bold text-lg">添加用户</h3>
-              <button className="btn btn-sm btn-circle btn-ghost" onClick={() => setCreateOpen(false)}>✕</button>
+              <h3 className="text-xl font-bold tracking-[-0.03em] text-slate-900">添加用户</h3>
+              <button className="landing-button-secondary btn btn-sm btn-circle min-h-0 !h-10 !w-10 !rounded-full !p-0" onClick={() => setCreateOpen(false)}>✕</button>
             </div>
             <form onSubmit={onCreate} className="space-y-4 mt-4">
               <label className="form-control w-full">
@@ -313,7 +317,7 @@ const UsersPage = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="邮箱"
-                  className="input input-bordered w-full"
+                  className="workspace-input input input-bordered w-full"
                   required
                 />
               </label>
@@ -324,7 +328,7 @@ const UsersPage = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="密码"
-                  className="input input-bordered w-full"
+                  className="workspace-input input input-bordered w-full"
                   required
                 />
               </label>
@@ -340,7 +344,7 @@ const UsersPage = () => {
                         setUserType("pending");
                       }
                     }}
-                    className="select select-bordered w-full"
+                    className="workspace-select select select-bordered w-full"
                   >
                     <option value="user">用户</option>
                     <option value="admin">管理员</option>
@@ -351,7 +355,7 @@ const UsersPage = () => {
                   <select
                     value={userType}
                     onChange={(e) => setUserType(e.target.value)}
-                    className="select select-bordered w-full"
+                    className="workspace-select select select-bordered w-full"
                     disabled={role === "admin"}
                   >
                     <option value="pending">待开通</option>
@@ -362,26 +366,34 @@ const UsersPage = () => {
               </div>
               {role === "admin" && <p className="text-xs text-base-content/70">管理员账号不区分基础版、专业版或待开通。</p>}
               <div className="modal-action">
-                <button type="button" className="btn" onClick={() => setCreateOpen(false)}>
+                <button type="button" className="landing-button-secondary rounded-2xl px-5 py-3 text-sm" onClick={() => setCreateOpen(false)}>
                   取消
                 </button>
-                <button type="submit" className="btn btn-primary" disabled={createUser.status === "pending"}>
+                <button type="submit" className="landing-button-primary rounded-2xl px-5 py-3 text-sm" disabled={createUser.status === "pending"}>
                   {createUser.status === "pending" ? "创建中..." : "创建"}
                 </button>
               </div>
             </form>
             {createError && <p className="text-error mt-2">失败: {createError}</p>}
           </div>
-        </div>
+          <button
+            type="button"
+            className="modal-backdrop bg-transparent hover:bg-transparent focus:bg-transparent active:bg-transparent"
+            onClick={() => setCreateOpen(false)}
+          >
+            close
+          </button>
+        </div>,
+        document.body,
       )}
 
-      {settingsUser && (
-        <div className="modal modal-open bg-transparent backdrop-blur-sm">
-          <div className="modal-box">
+      {settingsUser && createPortal(
+        <div className="modal modal-open !fixed inset-0 z-[80] bg-slate-900/18 backdrop-blur-sm">
+          <div className="modal-box workspace-card max-w-4xl border-0 bg-white/95">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="font-bold text-lg">用户设置</h3>
+              <h3 className="text-xl font-bold tracking-[-0.03em] text-slate-900">用户设置</h3>
               <button
-                className="btn btn-sm btn-circle btn-ghost"
+                className="landing-button-secondary btn btn-sm btn-circle min-h-0 !h-10 !w-10 !rounded-full !p-0"
                 onClick={() => {
                   setSettingsUser(null);
                   setNewPassword("");
@@ -398,7 +410,7 @@ const UsersPage = () => {
             <div className="space-y-5">
               {/* Status Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="border border-base-200 rounded-lg p-3 flex flex-col gap-2">
+                <div className="workspace-card-soft flex flex-col gap-2 rounded-2xl p-3">
                   <div className="flex justify-between items-center">
                     <span className="text-xs text-base-content/60">站点名称</span>
                     {settingsUser.siteName ? (
@@ -412,7 +424,7 @@ const UsersPage = () => {
                   </div>
                   <button
                     type="button"
-                    className="btn btn-xs btn-outline w-full"
+                    className="landing-button-secondary w-full rounded-2xl px-4 py-2 text-xs"
                     disabled={resetSiteName.status === "pending"}
                     onClick={() => {
                       if (!window.confirm(`确定要重置 ${settingsUser.email} 的站点名吗？`)) return;
@@ -426,7 +438,7 @@ const UsersPage = () => {
                   </button>
                 </div>
 
-                <div className="border border-base-200 rounded-lg p-3 flex flex-col gap-2">
+                <div className="workspace-card-soft flex flex-col gap-2 rounded-2xl p-3">
                   <div className="flex justify-between items-center">
                     <span className="text-xs text-base-content/60">已绑定前端</span>
                     {settingsUser.frontendOrigins?.length ? (
@@ -442,7 +454,7 @@ const UsersPage = () => {
                           <div className="min-w-0 flex-1 truncate" title={origin}>{origin}</div>
                           <button
                             type="button"
-                            className="btn btn-ghost btn-xs text-error"
+                            className="text-xs font-semibold text-rose-500"
                             disabled={removeFrontendOrigin.status === "pending"}
                             onClick={() => {
                               if (!window.confirm(`确定删除 ${settingsUser.email} 的前端域名 ${origin} 吗？`)) return;
@@ -466,7 +478,7 @@ const UsersPage = () => {
                   {settingsUser.frontendOrigins?.length ? (
                     <button
                       type="button"
-                      className="btn btn-xs btn-outline w-full"
+                      className="landing-button-secondary w-full rounded-2xl px-4 py-2 text-xs"
                       disabled={resetFrontendOrigins.status === "pending"}
                       onClick={() => {
                         if (!window.confirm(`确定要清空 ${settingsUser.email} 的全部前端绑定吗？`)) return;
@@ -481,7 +493,7 @@ const UsersPage = () => {
                   ) : null}
                 </div>
 
-                <div className="border border-base-200 rounded-lg p-3 flex flex-col gap-2">
+                <div className="workspace-card-soft flex flex-col gap-2 rounded-2xl p-3">
                   <div className="flex justify-between items-center">
                     <span className="text-xs text-base-content/60">今日构建</span>
                     <span className="text-xs font-mono">
@@ -495,7 +507,7 @@ const UsersPage = () => {
                   ></progress>
                   <button
                     type="button"
-                    className="btn btn-xs btn-outline w-full"
+                    className="landing-button-secondary w-full rounded-2xl px-4 py-2 text-xs"
                     disabled={resetBuildQuota.status === "pending"}
                     onClick={() => {
                       if (!window.confirm(`确定重置 ${settingsUser.email} 的今日构建次数？`)) return;
@@ -522,7 +534,7 @@ const UsersPage = () => {
                     </label>
                     <div className="join w-full">
                       <select
-                        className="select select-bordered select-sm join-item w-full"
+                        className="workspace-select select select-bordered select-sm join-item w-full"
                         value={getRoleValue(settingsUser)}
                         onChange={(e) => setRoleEdit((prev) => ({ ...prev, [settingsUser.email]: e.target.value }))}
                       >
@@ -530,7 +542,7 @@ const UsersPage = () => {
                         <option value="admin">管理员</option>
                       </select>
                       <button
-                        className="btn btn-sm btn-primary join-item"
+                        className="landing-button-primary join-item rounded-r-2xl px-4 py-2 text-sm"
                         disabled={updateRole.status === "pending"}
                         onClick={() =>
                           updateRole.mutate({ email: settingsUser.email, role: getRoleValue(settingsUser) })
@@ -547,7 +559,7 @@ const UsersPage = () => {
                     </label>
                     <div className="join w-full">
                       <select
-                        className="select select-bordered select-sm join-item w-full"
+                        className="workspace-select select select-bordered select-sm join-item w-full"
                         value={getUserTypeValue(settingsUser)}
                         disabled={getRoleValue(settingsUser) === "admin"}
                         onChange={(e) => setUserTypeEdit((prev) => ({ ...prev, [settingsUser.email]: e.target.value }))}
@@ -557,7 +569,7 @@ const UsersPage = () => {
                         <option value="pro">专业版</option>
                       </select>
                       <button
-                        className="btn btn-sm btn-primary join-item"
+                        className="landing-button-primary join-item rounded-r-2xl px-4 py-2 text-sm"
                         disabled={updateUserType.status === "pending" || getRoleValue(settingsUser) === "admin"}
                         onClick={() =>
                           updateUserType.mutate({ email: settingsUser.email, userType: getUserTypeValue(settingsUser) })
@@ -583,12 +595,12 @@ const UsersPage = () => {
                       setResetEmail(settingsUser.email);
                     }}
                     placeholder="输入新密码"
-                    className="input input-bordered input-sm join-item w-full"
+                    className="workspace-input input input-bordered input-sm join-item w-full"
                     required
                   />
                   <button
                     type="submit"
-                    className="btn btn-sm btn-primary join-item"
+                    className="landing-button-primary join-item rounded-r-2xl px-4 py-2 text-sm"
                     disabled={updatePassword.status === "pending"}
                   >
                     修改
@@ -608,7 +620,7 @@ const UsersPage = () => {
                   <div className="collapse-content">
                     <p className="text-xs mb-3 opacity-70">删除账号将清除该用户所有数据且无法恢复。</p>
                     <button
-                      className="btn btn-sm btn-error text-white w-full"
+                      className="w-full rounded-2xl bg-rose-500 px-4 py-3 text-sm font-semibold text-white"
                       disabled={deleteUser.status === "pending"}
                       onClick={() => {
                         if (!window.confirm(`确认删除账号 ${settingsUser.email} 吗？该操作不可恢复。`)) return;
@@ -636,7 +648,18 @@ const UsersPage = () => {
               </div>
             )}
           </div>
-        </div>
+          <button
+            type="button"
+            className="modal-backdrop bg-transparent hover:bg-transparent focus:bg-transparent active:bg-transparent"
+            onClick={() => {
+              setSettingsUser(null);
+              setNewPassword("");
+            }}
+          >
+            close
+          </button>
+        </div>,
+        document.body,
       )}
     </div>
   );
