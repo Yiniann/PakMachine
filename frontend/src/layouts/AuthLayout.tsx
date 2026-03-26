@@ -1,4 +1,4 @@
-import { Link, Outlet } from "react-router-dom";
+import { Link, Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "../components/useAuth";
 import { usePublicSettings } from "../features/settings/publicSettings";
 import BrandMark from "../components/BrandMark";
@@ -7,6 +7,11 @@ const AuthLayout = () => {
   const { token, logout } = useAuth();
   const publicSettings = usePublicSettings();
   const siteTitle = publicSettings.data?.siteName || "PacMachine";
+
+  if (token) {
+    return <Navigate to="/app" replace />;
+  }
+
   return (
     <div className="landing-shell relative min-h-screen">
       <div className="landing-grid pointer-events-none absolute inset-0 opacity-40" />
