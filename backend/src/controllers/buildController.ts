@@ -13,6 +13,7 @@ import path from "path";
 import { Readable } from "stream";
 import { URL } from "url";
 import { normalizeArtifactUrl } from "../lib/artifactUrl";
+import { canBuildBff, canBuildSpa, normalizeUserType } from "../lib/userAccess";
 
 const ADMIN_BUILD_JOBS_LIMIT = 200;
 const ALLOWED_ENV_KEYS = new Set([
@@ -376,6 +377,14 @@ export const buildTemplatePackage = async (req: Request, res: Response, next: Ne
         throw new Error("User not found");
       }
       const isAdmin = txUser.role === "admin";
+      const normalizedUserType = normalizeUserType(txUser.userType);
+
+      if (!canBuildSpa(txUser.role, normalizedUserType)) {
+        throw Object.assign(new Error("当前账号为待开通状态，请联系管理员开通构建权限"), { statusCode: 403 });
+      }
+      if (buildMode === "bff" && !canBuildBff(txUser.role, normalizedUserType)) {
+        throw Object.assign(new Error("当前账号仅支持 SPA 构建，升级到专业版后可使用 Pro 构建"), { statusCode: 403 });
+      }
 
       if (!isAdmin) {
         const now = new Date();
@@ -422,6 +431,9 @@ export const buildTemplatePackage = async (req: Request, res: Response, next: Ne
       throw err;
     }
   } catch (err) {
+    if ((err as any)?.statusCode === 403) {
+      return res.status(403).json({ error: (err as Error).message });
+    }
     if ((err as any)?.statusCode === 429) {
       return res.status(429).json({
         error: (err as Error).message,

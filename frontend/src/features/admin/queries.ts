@@ -3,7 +3,7 @@ import api from "../../api/client";
 
 export type AdminStats = {
   totalUsers: number;
-  subscriberUsers: number;
+  proUsers: number;
   totalBuildJobs: number;
   buildsToday: number;
   buildsLast7Days: number;

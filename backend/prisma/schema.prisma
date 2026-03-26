@@ -15,7 +15,7 @@ model User {
   password           String
   emailVerified      Boolean   @default(false)
   role               String    @default("user") // "user" | "admin"
-  userType           String    @default("free") // "free" | "subscriber"
+  userType           String    @default("pending") // "pending" | "basic" | "pro"
   siteName           String?
   frontendOriginsJson String?  @db.Text
   buildQuotaUsed     Int       @default(0) // 当天已使用的构建次数

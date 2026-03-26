@@ -4,6 +4,7 @@ import { useBuildJob, useBuildJobs } from "../../features/builds/jobs";
 import { useBuildQuota } from "../../features/builds/quota";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../components/useAuth";
+import { getUserTypeBadgeClass, getUserTypeDescription, getUserTypeLabel, normalizeUserType } from "../../lib/userAccess";
 
 const HomePage = () => {
   const siteProfileQuery = useSiteProfile();
@@ -16,7 +17,6 @@ const HomePage = () => {
   const user = auth.user || {};
   const role = auth.role || user.role;
   const email = auth.email || user.email;
-  const normalizeUserType = (value?: string | null) => (value ?? "free").toString().trim().toLowerCase();
   const userType = normalizeUserType(auth.userType ?? user.userType);
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -192,12 +192,14 @@ const HomePage = () => {
           <h2 className="text-3xl font-bold">欢迎使用，{email}</h2>
           {role === 'admin' ? (
             <div className="badge badge-lg badge-primary">管理员</div>
-          ) : userType === 'subscriber' ? (
-            <div className="badge badge-lg badge-secondary">订阅用户</div>
-          ) : null}
+          ) : (
+            <div className={`badge badge-lg ${getUserTypeBadgeClass(userType)}`}>{getUserTypeLabel(userType)}</div>
+          )}
         </div>
         <p className="text-base-content/70 mt-1">
-          设置站点名，提交打包，完成后在“构建下载”获取仅与你账号绑定的产物。
+          {role === "admin"
+            ? "设置站点名，提交打包，完成后在“构建下载”获取仅与你账号绑定的产物。"
+            : `${getUserTypeDescription(userType)}。设置站点名后即可按当前档位使用构建功能。`}
         </p>
       </div>
 
@@ -236,7 +238,7 @@ const HomePage = () => {
                       {isUnlimitedQuota ? "∞" : `${quota.left}/${quota.limit}`}
                     </div>
                     <div className="stat-desc text-xs mt-1">
-                      {isUnlimitedQuota ? "无限制" : "每日刷新"}
+                      {isUnlimitedQuota ? "无限制" : quota.limit === 0 ? "待开通" : "每日刷新"}
                     </div>
                   </div>
                 </div>

@@ -6,6 +6,7 @@ import fs from "fs";
 import prisma from "../lib/prisma";
 import { loadSettings } from "./systemSettingsController";
 import { buildResetUrl, sendPasswordResetEmail, sendRegisterVerificationEmail } from "../services/mailService";
+import { isValidUserType, normalizeUserType } from "../lib/userAccess";
 
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
 const TOKEN_EXPIRES_HOURS = 1;
@@ -16,7 +17,6 @@ const REGISTER_CODE_RESEND_SECONDS = 60;
 const isValidEmail = (email: string) =>
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 const isValidPassword = (pwd: string) => typeof pwd === "string" && pwd.length >= 8;
-const isValidUserType = (value: string) => value === "free" || value === "subscriber";
 const hashCode = (code: string) => crypto.createHash("sha256").update(code).digest("hex");
 const generateRegisterCode = () => Math.floor(100000 + Math.random() * 900000).toString();
 const parseFrontendOrigins = (value: unknown): string[] => {
@@ -36,6 +36,7 @@ export const listUsers = async (_req: Request, res: Response, next: NextFunction
     const users = await prisma.user.findMany({ orderBy: { id: "asc" } });
     const safe = users.map(({ password: _pw, resetToken, resetTokenExpires, frontendOriginsJson, ...rest }: typeof users[number]) => ({
       ...rest,
+      userType: normalizeUserType(rest.userType),
       frontendOrigins: parseFrontendOrigins(frontendOriginsJson),
     }));
     res.json(safe);
@@ -46,7 +47,7 @@ export const listUsers = async (_req: Request, res: Response, next: NextFunction
 
 export const adminCreateUser = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { email, password, role = "user", userType = "free" } = req.body ?? {};
+    const { email, password, role = "user", userType = "pending" } = req.body ?? {};
     if (!email || !password) {
       return res.status(400).json({ error: "Email and password are required" });
     }
@@ -57,7 +58,7 @@ export const adminCreateUser = async (req: Request, res: Response, next: NextFun
       return res.status(400).json({ error: "Password must be at least 8 characters" });
     }
     if (userType && !isValidUserType(userType)) {
-      return res.status(400).json({ error: "UserType must be 'free' or 'subscriber'" });
+      return res.status(400).json({ error: "UserType must be 'pending', 'basic' or 'pro'" });
     }
 
     const existing = await prisma.user.findUnique({ where: { email } });
@@ -67,10 +68,11 @@ export const adminCreateUser = async (req: Request, res: Response, next: NextFun
 
     const hashed = await bcrypt.hash(password, 10);
     const created = await prisma.user.create({
-      data: { email, password: hashed, role, userType: userType || "free", emailVerified: true },
+      data: { email, password: hashed, role, userType: normalizeUserType(userType), emailVerified: true },
     });
     const { password: _pw, resetToken, resetTokenExpires, ...rest } = created;
-    res.status(201).json(rest);
+    const safe = { ...rest, userType: normalizeUserType(rest.userType) };
+    res.status(201).json(safe);
   } catch (error) {
     next(error);
   }
@@ -160,10 +162,10 @@ export const adminUpdateUserType = async (req: Request, res: Response, next: Nex
       return res.status(400).json({ error: "不能修改自己的用户类型" });
     }
     if (!isValidUserType(userType)) {
-      return res.status(400).json({ error: "UserType must be 'free' or 'subscriber'" });
+      return res.status(400).json({ error: "UserType must be 'pending', 'basic' or 'pro'" });
     }
 
-    await prisma.user.update({ where: { email }, data: { userType } });
+    await prisma.user.update({ where: { email }, data: { userType: normalizeUserType(userType) } });
     res.json({ message: "UserType updated" });
   } catch (error) {
     next(error);
@@ -412,15 +414,16 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
 
     const hashed = await bcrypt.hash(password, 10);
     const [user] = await prisma.$transaction([
-      prisma.user.create({ data: { email, password: hashed, emailVerified: true } }),
+      prisma.user.create({ data: { email, password: hashed, emailVerified: true, userType: "pending" } }),
       prisma.verificationCode.update({
         where: { id: latestCode.id },
         data: { consumedAt: new Date() },
       }),
     ]);
     const { password: _pw, resetToken, resetTokenExpires, ...rest } = user;
+    const safe = { ...rest, userType: normalizeUserType(rest.userType) };
 
-    res.status(201).json(rest);
+    res.status(201).json(safe);
   } catch (error) {
     next(error);
   }
@@ -478,7 +481,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
 
     const { password: _pw, resetToken, resetTokenExpires, ...rest } = user;
 
-    res.json({ token, user: rest });
+    res.json({ token, user: { ...rest, userType: normalizeUserType(rest.userType) } });
   } catch (error) {
     next(error);
   }

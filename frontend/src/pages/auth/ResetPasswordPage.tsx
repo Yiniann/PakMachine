@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useResetPasswordMutation } from "../../features/auth/mutations";
 
 const ResetPasswordPage = () => {
@@ -49,44 +49,83 @@ const ResetPasswordPage = () => {
   };
 
   return (
-    <div className="card bg-base-100 shadow-xl max-w-md mx-auto">
-      <div className="card-body space-y-3">
-        <h2 className="card-title">重置密码</h2>
-        <p className="text-sm text-base-content/70">从邮箱链接打开时会自动带入 token，可修改为最新邮件里的 token。</p>
-        <form onSubmit={onSubmit} className="space-y-3">
-          <input
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
-            placeholder="重置令牌"
-            className="input input-bordered w-full"
-            required
-          />
-          <input
-            type="password"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            placeholder="新密码（至少 8 位）"
-            className={`input input-bordered w-full ${passwordTooShort ? "input-error" : ""}`}
-            required
-            minLength={8}
-          />
-          <input
-            type="password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            placeholder="确认新密码"
-            className={`input input-bordered w-full ${mismatch ? "input-error" : ""}`}
-            required
-            minLength={8}
-          />
-          <button type="submit" className="btn btn-primary w-full" disabled={!canSubmit || mutation.status === "pending"}>
-            {mutation.status === "pending" ? "重置中..." : "重置"}
+    <div className="mx-auto w-full max-w-xl">
+      <section className="rounded-[2rem] border border-slate-200 bg-white p-7 shadow-[0_24px_60px_rgba(15,23,42,0.08)] sm:p-9">
+        <div className="max-w-xl">
+          <p className="text-sm font-bold uppercase tracking-[0.24em] text-[#6d6bf4]">Account Recovery</p>
+          <h1 className="mt-4 text-3xl font-bold tracking-[-0.04em] text-slate-900">重置密码</h1>
+        </div>
+
+        <form onSubmit={onSubmit} className="mt-8 space-y-5">
+          <label className="block space-y-2">
+            <span className="text-sm font-medium text-slate-700">重置令牌</span>
+            <input
+              value={token}
+              onChange={(e) => setToken(e.target.value)}
+              placeholder="输入重置令牌"
+              className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-base text-slate-900 outline-none transition focus:border-[#6d6bf4] focus:ring-4 focus:ring-[#6d6bf4]/10"
+              required
+            />
+          </label>
+
+          <label className="block space-y-2">
+            <span className="text-sm font-medium text-slate-700">新密码</span>
+            <input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="新密码（至少 8 位）"
+              className={`w-full rounded-2xl border bg-slate-50 px-4 py-4 text-base text-slate-900 outline-none transition focus:border-[#6d6bf4] focus:ring-4 focus:ring-[#6d6bf4]/10 ${
+                passwordTooShort ? "border-red-300" : "border-slate-200"
+              }`}
+              required
+              minLength={8}
+            />
+          </label>
+
+          <label className="block space-y-2">
+            <span className="text-sm font-medium text-slate-700">确认新密码</span>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="再次输入新密码"
+              className={`w-full rounded-2xl border bg-slate-50 px-4 py-4 text-base text-slate-900 outline-none transition focus:border-[#6d6bf4] focus:ring-4 focus:ring-[#6d6bf4]/10 ${
+                mismatch ? "border-red-300" : "border-slate-200"
+              }`}
+              required
+              minLength={8}
+            />
+          </label>
+
+          <button
+            type="submit"
+            className="landing-button-primary w-full rounded-2xl px-6 py-4 text-base"
+            disabled={!canSubmit || mutation.status === "pending"}
+          >
+            {mutation.status === "pending" ? "重置中..." : "重置密码"}
           </button>
         </form>
-        {passwordTooShort && <p className="text-error text-sm">密码至少 8 位</p>}
-        {mismatch && <p className="text-error text-sm">两次输入的密码不一致</p>}
-        {message && <p className="text-info mt-2">{message}</p>}
-      </div>
+
+        <div className="mt-6 space-y-2">
+          {passwordTooShort ? <p className="text-sm text-red-500">密码至少 8 位</p> : null}
+          {mismatch ? <p className="text-sm text-red-500">两次输入的密码不一致</p> : null}
+          {message ? (
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+              {message}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="mt-6 flex items-center justify-between text-sm text-slate-500">
+          <Link className="font-medium text-[#6d6bf4] transition hover:text-[#5e5ce6]" to="/auth/forgot">
+            重新获取链接
+          </Link>
+          <Link className="font-medium text-[#6d6bf4] transition hover:text-[#5e5ce6]" to="/auth/login">
+            返回登录
+          </Link>
+        </div>
+      </section>
     </div>
   );
 };

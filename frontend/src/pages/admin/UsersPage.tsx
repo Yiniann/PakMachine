@@ -12,8 +12,7 @@ import {
   useUpdateRole,
   useUpdateUserType,
 } from "../../features/users/mutations";
-
-const normalizeUserType = (value?: string | null) => (value ?? "free").toString().trim().toLowerCase();
+import { canBuildSpa, getUserTypeBadgeClass, getUserTypeLabel, normalizeUserType } from "../../lib/userAccess";
 
 const UsersPage = () => {
   const { email: currentEmail } = useAuth();
@@ -31,7 +30,7 @@ const UsersPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("user");
-  const [userType, setUserType] = useState("free");
+  const [userType, setUserType] = useState("pending");
   const [userTypeFilter, setUserTypeFilter] = useState("all");
 
   const [resetEmail, setResetEmail] = useState("");
@@ -108,7 +107,7 @@ const UsersPage = () => {
           setEmail("");
           setPassword("");
           setRole("user");
-          setUserType("free");
+          setUserType("pending");
           setCreateOpen(false);
         },
       },
@@ -138,32 +137,35 @@ const UsersPage = () => {
     if (userTypeFilter === "admin") {
       return rows.filter((u) => u.role === "admin");
     }
-    if (userTypeFilter === "subscriber") {
-      return rows.filter((u) => u.role !== "admin" && normalizeUserType(u.userType) === "subscriber");
+    if (userTypeFilter === "pro") {
+      return rows.filter((u) => u.role !== "admin" && normalizeUserType(u.userType) === "pro");
     }
-    if (userTypeFilter === "free") {
-      return rows.filter((u) => u.role !== "admin" && normalizeUserType(u.userType) === "free");
+    if (userTypeFilter === "basic") {
+      return rows.filter((u) => u.role !== "admin" && normalizeUserType(u.userType) === "basic");
+    }
+    if (userTypeFilter === "pending") {
+      return rows.filter((u) => u.role !== "admin" && normalizeUserType(u.userType) === "pending");
     }
     return rows;
   }, [data, userTypeFilter]);
 
   const getQuotaLeft = (u: User) => {
+    if (u.role !== "admin" && !canBuildSpa(u.role, u.userType)) return 0;
     if (!u.buildQuotaDate) return BUILD_LIMIT;
     const isToday = new Date(u.buildQuotaDate).toDateString() === new Date().toDateString();
     const used = u.buildQuotaUsed ?? 0;
     return isToday ? Math.max(BUILD_LIMIT - used, 0) : BUILD_LIMIT;
   };
-  const getUserTypeLabel = (u: User) => {
-    if (u.role === "admin") return "管理员";
-    return normalizeUserType(u.userType) === "subscriber" ? "订阅用户" : "免费用户";
+  const getQuotaLabel = (u: User) => {
+    if (u.role !== "admin" && !canBuildSpa(u.role, u.userType)) return "未开通";
+    return `${getQuotaLeft(u)} / ${BUILD_LIMIT}`;
   };
-  const getUserTypeBadgeClass = (u: User) => {
+  const getUserBadgeClass = (u: User) => {
     if (u.role === "admin") return "badge-primary";
-    if (normalizeUserType(u.userType) === "subscriber") return "badge-secondary";
-    return "hidden";
+    return getUserTypeBadgeClass(u.userType);
   };
   const getRoleValue = (u: User) => roleEdit[u.email] ?? u.role;
-  const getUserTypeValue = (u: User) => userTypeEdit[u.email] ?? u.userType ?? "free";
+  const getUserTypeValue = (u: User) => normalizeUserType(userTypeEdit[u.email] ?? u.userType ?? "pending");
   const isSelf = (u: User) => Boolean(currentEmail && u.email === currentEmail);
 
   return (
@@ -181,8 +183,9 @@ const UsersPage = () => {
           >
             <option value="all">全部用户</option>
             <option value="admin">管理员</option>
-            <option value="subscriber">订阅用户</option>
-            <option value="free">免费用户</option>
+            <option value="pro">专业版</option>
+            <option value="basic">基础版</option>
+            <option value="pending">待开通</option>
           </select>
           <button className="btn btn-primary btn-sm gap-2" onClick={() => setCreateOpen(true)}>
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
@@ -214,7 +217,7 @@ const UsersPage = () => {
                     <th>站点名</th>
                     <th>已绑定前端</th>
                     <th>今日剩余构建</th>
-                    <th>用户类型</th>
+                    <th>权限档位</th>
                     <th>创建时间</th>
                     <th>操作</th>
                   </tr>
@@ -227,19 +230,17 @@ const UsersPage = () => {
                       <td>{u.siteName ?? "未设置"}</td>
                       <td>{u.frontendOrigins?.length ? `${u.frontendOrigins.length} 个` : "未绑定"}</td>
                       <td>
-                        {getQuotaLeft(u)} / {BUILD_LIMIT}
+                        {getQuotaLabel(u)}
                       </td>
                       <td>
-                        {(u.role === "admin" || normalizeUserType(u.userType) === "subscriber") && (
-                          <div className={`badge badge-sm ${getUserTypeBadgeClass(u)}`}>{getUserTypeLabel(u)}</div>
-                        )}
+                        <div className={`badge badge-sm ${getUserBadgeClass(u)}`}>{u.role === "admin" ? "管理员" : getUserTypeLabel(u.userType)}</div>
                       </td>
                       <td>{u.createdAtLabel}</td>
                       <td>
                         <button className="btn btn-xs" onClick={() => {
                           setSettingsUser(u);
                           setRoleEdit({ [u.email]: u.role });
-                          setUserTypeEdit({ [u.email]: u.userType ?? "free" });
+                          setUserTypeEdit({ [u.email]: normalizeUserType(u.userType) });
                           setResetEmail(u.email);
                           setNewPassword("");
                         }}>
@@ -261,9 +262,7 @@ const UsersPage = () => {
                       <div className="font-bold break-all">{u.email}</div>
                       <div className="text-xs text-base-content/60">ID: {u.id}</div>
                     </div>
-                    {(u.role === "admin" || normalizeUserType(u.userType) === "subscriber") && (
-                      <div className={`badge badge-sm ${getUserTypeBadgeClass(u)}`}>{getUserTypeLabel(u)}</div>
-                    )}
+                    <div className={`badge badge-sm ${getUserBadgeClass(u)}`}>{u.role === "admin" ? "管理员" : getUserTypeLabel(u.userType)}</div>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <div className="flex flex-col">
@@ -276,7 +275,7 @@ const UsersPage = () => {
                     </div>
                     <div className="flex flex-col">
                       <span className="text-xs text-base-content/60">剩余构建</span>
-                      <span>{getQuotaLeft(u)} / {BUILD_LIMIT}</span>
+                      <span>{getQuotaLabel(u)}</span>
                     </div>
                   </div>
                   <div className="flex justify-between items-center pt-1">
@@ -284,7 +283,7 @@ const UsersPage = () => {
                     <button className="btn btn-xs btn-outline" onClick={() => {
                           setSettingsUser(u);
                           setRoleEdit({ [u.email]: u.role });
-                          setUserTypeEdit({ [u.email]: u.userType ?? "free" });
+                          setUserTypeEdit({ [u.email]: normalizeUserType(u.userType) });
                           setResetEmail(u.email);
                           setNewPassword("");
                         }}>
@@ -338,7 +337,7 @@ const UsersPage = () => {
                       const value = e.target.value;
                       setRole(value);
                       if (value === "admin") {
-                        setUserType("free");
+                        setUserType("pending");
                       }
                     }}
                     className="select select-bordered w-full"
@@ -348,19 +347,20 @@ const UsersPage = () => {
                   </select>
                 </label>
                 <label className="form-control w-full">
-                  <div className="label"><span className="label-text">用户类型</span></div>
+                  <div className="label"><span className="label-text">权限档位</span></div>
                   <select
                     value={userType}
                     onChange={(e) => setUserType(e.target.value)}
                     className="select select-bordered w-full"
                     disabled={role === "admin"}
                   >
-                    <option value="free">免费用户</option>
-                    <option value="subscriber">订阅用户</option>
+                    <option value="pending">待开通</option>
+                    <option value="basic">基础版</option>
+                    <option value="pro">专业版</option>
                   </select>
                 </label>
               </div>
-              {role === "admin" && <p className="text-xs text-base-content/70">管理员账号不区分订阅/免费。</p>}
+              {role === "admin" && <p className="text-xs text-base-content/70">管理员账号不区分基础版、专业版或待开通。</p>}
               <div className="modal-action">
                 <button type="button" className="btn" onClick={() => setCreateOpen(false)}>
                   取消
@@ -485,12 +485,12 @@ const UsersPage = () => {
                   <div className="flex justify-between items-center">
                     <span className="text-xs text-base-content/60">今日构建</span>
                     <span className="text-xs font-mono">
-                      {getQuotaLeft(settingsUser)}/{BUILD_LIMIT}
+                      {getQuotaLabel(settingsUser)}
                     </span>
                   </div>
                   <progress
                     className="progress progress-primary w-full flex-1"
-                    value={BUILD_LIMIT - getQuotaLeft(settingsUser)}
+                    value={canBuildSpa(settingsUser.role, settingsUser.userType) ? BUILD_LIMIT - getQuotaLeft(settingsUser) : 0}
                     max={BUILD_LIMIT}
                   ></progress>
                   <button
@@ -543,7 +543,7 @@ const UsersPage = () => {
 
                   <div className="form-control">
                     <label className="label py-1">
-                      <span className="label-text text-xs">用户类型</span>
+                      <span className="label-text text-xs">权限档位</span>
                     </label>
                     <div className="join w-full">
                       <select
@@ -552,8 +552,9 @@ const UsersPage = () => {
                         disabled={getRoleValue(settingsUser) === "admin"}
                         onChange={(e) => setUserTypeEdit((prev) => ({ ...prev, [settingsUser.email]: e.target.value }))}
                       >
-                        <option value="free">免费用户</option>
-                        <option value="subscriber">订阅用户</option>
+                        <option value="pending">待开通</option>
+                        <option value="basic">基础版</option>
+                        <option value="pro">专业版</option>
                       </select>
                       <button
                         className="btn btn-sm btn-primary join-item"

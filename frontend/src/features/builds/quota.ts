@@ -2,6 +2,7 @@ import { useQuery, UseQueryResult } from "@tanstack/react-query";
 import api from "../../api/client";
 
 export type BuildQuota = {
+  userType?: string;
   limit: number;
   used: number;
   left: number;

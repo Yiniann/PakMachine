@@ -5,6 +5,7 @@ import { useBuildTemplate } from "../../features/builds/build";
 import { useBuildProfile, useSaveBuildProfile } from "../../features/builds/profile";
 import { useTemplateFiles } from "../../features/builds/queries";
 import { useSiteProfile } from "../../features/builds/siteName";
+import { canBuildBff, canBuildSpa, getUserTypeLabel, normalizeUserType } from "../../lib/userAccess";
 
 type BuildMode = "legacy" | "bff";
 
@@ -54,7 +55,6 @@ const formatDateTime = (value?: string) => {
 };
 const isRecord = (value: unknown): value is Record<string, any> => Boolean(value) && typeof value === "object" && !Array.isArray(value);
 const normalizeString = (value: unknown, fallback = "") => (typeof value === "string" ? value : fallback);
-const normalizeUserType = (value?: string | null) => (value ?? "free").toString().trim().toLowerCase();
 const createLegacyForm = (): LegacyForm => ({
   backendType: "xboard",
   siteLogo: "",
@@ -230,7 +230,9 @@ const TemplateBuildPage = () => {
   const frontendOriginsValue = frontendOrigins.join(",");
   const adminBasePathPreview = bffForm.server.adminBasePath.trim() || "/admin";
   const previewFrontendOrigin = frontendOrigins[0] || "https://your-domain.com";
-  const canUseBff = role === "admin" || normalizeUserType(userType) === "subscriber";
+  const normalizedUserType = normalizeUserType(userType);
+  const canUseSpaMode = canBuildSpa(role, normalizedUserType);
+  const canUseBffMode = canBuildBff(role, normalizedUserType);
   const selectedTemplate = useMemo(() => templates.data?.find((item) => item.filename === selected) ?? null, [selected, templates.data]);
   const selectedModeLabel = selectedMode === "legacy" ? "SPA 版（纯前端）" : selectedMode === "bff" ? "Pro 版（BFF）" : "未选择";
 
@@ -259,19 +261,20 @@ const TemplateBuildPage = () => {
   );
 
   const legacyCanSubmit = useMemo(() => {
+    if (!canUseSpaMode) return false;
     if (!selected || !siteName.trim() || !legacyForm.backendType.trim() || !legacyForm.siteLogo.trim() || !legacyForm.prodApiUrl.trim()) return false;
     if (frontendOrigins.length === 0) return false;
     if (legacyForm.thirdPartySupportEnabled && !legacyForm.supportScript.trim()) return false;
     if (legacyForm.appleAutoProShareEnabled && (!legacyForm.appleAutoProApiBaseUrl.trim() || !legacyForm.appleAutoProApiKey.trim())) return false;
     if (legacyHasInvalidNewline) return false;
     return true;
-  }, [selected, siteName, legacyForm, frontendOrigins.length, legacyHasInvalidNewline]);
+  }, [canUseSpaMode, selected, siteName, legacyForm, frontendOrigins.length, legacyHasInvalidNewline]);
 
   const bffCanSubmit = useMemo(() => {
-    if (!selected || !canUseBff || !siteName.trim() || !bffForm.frontend.siteLogo.trim() || !bffForm.frontend.backendType.trim() || !bffForm.server.panelBaseUrl.trim()) return false;
+    if (!selected || !canUseBffMode || !siteName.trim() || !bffForm.frontend.siteLogo.trim() || !bffForm.frontend.backendType.trim() || !bffForm.server.panelBaseUrl.trim()) return false;
     if (bffHasInvalidNewline) return false;
     return true;
-  }, [selected, canUseBff, siteName, bffForm, bffHasInvalidNewline]);
+  }, [selected, canUseBffMode, siteName, bffForm, bffHasInvalidNewline]);
   const currentCanSubmit = selectedMode === "legacy" ? legacyCanSubmit : selectedMode === "bff" ? bffCanSubmit : false;
 
   useEffect(() => {
@@ -318,6 +321,10 @@ const TemplateBuildPage = () => {
     }
 
     if (selectedMode === "legacy") {
+      if (!canUseSpaMode) {
+        setError("当前账号为待开通状态，请联系管理员开通基础版或专业版权限");
+        return;
+      }
       if (!legacyCanSubmit) {
         setError("请补全 SPA 配置");
         return;
@@ -341,8 +348,8 @@ const TemplateBuildPage = () => {
     }
 
     if (selectedMode === "bff") {
-      if (!canUseBff) {
-        setError("Pro 版仅订阅用户可用");
+      if (!canUseBffMode) {
+        setError("当前账号仅专业版可使用 Pro 构建");
         return;
       }
       if (!bffCanSubmit) {
@@ -452,17 +459,28 @@ const TemplateBuildPage = () => {
               <h2 className="card-title text-2xl font-bold">选择构建方式</h2>
               <p className="text-base-content/70 mt-1">同一版本支持两种构建方式：SPA 直连面板，或 Pro 通过 BFF 中转。</p>
             </div>
+            {role !== "admin" && (
+              <div className={`rounded-2xl border px-4 py-3 text-sm ${normalizedUserType === "pending" ? "border-warning/30 bg-warning/10 text-warning-content" : "border-base-200 bg-base-200/50 text-base-content/70"}`}>
+                当前账号档位：<span className="font-semibold">{getUserTypeLabel(normalizedUserType)}</span>
+                {normalizedUserType === "pending"
+                  ? "，暂未开通构建权限。"
+                  : normalizedUserType === "basic"
+                    ? "，可使用 SPA 构建。"
+                    : "，可使用 SPA 与 Pro 构建。"}
+              </div>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className={`rounded-2xl border p-6 space-y-4 flex h-full flex-col shadow-sm ${selectedMode === "bff" ? "border-secondary bg-secondary/5" : "border-base-200"} ${!canUseBff ? "opacity-60" : ""}`}>
+              <div className={`rounded-2xl border p-6 space-y-4 flex h-full flex-col shadow-sm ${selectedMode === "bff" ? "border-secondary bg-secondary/5" : "border-base-200"} ${!canUseBffMode ? "opacity-60" : ""}`}>
                 <div className="flex items-start justify-between gap-3"><div><p className="text-sm text-base-content/60">经服务端中转</p><h3 className="text-xl font-bold">Pro 版（BFF）</h3></div><span className="badge badge-secondary">推荐</span></div>
                 <p className="text-sm text-base-content/70">前端先请求 BFF 服务，再由服务端统一转发和处理，适合需要后台管理和更强隔离的场景。</p>
-                {!canUseBff && <p className="text-warning text-sm">仅订阅用户可用。</p>}
-                <button className="btn btn-secondary btn-block mt-auto" type="button" disabled={!canUseBff} onClick={() => { setSelectedMode("bff"); setStep(3); }}>进入 Pro 配置</button>
+                {!canUseBffMode && <p className="text-warning text-sm">仅专业版可用。</p>}
+                <button className="btn btn-secondary btn-block mt-auto" type="button" disabled={!canUseBffMode} onClick={() => { setSelectedMode("bff"); setStep(3); }}>进入 Pro 配置</button>
               </div>
-              <div className={`rounded-2xl border p-6 space-y-4 flex h-full flex-col shadow-sm ${selectedMode === "legacy" ? "border-primary bg-primary/5" : "border-base-200"}`}>
+              <div className={`rounded-2xl border p-6 space-y-4 flex h-full flex-col shadow-sm ${selectedMode === "legacy" ? "border-primary bg-primary/5" : "border-base-200"} ${!canUseSpaMode ? "opacity-60" : ""}`}>
                 <div><p className="text-sm text-base-content/60">前端直连面板</p><h3 className="text-xl font-bold">SPA 版（纯前端）</h3></div>
                 <p className="text-sm text-base-content/70">浏览器直接请求面板 API，构建时写入前端环境变量，适合传统前端部署场景。</p>
-                <button className="btn btn-primary btn-block mt-auto" type="button" onClick={() => { setSelectedMode("legacy"); setStep(3); }}>进入 SPA 配置</button>
+                {!canUseSpaMode && <p className="text-warning text-sm">待开通账号暂不支持构建。</p>}
+                <button className="btn btn-primary btn-block mt-auto" type="button" disabled={!canUseSpaMode} onClick={() => { setSelectedMode("legacy"); setStep(3); }}>进入 SPA 配置</button>
               </div>
             </div>
             <div className="flex justify-between"><button className="btn btn-outline" type="button" onClick={() => setStep(1)}>上一步</button></div>

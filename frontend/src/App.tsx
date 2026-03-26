@@ -7,6 +7,7 @@ import LandingPage from "./pages/landing/LandingPage";
 import LoginPage from "./pages/auth/LoginPage";
 import RegisterPage from "./pages/auth/RegisterPage";
 import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/auth/ResetPasswordPage";
 import HomePage from "./pages/app/HomePage";
 import AdminUsersPage from "./pages/admin/UsersPage";
 import AdminHomePage from "./pages/admin/HomePage";
@@ -42,7 +43,7 @@ const App = () => {
           <Route path="login" element={<LoginPage />} />
           <Route path="register" element={<RegisterPage />} />
           <Route path="forgot" element={<ForgotPasswordPage />} />
-          <Route path="reset" element={<ForgotPasswordPage />} />
+          <Route path="reset" element={<ResetPasswordPage />} />
         </Route>
 
         <Route element={<ProtectedRoute />}>

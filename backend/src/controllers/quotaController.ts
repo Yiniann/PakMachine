@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import prisma from "../lib/prisma";
+import { canBuildSpa, normalizeUserType } from "../lib/userAccess";
 
 export const getBuildQuota = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -9,7 +10,7 @@ export const getBuildQuota = async (req: Request, res: Response, next: NextFunct
     }
     const dbUser: any = await prisma.user.findUnique({
       where: { id: Number(user.sub) },
-      select: { buildQuotaUsed: true, buildQuotaDate: true, role: true },
+      select: { buildQuotaUsed: true, buildQuotaDate: true, role: true, userType: true },
     });
     if (!dbUser) {
       return res.status(404).json({ error: "User not found" });
@@ -18,11 +19,24 @@ export const getBuildQuota = async (req: Request, res: Response, next: NextFunct
     if (dbUser.role === "admin") {
       const now = new Date();
       return res.json({
+        userType: "pro",
         limit: Number.MAX_SAFE_INTEGER,
         used: 0,
         left: Number.MAX_SAFE_INTEGER,
         date: now.toISOString().slice(0, 10),
         unlimited: true,
+      });
+    }
+
+    const normalizedUserType = normalizeUserType(dbUser.userType);
+    if (!canBuildSpa(dbUser.role, normalizedUserType)) {
+      const now = new Date();
+      return res.json({
+        userType: normalizedUserType,
+        limit: 0,
+        used: 0,
+        left: 0,
+        date: now.toISOString().slice(0, 10),
       });
     }
 
@@ -41,6 +55,7 @@ export const getBuildQuota = async (req: Request, res: Response, next: NextFunct
     }
 
     res.json({
+      userType: normalizedUserType,
       limit,
       used,
       left,

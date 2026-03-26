@@ -1,118 +1,202 @@
 import { Link } from "react-router-dom";
+import { DeployPrincipleDiagram } from "../../components/DeployPrincipleDiagram";
+
+const featureCards = [
+  {
+    title: "请求分离",
+    highlight: "不仅主题面板采用前后端分离，API 请求链路也做了分离处理。",
+    body: "主题侧请求先进入后端，再由后端向面板发起交互，尽可能隐藏真实调用链路，进一步降低特征暴露风险。",
+  },
+  {
+    title: "主题自定义",
+    highlight: "主题自带自定义中台，可在线实时调整配色、着陆页文案与展示内容。",
+    body: "无需频繁改代码或重复打包，即可快速完成品牌风格、页面表达与内容细节的调整，让主题维护和上线流程更直接、更高效。",
+  },
+  {
+    title: "快速构建",
+    highlight: "从主题构建到正式上线，提供更顺滑的交付与落地体验。",
+    body: "配合清晰的部署路径与上手流程，即使是首次接入也能更快完成配置、预览与发布，缩短从购买到可用的整体周期。",
+  },
+];
 
 const LandingPage = () => {
   return (
-    <div className="space-y-12 pb-12">
-      <section className="relative overflow-hidden rounded-3xl border border-base-200 bg-base-100 shadow-xl">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_var(--tw-gradient-stops))] from-primary/5 via-base-100 to-base-100 opacity-70" />
-        <div className="absolute -right-20 -top-24 h-96 w-96 rounded-full bg-secondary/10 blur-3xl" />
-        <div className="absolute bottom-0 left-10 h-64 w-64 rounded-full bg-accent/10 blur-3xl" />
+    <div className="space-y-28 lg:space-y-32">
+      <section className="mx-auto flex max-w-6xl flex-col items-center gap-8 pt-8 text-center sm:gap-10 sm:pt-14 lg:gap-12 lg:pt-20">
+        <div className="landing-kicker">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
+            <path d="M13 2 4.093 12.688A1 1 0 0 0 4.86 14.3H11l-1 7.7a1 1 0 0 0 1.8.71l8.107-10.687A1 1 0 0 0 19.14 10.7H13l1-7.7A1 1 0 0 0 13 2z" />
+          </svg>
+          Powered by Theme Build Automation
+        </div>
 
-        <div className="relative z-10 grid gap-12 p-8 lg:grid-cols-[1.2fr_0.8fr] lg:items-center lg:p-12">
-          <div className="space-y-8">
-            <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-primary">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
-              </span>
-              Theme Builder
-            </div>
-            <h1
-              className="text-4xl font-extrabold leading-tight tracking-tight text-base-content lg:text-6xl"
-            >
-              PacMachine
-              <span className="mt-2 block text-2xl font-medium text-base-content/60 lg:text-3xl">让主题打包从此更轻、更快、更稳定</span>
-            </h1>
-            <p className="max-w-xl text-lg leading-relaxed text-base-content/80">
-              一键生成 Shuttle 主题包，集中管理品牌变量、接口与下载链接，提供 24 小时自动化构建服务。
-            </p>
-            <div className="flex flex-wrap items-center gap-4">
-              <Link to="/app" className="btn btn-primary btn-lg shadow-lg shadow-primary/30">
-                立刻开始
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" /></svg>
-              </Link>
-              <div className="flex items-center gap-2 text-sm text-base-content/60">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-success"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" /></svg>
-                2 分钟内完成配置
+        <h1 className="max-w-5xl text-5xl font-bold leading-[0.92] tracking-[-0.06em] text-slate-900 sm:text-6xl lg:text-8xl">
+          <span className="landing-gradient-text">Shuttleits </span>
+          主题交付平台
+        </h1>
+
+        <p className="max-w-4xl text-xl leading-[1.7] text-slate-500 sm:text-[2rem] sm:leading-[1.55]">
+          数分钟内即可构建好你的主题应用，部署简单，前后端分离，重写API请求，为你的业务保驾护航。
+        </p>
+
+        <div className="flex flex-col items-center justify-center gap-5 sm:flex-row sm:gap-6">
+          <Link to="/auth/login" className="landing-button-primary min-w-[20rem] rounded-[1.4rem] px-10 py-5 text-2xl tracking-[-0.02em] sm:min-w-[21rem]">
+            开始构建
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-6 w-6">
+              <path d="M12.97 4.97a.75.75 0 011.06 0l6 6a.75.75 0 010 1.06l-6 6a.75.75 0 11-1.06-1.06l4.72-4.72H4.5a.75.75 0 010-1.5h13.19l-4.72-4.72a.75.75 0 010-1.06z" />
+            </svg>
+          </Link>
+          <a
+            href="#docs"
+            className="landing-button-secondary min-w-[20rem] rounded-[1.4rem] px-10 py-5 text-2xl tracking-[-0.02em] sm:min-w-[21rem]"
+          >
+            查看工作原理
+          </a>
+        </div>
+
+        <a
+          id="demo"
+          href="https://shuttleits.pages.dev"
+          target="_blank"
+          rel="noreferrer"
+          className="scroll-mt-28 block w-full max-w-[68rem] rounded-[2rem] border border-slate-200 bg-white px-5 py-6 shadow-[0_24px_70px_rgba(15,23,42,0.1)] transition-transform duration-200 hover:-translate-y-1 hover:shadow-[0_28px_80px_rgba(15,23,42,0.14)] sm:px-8 sm:py-8 lg:mt-4"
+        >
+          <div className="flex items-center justify-between gap-4 border-b border-slate-200 pb-6">
+            <div className="flex items-center gap-4">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#6d6bf4] text-white shadow-[0_14px_30px_rgba(109,107,244,0.22)]">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5m-15 0v10.5a1.5 1.5 0 0 0 1.5 1.5h10.5m-12-12 2.25-2.25h10.5A1.5 1.5 0 0 1 19.5 6v10.5m-3-3 3 3m0 0 3-3m-3 3v-7.5" />
+                </svg>
+              </div>
+              <div className="text-left">
+                <h2 className="text-3xl font-bold tracking-[-0.04em] text-slate-900">Shuttleits 主题预览</h2>
+                <div className="mt-1 flex items-center gap-2 text-lg text-slate-500">
+                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                  在线预览站点
+                </div>
               </div>
             </div>
-            <div className="flex flex-wrap gap-3 text-sm font-medium text-base-content/70">
-              <span className="flex items-center gap-1.5 rounded-full border border-base-200 bg-base-100/50 px-3 py-1 backdrop-blur-sm">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-primary"><path fillRule="evenodd" d="M2 3.75A.75.75 0 012.75 3h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 3.75zm0 4.167a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75a.75.75 0 01-.75-.75zm0 4.166a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75a.75.75 0 01-.75-.75zm0 4.167a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75a.75.75 0 01-.75-.75z" clipRule="evenodd" /></svg>
-                变量控制
-              </span>
-              <span className="flex items-center gap-1.5 rounded-full border border-base-200 bg-base-100/50 px-3 py-1 backdrop-blur-sm">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-secondary"><path fillRule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clipRule="evenodd" /></svg>
-                构建隔离
-              </span>
-              <span className="flex items-center gap-1.5 rounded-full border border-base-200 bg-base-100/50 px-3 py-1 backdrop-blur-sm">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-accent"><path fillRule="evenodd" d="M10 2a1 1 0 011 1v1.323l3.954 1.582 1.599-.8a1 1 0 01.894 1.79l-1.233.616 1.738 5.42a1 1 0 01-.285 1.05A3.989 3.989 0 0115 15a3.989 3.989 0 01-2.667-1.019 1 1 0 01-.285-1.05l1.715-5.349L11 6.477V16h2a1 1 0 110 2H7a1 1 0 110-2h2V6.477L6.237 7.582l1.715 5.349a1 1 0 01-.285 1.05A3.989 3.989 0 015 15a3.989 3.989 0 01-2.667-1.019 1 1 0 01-.285-1.05l1.738-5.42-1.233-.617a1 1 0 01.894-1.788l1.599.799L9 4.323V3a1 1 0 011-1z" clipRule="evenodd" /></svg>
-                快速部署
-              </span>
+            <div className="hidden rounded-full border border-[#6d6bf4]/15 bg-[#6d6bf4]/8 px-4 py-2 text-sm font-semibold text-[#5e5ce6] sm:block">
+              点击打开
             </div>
           </div>
-          <div className="relative rounded-2xl border border-base-200 bg-base-100/80 p-6 shadow-2xl backdrop-blur-sm lg:p-8">
-            <div className="mb-6 flex items-center gap-2 border-b border-base-200 pb-4">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+
+          <div className="grid gap-5 py-8 lg:grid-cols-[1.25fr_0.75fr]">
+            <div className="rounded-[1.8rem] bg-gradient-to-r from-[#6d6bf4] via-[#7e7cf8] to-[#9795ff] px-6 py-8 text-left text-white shadow-[0_18px_36px_rgba(109,107,244,0.2)] sm:px-8 sm:py-10">
+              <p className="text-sm uppercase tracking-[0.24em] text-white/75">Preview</p>
+              <h3 className="mt-3 text-3xl font-bold tracking-[-0.04em]">打开 Shuttleits 在线主题</h3>
+              <p className="mt-4 max-w-2xl text-lg leading-8 text-white/85">
+                直接查看主题首页、模块布局和整体视觉效果。
+              </p>
+              <div className="mt-6 flex flex-wrap gap-3 text-sm font-semibold text-white/90">
+                <span className="rounded-full bg-white/15 px-4 py-2 backdrop-blur-sm">真实主题展示</span>
+                <span className="rounded-full bg-white/15 px-4 py-2 backdrop-blur-sm">在线可访问</span>
               </div>
-              <div className="font-bold text-lg">交付流程</div>
             </div>
-            <div className="space-y-6">
-              {[
-                { title: "选择模板", desc: "最新模板自动置顶，配置可复用。" },
-                { title: "填写站点信息", desc: "统一品牌与 API，避免重复配置。" },
-                { title: "触发构建", desc: "构建完成后可直接下载。" },
-              ].map((item, index) => (
-                <div key={item.title} className="flex gap-4 group">
-                  <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-base-200 text-sm font-bold text-base-content/70 transition-colors group-hover:bg-primary group-hover:text-primary-content">
-                    {index + 1}
+
+            <div className="flex h-full flex-col rounded-[1.6rem] border border-slate-200 bg-slate-50 p-5 text-left">
+              <div>
+                <p className="text-sm font-bold uppercase tracking-[0.22em] text-[#6d6bf4]">Preview URL</p>
+                <p className="mt-4 text-base leading-7 text-slate-500">
+                  点击卡片即可进入预览站点，直接查看主题首页、结构布局与最终视觉效果。
+                </p>
+                <div className="mt-5 space-y-3">
+                  <div className="rounded-2xl bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-sm">
+                    购买前在线访问预览
                   </div>
-                  <div>
-                    <div className="font-bold text-base-content group-hover:text-primary transition-colors">{item.title}</div>
-                    <div className="text-sm text-base-content/60 leading-relaxed">{item.desc}</div>
+                  <div className="rounded-2xl bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-sm">
+                    展示主题真实效果
                   </div>
                 </div>
-              ))}
+              </div>
+              <div className="mt-6 rounded-2xl bg-slate-900 px-4 py-4 text-white">
+                <p className="break-all text-sm text-white/80">https://shuttleits.pages.dev</p>
+              </div>
             </div>
+          </div>
+        </a>
+      </section>
+
+      <section id="features" className="scroll-mt-28 mx-auto max-w-6xl space-y-8 lg:space-y-10">
+        <div className="space-y-4 text-center">
+          <p className="text-sm font-bold uppercase tracking-[0.24em] text-[#6d6bf4]">Features</p>
+          <h2 className="text-4xl font-bold tracking-[-0.05em] text-slate-900">主题特性展示</h2>
+        </div>
+        <div className="grid gap-6 md:grid-cols-3 lg:gap-8">
+          {featureCards.map((item) => (
+            <article key={item.title} className="landing-glass-soft rounded-[1.75rem] p-8 lg:p-9">
+              <div className="mb-5 h-3 w-16 rounded-full bg-gradient-to-r from-[#6d6bf4] to-[#9a98ff]" />
+              <h3 className="text-2xl font-bold tracking-[-0.03em] text-slate-900">{item.title}</h3>
+              {item.highlight ? (
+                <div className="mt-4 inline-flex rounded-2xl bg-[#6d6bf4]/10 px-4 py-2 text-base font-semibold leading-7 text-[#5e5ce6]">
+                  {item.highlight}
+                </div>
+              ) : null}
+              <p className="mt-4 text-lg leading-8 text-slate-500">{item.body}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section id="pricing" className="scroll-mt-28 mx-auto max-w-6xl rounded-[2rem] border border-slate-200 bg-white px-8 py-12 shadow-[0_24px_60px_rgba(15,23,42,0.06)] sm:px-10 lg:px-12 lg:py-14">
+        <div className="grid gap-10 lg:grid-cols-[1fr_auto_1fr] lg:items-center lg:gap-12">
+          <div>
+            <p className="text-sm font-bold uppercase tracking-[0.24em] text-[#6d6bf4]">Pricing</p>
+            <h2 className="mt-5 text-4xl font-bold tracking-[-0.05em] text-slate-900">一次订阅，长期使用</h2>
+            <div className="mt-6 space-y-3 text-base text-slate-600">
+              <div className="flex items-center gap-3">
+                <span className="h-2.5 w-2.5 rounded-full bg-[#6d6bf4]" />
+                <span>1 个品牌名授权</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="h-2.5 w-2.5 rounded-full bg-[#6d6bf4]" />
+                <span>4 个主题域名授权</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="h-2.5 w-2.5 rounded-full bg-[#6d6bf4]" />
+                <span>终身使用权限</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="h-2.5 w-2.5 rounded-full bg-[#6d6bf4]" />
+                <span>永久更新支持</span>
+              </div>
+            </div>
+          </div>
+          <div className="hidden h-20 w-px bg-slate-200 lg:block" />
+          <div className="rounded-[1.75rem] border border-[#6d6bf4]/12 bg-[linear-gradient(180deg,_rgba(248,248,255,1),_rgba(242,244,255,0.88))] p-6 shadow-[0_16px_40px_rgba(109,107,244,0.08)]">
+            <div className="inline-flex rounded-full bg-[#6d6bf4]/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.22em] text-[#6d6bf4]">
+              Lifetime License
+            </div>
+            <div className="mt-5 flex items-baseline gap-2">
+              <span className="text-lg font-semibold text-[#6d6bf4]">$</span>
+              <span className="text-5xl font-bold tracking-[-0.06em] text-slate-900">88</span>
+              <span className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">usd</span>
+            </div>
+            <div className="mt-5 h-px bg-gradient-to-r from-[#6d6bf4]/20 via-slate-200 to-transparent" />
+            <p className="mt-5 text-base leading-7 text-slate-600">
+              终身订阅，永久更新。一次购买后即可持续获取后续主题更新与功能迭代，无需重复付费。
+            </p>
+            <a
+              href="https://t.me/y1niannn"
+              target="_blank"
+              rel="noreferrer"
+              className="landing-button-primary mt-6 rounded-2xl px-7 py-3 text-base"
+            >
+              联系我购买
+            </a>
           </div>
         </div>
       </section>
 
-      <section className="grid gap-6 md:grid-cols-3">
-        {[
-          {
-            title: "品牌一致性",
-            body: "通过集中式配置，统一站点名称、Logo、主题色与下载入口，避免多处改动。",
-            icon: (
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42" /></svg>
-            )
-          },
-          {
-            title: "构建更可控",
-            body: "每次构建都绑定当前配置，支持历史回溯，便于排查问题与复用配置。",
-            icon: (
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
-            )
-          },
-          {
-            title: "部署更轻量",
-            body: "支持静态部署 / serverless 托管。",
-            icon: (
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15a4.5 4.5 0 004.5 4.5H18a3.75 3.75 0 001.332-7.257 3 3 0 00-3.758-3.848 5.25 5.25 0 00-10.233 2.33A4.502 4.502 0 002.25 15z" /></svg>
-            )
-          },
-        ].map((item) => (
-          <div key={item.title} className="card bg-base-100 border border-base-200 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1">
-            <div className="card-body">
-              <div className="h-12 w-12 rounded-xl bg-base-200 flex items-center justify-center text-primary mb-2">
-                {item.icon}
-              </div>
-              <h3 className="card-title text-lg">{item.title}</h3>
-              <p className="text-sm text-base-content/70 leading-relaxed">{item.body}</p>
-            </div>
-          </div>
-        ))}
+      <section id="docs" className="scroll-mt-28 mx-auto max-w-6xl space-y-8 lg:space-y-10">
+        <div className="flex flex-col gap-4 text-center">
+          <p className="text-sm font-bold uppercase tracking-[0.24em] text-[#6d6bf4]">Docs</p>
+          <h2 className="text-4xl font-bold tracking-[-0.05em] text-slate-900">工作原理文档</h2>
+          <p className="mx-auto max-w-3xl text-lg leading-8 text-slate-500">
+            Pro 版为订阅版本，采用前后端分离与请求分离方案；SPA 版为可选部署版本，属于单页应用，与市面上的普通主题一样主要是前后端部署分离。
+          </p>
+        </div>
+        <DeployPrincipleDiagram />
       </section>
     </div>
   );

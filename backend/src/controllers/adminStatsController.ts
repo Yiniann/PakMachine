@@ -10,9 +10,9 @@ export const getAdminStats = async (_req: Request, res: Response, next: NextFunc
     const last7DaysStart = new Date(todayStart);
     last7DaysStart.setDate(last7DaysStart.getDate() - 6);
 
-    const [totalUsers, subscriberUsers, totalBuildJobs, buildsToday, buildsLast7Days] = await Promise.all([
+    const [totalUsers, proUsers, totalBuildJobs, buildsToday, buildsLast7Days] = await Promise.all([
       prisma.user.count(),
-      prisma.user.count({ where: { userType: "subscriber" } }),
+      prisma.user.count({ where: { userType: { in: ["pro", "subscriber"] } } }),
       prisma.buildJob.count(),
       prisma.buildJob.count({ where: { createdAt: { gte: todayStart } } }),
       prisma.buildJob.count({ where: { createdAt: { gte: last7DaysStart } } }),
@@ -20,7 +20,7 @@ export const getAdminStats = async (_req: Request, res: Response, next: NextFunc
 
     res.json({
       totalUsers,
-      subscriberUsers,
+      proUsers,
       totalBuildJobs,
       buildsToday,
       buildsLast7Days,
