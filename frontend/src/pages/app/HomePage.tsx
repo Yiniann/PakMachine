@@ -262,6 +262,7 @@ const HomePage = () => {
                 <span className="text-lg font-semibold text-[#6d6bf4]">$</span>
                 <span className="text-4xl font-bold tracking-[-0.06em] text-slate-900">88</span>
                 <span className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">usd</span>
+                <span className="ml-2 text-sm font-semibold text-slate-400 line-through">120 USD</span>
               </div>
               <div className="mt-4 h-px bg-gradient-to-r from-[#6d6bf4]/20 via-slate-200 to-transparent" />
               <p className="mt-4 text-[15px] leading-7 text-slate-600">

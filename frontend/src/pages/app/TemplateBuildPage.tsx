@@ -459,14 +459,32 @@ const TemplateBuildPage = () => {
               <h2 className="card-title text-2xl font-bold">选择构建方式</h2>
               <p className="text-base-content/70 mt-1">同一版本支持两种构建方式：SPA 直连面板，或 Pro 通过 BFF 中转。</p>
             </div>
-            {role !== "admin" && (
-              <div className={`rounded-2xl border px-4 py-3 text-sm ${normalizedUserType === "pending" ? "border-warning/30 bg-warning/10 text-warning-content" : "border-base-200 bg-base-200/50 text-base-content/70"}`}>
+            {role !== "admin" && normalizedUserType === "pending" && (
+              <div className="rounded-2xl border border-[#6d6bf4]/20 bg-[#6d6bf4]/8 px-5 py-5 text-slate-900 shadow-sm">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <div className="text-xs font-bold uppercase tracking-[0.2em] text-[#6d6bf4]">Build Access</div>
+                    <div className="mt-2 text-xl font-bold">当前账号档位：待开通</div>
+                    <p className="mt-2 text-sm leading-7 text-slate-600">
+                      你的账号暂未开通任何构建权限，当前无法选择 `SPA` 或 `Pro` 构建方式。请先返回主页开通基础版或专业版，再继续提交构建。
+                    </p>
+                  </div>
+                  <button
+                    className="landing-button-primary rounded-2xl px-5 py-3 text-sm"
+                    type="button"
+                    onClick={() => navigate("/app")}
+                  >
+                    返回主页开通
+                  </button>
+                </div>
+              </div>
+            )}
+            {role !== "admin" && normalizedUserType !== "pending" && (
+              <div className="rounded-2xl border border-base-200 bg-base-200/50 px-4 py-3 text-sm text-base-content/70">
                 当前账号档位：<span className="font-semibold">{getUserTypeLabel(normalizedUserType)}</span>
-                {normalizedUserType === "pending"
-                  ? "，暂未开通构建权限。"
-                  : normalizedUserType === "basic"
-                    ? "，可使用 SPA 构建。"
-                    : "，可使用 SPA 与 Pro 构建。"}
+                {normalizedUserType === "basic"
+                  ? "，可使用 SPA 构建。"
+                  : "，可使用 SPA 与 Pro 构建。"}
               </div>
             )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
