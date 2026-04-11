@@ -1,13 +1,24 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { useDeleteUser, useRemoveFrontendOrigin, useRemoveSiteName, useResetBuildQuota, useResetFrontendOrigins, useResetSiteName, useUpdatePassword, useUpdateRole, useUpdateSiteNameLimit, useUpdateUserType } from "../../features/users/mutations";
+import {
+  useDeleteUser,
+  useRemoveFrontendOrigin,
+  useRemoveSiteName,
+  useResetBuildQuota,
+  useResetFrontendOrigins,
+  useResetSiteName,
+  useUpdatePassword,
+  useUpdateRole,
+  useUpdateSiteNameLimit,
+  useUpdateUserType,
+} from "../../features/users/mutations";
 import { useUsersQuery } from "../../features/users/queries";
-import { canBuildSpa, getDailyBuildLimit, getUserTypeBadgeClass, getUserTypeLabel, normalizeUserType } from "../../lib/userAccess";
+import { canBuildSpa, getDailyBuildLimit, normalizeUserType } from "../../lib/userAccess";
 
 const UserDetailPage = () => {
   const navigate = useNavigate();
-  const params = useParams();
-  const userId = Number(params.id);
+  const { id } = useParams();
+  const userId = Number(id);
   const currentEmail = typeof window !== "undefined" ? localStorage.getItem("user_email") : null;
 
   const { data, error, isLoading } = useUsersQuery();
@@ -45,11 +56,11 @@ const UserDetailPage = () => {
         ? error.message
         : null;
 
-  const mutationError = (mutationError: unknown) =>
-    mutationError && (mutationError as any)?.response?.data?.error
-      ? (mutationError as any).response.data.error
-      : mutationError instanceof Error
-        ? mutationError.message
+  const mutationError = (mutation: unknown) =>
+    mutation && (mutation as any)?.response?.data?.error
+      ? (mutation as any).response.data.error
+      : mutation instanceof Error
+        ? mutation.message
         : null;
 
   const getQuotaLeft = () => {
@@ -69,6 +80,13 @@ const UserDetailPage = () => {
     return limit >= Number.MAX_SAFE_INTEGER / 2 ? "∞" : `${getQuotaLeft()} / ${limit}`;
   };
 
+  const quotaLimit = user ? getDailyBuildLimit(user.role, user.userType) : 0;
+  const quotaProgressMax = quotaLimit >= Number.MAX_SAFE_INTEGER / 2 ? 1 : quotaLimit;
+  const quotaProgressValue =
+    user && user.role !== "admin" && canBuildSpa(user.role, user.userType)
+      ? Math.max(quotaLimit - getQuotaLeft(), 0)
+      : 0;
+
   if (isLoading) {
     return (
       <div className="flex justify-center py-12">
@@ -80,13 +98,13 @@ const UserDetailPage = () => {
   if (!user) {
     return (
       <div className="space-y-4">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-start justify-between gap-3">
           <div>
             <p className="workspace-kicker">User Settings</p>
             <h2 className="mt-2 text-3xl font-bold tracking-[-0.04em] text-slate-900">用户详情</h2>
           </div>
           <Link to="/admin/users" className="landing-button-secondary rounded-2xl px-5 py-3 text-sm">
-            返回用户列表
+            返回用户管理
           </Link>
         </div>
         <div role="alert" className="workspace-alert border border-rose-200 bg-rose-50 px-4 py-3 text-rose-700">
@@ -104,46 +122,22 @@ const UserDetailPage = () => {
   const onRoleSubmit = () => updateRole.mutate({ email: user.email, role: roleValue });
   const onUserTypeSubmit = () => updateUserType.mutate({ email: user.email, userType: userTypeValue });
 
+  const frontendOriginCount = user.frontendOrigins?.length ?? 0;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
+        <div className="min-w-0">
           <p className="workspace-kicker">User Settings</p>
           <h2 className="mt-2 text-3xl font-bold tracking-[-0.04em] text-slate-900">用户详情</h2>
-          <p className="mt-2 text-[15px] text-slate-500">
-            当前用户：<span className="font-mono font-semibold text-slate-700">{user.email}</span>
+          <p className="mt-2 break-all text-[15px] text-slate-500">{user.email}</p>
+          <p className="mt-3 text-sm text-slate-500">
+            今日配额：<span className="font-medium text-slate-800">{getQuotaLabel()}</span>
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Link to="/admin/users" className="landing-button-secondary rounded-2xl px-5 py-3 text-sm">
-            返回列表
-          </Link>
-          <button type="button" className="landing-button-primary rounded-2xl px-5 py-3 text-sm" onClick={() => navigate("/admin/users")}>
-            回到用户管理
-          </button>
-        </div>
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="workspace-card p-4">
-          <div className="text-[11px] uppercase tracking-[0.22em] text-base-content/45">角色</div>
-          <div className="mt-1 flex items-center gap-2">
-            <span className={`badge badge-sm ${user.role === "admin" ? "badge-primary" : getUserTypeBadgeClass(user.userType)}`}>{user.role === "admin" ? "管理员" : getUserTypeLabel(user.userType)}</span>
-            <span className="text-sm font-medium text-slate-700">{user.role === "admin" ? "高权限账户" : "普通账户"}</span>
-          </div>
-        </div>
-        <div className="workspace-card p-4">
-          <div className="text-[11px] uppercase tracking-[0.22em] text-base-content/45">站点名</div>
-          <div className="mt-1 text-lg font-semibold text-slate-900">{user.siteName ?? "未设置"}</div>
-        </div>
-        <div className="workspace-card p-4">
-          <div className="text-[11px] uppercase tracking-[0.22em] text-base-content/45">前端绑定</div>
-          <div className="mt-1 text-lg font-semibold text-slate-900">{user.frontendOrigins?.length ? `${user.frontendOrigins.length} 个` : "未绑定"}</div>
-        </div>
-        <div className="workspace-card p-4">
-          <div className="text-[11px] uppercase tracking-[0.22em] text-base-content/45">今日配额</div>
-          <div className="mt-1 text-lg font-semibold text-slate-900">{getQuotaLabel()}</div>
-        </div>
+        <Link to="/admin/users" className="landing-button-secondary rounded-2xl px-5 py-3 text-sm">
+          返回用户管理
+        </Link>
       </div>
 
       {errorMessage && (
@@ -152,29 +146,25 @@ const UserDetailPage = () => {
         </div>
       )}
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
-        <div className="space-y-4">
-          <section className="workspace-card p-5">
-            <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="space-y-6">
+          <section className="border-t border-base-200 pt-4">
+            <div className="flex items-end justify-between gap-3">
               <div>
-                <p className="text-[11px] text-base-content/60">站点名称</p>
-                <h4 className="mt-1 text-sm font-semibold text-slate-900">站点名称列表</h4>
+                <h3 className="text-lg font-semibold text-slate-900">站点名称</h3>
+                <p className="mt-1 text-sm text-slate-500">当前绑定 {user.sites?.length ?? 0} / {Math.max(Number(user.siteNameLimit ?? 1) || 1, 1)}</p>
               </div>
-              <span className="badge badge-xs badge-neutral">
-                {user.sites?.length ?? 0} / {Math.max(Number(user.siteNameLimit ?? 1) || 1, 1)}
-              </span>
+              <span className="text-xs text-base-content/60">上限 {user.siteNameLimit ?? 1}</span>
             </div>
-            <div className="mt-3 space-y-2 text-xs text-base-content/80">
+            <div className="mt-3 space-y-2">
               {user.sites?.length ? (
                 user.sites.map((site) => (
-                  <div key={site.id} className="flex items-center gap-2 rounded-2xl bg-base-200/40 px-3 py-2.5">
-                    <div className="min-w-0 flex-1 truncate font-medium" title={site.name}>
-                      {site.name}
-                    </div>
-                    <span className="text-[11px] text-base-content/50">ID {site.id}</span>
+                  <div key={site.id} className="flex items-center gap-3 border-b border-base-200 py-2 last:border-b-0">
+                    <div className="min-w-0 flex-1 truncate font-medium">{site.name}</div>
+                    <span className="text-xs text-base-content/50">ID {site.id}</span>
                     <button
                       type="button"
-                      className="inline-flex h-6 items-center justify-center rounded-full px-1.5 text-[11px] font-semibold leading-none text-rose-500"
+                      className="text-xs font-medium text-rose-600"
                       disabled={removeSiteName.status === "pending"}
                       onClick={async () => {
                         if (!window.confirm(`确定删除 ${user.email} 的站点名称 ${site.name} 吗？`)) return;
@@ -186,7 +176,7 @@ const UserDetailPage = () => {
                   </div>
                 ))
               ) : (
-                <div className="rounded-2xl bg-base-200/40 px-3 py-3 text-sm text-base-content/60">-</div>
+                <div className="py-2 text-sm text-base-content/60">-</div>
               )}
             </div>
             <div className="mt-3 flex flex-col gap-2 sm:flex-row">
@@ -212,7 +202,7 @@ const UserDetailPage = () => {
             </div>
             <button
               type="button"
-              className="mt-3 inline-flex h-8 min-h-0 items-center justify-center rounded-full px-2 py-0 text-xs font-medium leading-none text-rose-600"
+              className="mt-3 text-sm font-medium text-rose-600"
               disabled={resetSiteName.status === "pending"}
               onClick={() => {
                 if (!window.confirm(`确定要清空 ${user.email} 的全部站点名称吗？`)) return;
@@ -223,24 +213,22 @@ const UserDetailPage = () => {
             </button>
           </section>
 
-          <section className="workspace-card p-5">
-            <div className="flex flex-wrap items-center justify-between gap-2">
+          <section className="border-t border-base-200 pt-4">
+            <div className="flex items-end justify-between gap-3">
               <div>
-                <p className="text-[11px] text-base-content/60">已绑定前端</p>
-                <h4 className="mt-1 text-sm font-semibold text-slate-900">前端域名列表</h4>
+                <h3 className="text-lg font-semibold text-slate-900">前端域名</h3>
+                <p className="mt-1 text-sm text-slate-500">{frontendOriginCount ? `${frontendOriginCount} 个绑定` : "未绑定"}</p>
               </div>
-              <span className="badge badge-xs badge-neutral">{user.frontendOrigins?.length ?? 0} 个</span>
+              <span className="text-xs text-base-content/60">已绑定前端</span>
             </div>
-            <div className="mt-3 space-y-2 text-xs text-base-content/80">
+            <div className="mt-3 space-y-2">
               {user.frontendOrigins?.length ? (
                 user.frontendOrigins.map((origin) => (
-                  <div key={origin} className="flex items-center gap-2 rounded-2xl bg-base-200/40 px-3 py-2.5">
-                    <div className="min-w-0 flex-1 truncate" title={origin}>
-                      {origin}
-                    </div>
+                  <div key={origin} className="flex items-center gap-3 border-b border-base-200 py-2 last:border-b-0">
+                    <div className="min-w-0 flex-1 truncate">{origin}</div>
                     <button
                       type="button"
-                      className="inline-flex h-6 items-center justify-center rounded-full px-1.5 text-[11px] font-semibold leading-none text-rose-500"
+                      className="text-xs font-medium text-rose-600"
                       disabled={removeFrontendOrigin.status === "pending"}
                       onClick={() => {
                         if (!window.confirm(`确定删除 ${user.email} 的前端域名 ${origin} 吗？`)) return;
@@ -252,13 +240,13 @@ const UserDetailPage = () => {
                   </div>
                 ))
               ) : (
-                <div className="rounded-2xl bg-base-200/40 px-3 py-3 text-sm text-base-content/60">-</div>
+                <div className="py-2 text-sm text-base-content/60">-</div>
               )}
             </div>
             {user.frontendOrigins?.length ? (
               <button
                 type="button"
-                className="mt-3 inline-flex h-8 min-h-0 items-center justify-center rounded-full px-2 py-0 text-xs font-medium leading-none text-rose-600"
+                className="mt-3 text-sm font-medium text-rose-600"
                 disabled={resetFrontendOrigins.status === "pending"}
                 onClick={() => {
                   if (!window.confirm(`确定要清空 ${user.email} 的全部前端绑定吗？`)) return;
@@ -270,22 +258,18 @@ const UserDetailPage = () => {
             ) : null}
           </section>
 
-          <section className="workspace-card p-5">
-            <div className="flex flex-wrap items-center justify-between gap-2">
+          <section className="workspace-card p-4">
+            <div className="flex items-end justify-between gap-3">
               <div>
-                <p className="text-[11px] text-base-content/60">今日构建</p>
-                <h4 className="mt-1 text-sm font-semibold text-slate-900">今日剩余次数</h4>
+                <h3 className="text-base font-semibold text-slate-900">今日构建</h3>
+                <p className="mt-1 text-sm text-slate-500">剩余次数</p>
               </div>
-              <span className="text-[11px] font-mono text-base-content/70">{getQuotaLabel()}</span>
+              <span className="text-xs font-mono text-base-content/70">{getQuotaLabel()}</span>
             </div>
-            <progress
-              className="progress progress-primary mt-3 w-full"
-              value={user.role !== "admin" && canBuildSpa(user.role, user.userType) ? Math.max(getDailyBuildLimit(user.role, user.userType) - getQuotaLeft(), 0) : 0}
-              max={getDailyBuildLimit(user.role, user.userType) >= Number.MAX_SAFE_INTEGER / 2 ? 1 : getDailyBuildLimit(user.role, user.userType)}
-            />
+            <progress className="progress progress-primary mt-3 w-full" value={quotaProgressValue} max={quotaProgressMax} />
             <button
               type="button"
-              className="mt-3 inline-flex h-8 min-h-0 items-center justify-center rounded-full px-2 py-0 text-xs font-medium leading-none text-rose-600"
+              className="mt-3 text-sm font-medium text-rose-600"
               disabled={resetBuildQuota.status === "pending"}
               onClick={() => {
                 if (!window.confirm(`确定重置 ${user.email} 的今日构建次数？`)) return;
@@ -297,14 +281,14 @@ const UserDetailPage = () => {
           </section>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-4 self-start">
           {!isSelf && (
-            <section className="workspace-card p-5">
-              <div>
-                <p className="text-[11px] text-base-content/60">账号属性</p>
-                <h4 className="mt-1 text-sm font-semibold text-slate-900">角色与档位</h4>
+            <section className="workspace-card p-4">
+              <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
+                <h3 className="text-base font-semibold tracking-[-0.03em] text-slate-900">角色与档位</h3>
+                <span className="text-xs text-slate-500">修改账号权限和使用档位</span>
               </div>
-              <div className="mt-3 space-y-3">
+              <div className="mt-4 space-y-3">
                 <div className="form-control">
                   <label className="label py-0.5">
                     <span className="label-text text-[11px]">角色权限</span>
@@ -352,17 +336,16 @@ const UserDetailPage = () => {
                   </div>
                 </div>
               </div>
-
-              {user.role === "admin" && <div className="mt-3 rounded-2xl border border-teal-200 bg-teal-50/80 px-3 py-2 text-xs text-teal-700">管理员账号不区分基础版、订阅版、优先版或待开通。</div>}
+              <div className="mt-3 rounded-2xl border border-teal-200 bg-teal-50/80 px-3 py-2 text-xs text-teal-700">角色与档位会影响该账号的功能开放和构建额度。</div>
             </section>
           )}
 
-          <section className="workspace-card p-5">
-            <div>
-              <p className="text-[11px] text-base-content/60">重置密码</p>
-              <h4 className="mt-1 text-sm font-semibold text-slate-900">修改登录密码</h4>
+          <section className="workspace-card p-4">
+            <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
+              <h3 className="text-base font-semibold tracking-[-0.03em] text-slate-900">修改登录密码</h3>
+              <span className="text-xs text-slate-500">直接更新这个账号的登录密码</span>
             </div>
-            <form onSubmit={onPasswordSubmit} className="mt-3 flex flex-col gap-2 sm:flex-row">
+            <form onSubmit={onPasswordSubmit} className="mt-4 flex flex-col gap-2 sm:flex-row">
               <input
                 type="password"
                 value={newPassword}
@@ -382,12 +365,16 @@ const UserDetailPage = () => {
           </section>
 
           {!isSelf && (
-            <section className="rounded-3xl border border-rose-200 bg-rose-50/80 px-4 py-3">
+            <section className="workspace-card border border-rose-200 bg-rose-50/80 p-4">
               <div className="flex items-center gap-2 text-sm font-medium text-rose-600">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-4 w-4">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"
+                  />
                 </svg>
-                危险操作区域
+                危险操作
               </div>
               <p className="mt-1.5 text-xs text-rose-700/75">删除账号将清除该用户所有数据且无法恢复。</p>
               <button
@@ -398,37 +385,37 @@ const UserDetailPage = () => {
                   if (!window.confirm(`确认删除账号 ${user.email} 吗？该操作不可恢复。`)) return;
                   deleteUser.mutate(user.id, { onSuccess: () => navigate("/admin/users") });
                 }}
-              >
-                删除账号
-              </button>
+                >
+                  删除账号
+                </button>
             </section>
-          )}
-
-          {(mutationError(updatePassword.error) ||
-            mutationError(updateRole.error) ||
-            mutationError(updateUserType.error) ||
-            mutationError(removeSiteName.error) ||
-            mutationError(updateSiteNameLimit.error) ||
-            mutationError(resetSiteName.error) ||
-            mutationError(removeFrontendOrigin.error) ||
-            mutationError(resetFrontendOrigins.error) ||
-            mutationError(resetBuildQuota.error) ||
-            mutationError(deleteUser.error)) && (
-            <div className="space-y-1 rounded-2xl bg-error/10 p-3 text-xs text-error">
-              {mutationError(updatePassword.error) && <p>密码修改失败: {mutationError(updatePassword.error)}</p>}
-              {mutationError(updateRole.error) && <p>角色修改失败: {mutationError(updateRole.error)}</p>}
-              {mutationError(updateUserType.error) && <p>类型修改失败: {mutationError(updateUserType.error)}</p>}
-              {mutationError(removeSiteName.error) && <p>站点删除失败: {mutationError(removeSiteName.error)}</p>}
-              {mutationError(updateSiteNameLimit.error) && <p>站点上限修改失败: {mutationError(updateSiteNameLimit.error)}</p>}
-              {mutationError(resetSiteName.error) && <p>站点重置失败: {mutationError(resetSiteName.error)}</p>}
-              {mutationError(removeFrontendOrigin.error) && <p>前端域名删除失败: {mutationError(removeFrontendOrigin.error)}</p>}
-              {mutationError(resetFrontendOrigins.error) && <p>前端绑定重置失败: {mutationError(resetFrontendOrigins.error)}</p>}
-              {mutationError(resetBuildQuota.error) && <p>配额重置失败: {mutationError(resetBuildQuota.error)}</p>}
-              {mutationError(deleteUser.error) && <p>删除账号失败: {mutationError(deleteUser.error)}</p>}
-            </div>
           )}
         </div>
       </div>
+
+      {(mutationError(updatePassword.error) ||
+        mutationError(updateRole.error) ||
+        mutationError(updateUserType.error) ||
+        mutationError(removeSiteName.error) ||
+        mutationError(updateSiteNameLimit.error) ||
+        mutationError(resetSiteName.error) ||
+        mutationError(removeFrontendOrigin.error) ||
+        mutationError(resetFrontendOrigins.error) ||
+        mutationError(resetBuildQuota.error) ||
+        mutationError(deleteUser.error)) && (
+        <div className="space-y-1 rounded-2xl bg-error/10 p-3 text-xs text-error">
+          {mutationError(updatePassword.error) && <p>密码修改失败: {mutationError(updatePassword.error)}</p>}
+          {mutationError(updateRole.error) && <p>角色修改失败: {mutationError(updateRole.error)}</p>}
+          {mutationError(updateUserType.error) && <p>类型修改失败: {mutationError(updateUserType.error)}</p>}
+          {mutationError(removeSiteName.error) && <p>站点删除失败: {mutationError(removeSiteName.error)}</p>}
+          {mutationError(updateSiteNameLimit.error) && <p>站点上限修改失败: {mutationError(updateSiteNameLimit.error)}</p>}
+          {mutationError(resetSiteName.error) && <p>站点重置失败: {mutationError(resetSiteName.error)}</p>}
+          {mutationError(removeFrontendOrigin.error) && <p>前端域名删除失败: {mutationError(removeFrontendOrigin.error)}</p>}
+          {mutationError(resetFrontendOrigins.error) && <p>前端绑定重置失败: {mutationError(resetFrontendOrigins.error)}</p>}
+          {mutationError(resetBuildQuota.error) && <p>配额重置失败: {mutationError(resetBuildQuota.error)}</p>}
+          {mutationError(deleteUser.error) && <p>删除账号失败: {mutationError(deleteUser.error)}</p>}
+        </div>
+      )}
     </div>
   );
 };
