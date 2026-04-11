@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import prisma from "../lib/prisma";
-import { canBuildSpa, normalizeUserType } from "../lib/userAccess";
+import { canBuildSpa, getDailyBuildLimit, normalizeUserType } from "../lib/userAccess";
 
 export const getBuildQuota = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -40,7 +40,7 @@ export const getBuildQuota = async (req: Request, res: Response, next: NextFunct
       });
     }
 
-    const limit = 2;
+    const limit = getDailyBuildLimit(dbUser.role, normalizedUserType);
     const now = new Date();
     const isSameDay = dbUser.buildQuotaDate && new Date(dbUser.buildQuotaDate).toDateString() === now.toDateString();
     const used = isSameDay ? dbUser.buildQuotaUsed || 0 : 0;

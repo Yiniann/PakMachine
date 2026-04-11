@@ -12,7 +12,7 @@ export const getAdminStats = async (_req: Request, res: Response, next: NextFunc
 
     const [totalUsers, proUsers, totalBuildJobs, buildsToday, buildsLast7Days] = await Promise.all([
       prisma.user.count(),
-      prisma.user.count({ where: { userType: { in: ["pro", "subscriber"] } } }),
+      prisma.user.count({ where: { userType: { in: ["pro", "priority", "subscriber"] } } }),
       prisma.buildJob.count(),
       prisma.buildJob.count({ where: { createdAt: { gte: todayStart } } }),
       prisma.buildJob.count({ where: { createdAt: { gte: last7DaysStart } } }),

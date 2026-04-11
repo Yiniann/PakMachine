@@ -54,7 +54,7 @@ const DeployGuideSpaPage = () => {
                       </tr>
                       <tr>
                         <td className="font-medium">`已绑定前端域名`</td>
-                        <td>在主页设置后自动获取，要和你最终部署的前端域名保持一致。SPA 构建会把它写到 `VITE_ALLOWED_CLIENT_ORIGINS`。</td>
+                        <td>普通档位下在主页设置后自动获取，要和你最终部署的前端域名保持一致。构建时会按档位写入 `VITE_ENABLE_CLIENT_ORIGIN_RESTRICTION`。</td>
                       </tr>
                       <tr>
                         <td className="font-medium">`登录页背景`</td>

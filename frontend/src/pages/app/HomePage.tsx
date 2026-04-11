@@ -1,15 +1,16 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useAddFrontendOrigin, useSetSiteName, useSiteProfile } from "../../features/builds/siteName";
+import { useAddFrontendOrigin, useCreateUserSite, useSetSiteName, useSiteProfile } from "../../features/builds/siteName";
 import { useBuildJob, useBuildJobs } from "../../features/builds/jobs";
 import { useBuildQuota } from "../../features/builds/quota";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../components/useAuth";
-import { canBuildSpa, getUserTypeBadgeClass, getUserTypeDescription, getUserTypeLabel, normalizeUserType } from "../../lib/userAccess";
+import { canBuildSpa, getUserTypeBadgeClass, getUserTypeDescription, getUserTypeLabel, normalizeUserType, shouldValidateFrontendOrigins } from "../../lib/userAccess";
 
 const HomePage = () => {
   const siteProfileQuery = useSiteProfile();
   const setSiteNameMutation = useSetSiteName();
+  const createUserSiteMutation = useCreateUserSite();
   const addFrontendOriginMutation = useAddFrontendOrigin();
   const jobsQuery = useBuildJobs();
   const quotaQuery = useBuildQuota();
@@ -19,10 +20,12 @@ const HomePage = () => {
   const role = auth.role || user.role;
   const email = auth.email || user.email;
   const userType = normalizeUserType(auth.userType ?? user.userType);
+  const requiresFrontendOrigins = shouldValidateFrontendOrigins(role, userType);
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const [cachedSiteName, setCachedSiteName] = useState<string | null>(null);
   const [input, setInput] = useState("");
+  const [newSiteName, setNewSiteName] = useState("");
   const [frontendOriginInput, setFrontendOriginInput] = useState("");
   const [siteMessage, setSiteMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [originMessage, setOriginMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -40,6 +43,8 @@ const HomePage = () => {
   };
 
   const siteName = siteProfileQuery.data?.siteName || null;
+  const siteOptions = siteProfileQuery.data?.sites || [];
+  const siteNameLimit = Math.max(siteProfileQuery.data?.siteNameLimit ?? 1, 1);
   const frontendOrigins = siteProfileQuery.data?.frontendOrigins || [];
   const loadingSiteName = siteProfileQuery.isPending; // 只在首个请求未返回时认为 loading，避免阻塞展示
   const fetchedSiteName = siteProfileQuery.isSuccess || siteProfileQuery.isError;
@@ -53,6 +58,7 @@ const HomePage = () => {
   const isAdmin = role === "admin";
   const canConfigureSite = canBuildSpa(role, userType);
   const showSiteNameForm = fetchedSiteName && (!displaySiteName || isAdmin);
+  const shouldUseSiteManager = canConfigureSite;
   const quota = quotaQuery.data;
   const isUnlimitedQuota =
     quota?.unlimited || (quota?.limit ?? 0) >= Number.MAX_SAFE_INTEGER / 2; // 后端用 MAX_SAFE_INTEGER 表示无限
@@ -110,6 +116,23 @@ const HomePage = () => {
           siteProfileQuery.refetch();
         },
         onError: (err: any) => setOriginMessage({ type: "error", text: err?.response?.data?.error || "绑定前端域名失败" }),
+      },
+    );
+  };
+
+  const onAddSiteName = (e: FormEvent) => {
+    e.preventDefault();
+    setSiteMessage(null);
+    createUserSiteMutation.mutate(
+      { name: newSiteName },
+      {
+        onSuccess: async (data) => {
+          setSiteMessage({ type: "success", text: `站点名称已添加：${data.name}` });
+          setCachedSiteName(data.name);
+          setNewSiteName("");
+          await siteProfileQuery.refetch();
+        },
+        onError: (err: any) => setSiteMessage({ type: "error", text: err?.response?.data?.error || "添加站点名称失败" }),
       },
     );
   };
@@ -213,20 +236,20 @@ const HomePage = () => {
           ) : (
             <div className={`badge badge-lg ${getUserTypeBadgeClass(userType)}`}>{getUserTypeLabel(userType)}</div>
           )}
-          {!isAdmin && userType === "basic" ? (
+          {!isAdmin && (userType === "basic" || userType === "pro") ? (
             <button
               type="button"
               className="landing-button-primary rounded-2xl px-4 py-2 text-sm"
               onClick={() => setIsUpgradeOpen(true)}
             >
-              升级 Pro 版本
+              {userType === "basic" ? "升级 Pro 版本" : "升级优先版"}
             </button>
           ) : null}
         </div>
         <p className="text-base-content/70 mt-1">
           {role === "admin"
             ? "设置站点名，提交打包，完成后在“构建下载”获取仅与你账号绑定的产物。"
-            : `${getUserTypeDescription(userType)}。设置站点名后即可按当前档位使用构建功能。`}
+            : `${getUserTypeDescription(userType)}。添加站点名称后即可按当前档位使用构建功能。`}
         </p>
       </div>
 
@@ -237,7 +260,7 @@ const HomePage = () => {
               <p className="text-sm font-bold uppercase tracking-[0.24em] text-[#6d6bf4]">Pricing</p>
               <h2 className="mt-4 text-3xl font-bold tracking-[-0.05em] text-slate-900">开通后即可开始构建</h2>
               <p className="mt-3 max-w-xl text-[15px] leading-7 text-slate-600">
-                当前账号为待开通状态，暂不支持绑定站点名、前端域名和提交构建。开通专业版后即可直接使用完整主题交付能力。
+                当前账号为待开通状态，暂不支持绑定站点名、前端域名和提交构建。开通基础版、订阅版或优先版后即可开始使用构建能力。
               </p>
               <div className="mt-5 space-y-2.5 text-[15px] text-slate-600">
                 <div className="flex items-center gap-3">
@@ -292,7 +315,9 @@ const HomePage = () => {
                   <p className="workspace-kicker">Workspace Setup</p>
                   <h3 className="mt-2 text-[28px] font-bold tracking-[-0.04em] text-slate-900">站点配置</h3>
                   <p className="mt-2 max-w-2xl text-[15px] leading-7 text-slate-500">
-                    先完成站点名称和前端域名绑定，再进入构建流程。配置完成后可以直接前往前端构建或查看已生成的产物。
+                    {requiresFrontendOrigins
+                      ? "先完成站点名称和前端域名绑定，再进入构建流程。配置完成后可以直接前往前端构建或查看已生成的产物。"
+                      : "先完成站点名称设置，再进入构建流程。优先版会在构建时自动关闭前端域名校验。"}
                   </p>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
@@ -305,13 +330,13 @@ const HomePage = () => {
                   <div className="workspace-card-soft p-4">
                     <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">当前状态</p>
                     <p className="mt-2 text-xl font-bold text-slate-900">
-                      {displaySiteName && frontendOrigins.length > 0 ? "可构建" : "待配置"}
+                      {displaySiteName && (!requiresFrontendOrigins || frontendOrigins.length > 0) ? "可构建" : "待配置"}
                     </p>
                   </div>
                 </div>
               </div>
 
-              <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+              <div className={`mt-5 grid gap-5 ${requiresFrontendOrigins ? "xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]" : ""}`}>
                 <div className="workspace-card-soft p-5">
                   <div className="flex items-start justify-between gap-4">
                     <div>
@@ -321,14 +346,50 @@ const HomePage = () => {
                   </div>
 
                   <p className="mt-3 text-[15px] leading-7 text-slate-500">
-                    在前端构建前输入你的站点名，用于打包后主题的站点名称和标题。{isAdmin ? "管理员可重复修改。" : "确认无误后提交，一旦保存不可修改。"}
+                    在前端构建前维护你的站点名称，用于打包后主题的站点名称和标题。当前账号最多可添加 {siteNameLimit} 个站点名称。
                   </p>
 
                   {loadingSiteName && !displaySiteName && (
                     <div className="flex justify-center p-6"><span className="loading loading-spinner loading-md" /></div>
                   )}
 
-                  {showSiteNameForm ? (
+                  {shouldUseSiteManager ? (
+                    <>
+                      {siteOptions.length > 0 ? (
+                        <div className="mt-5 flex flex-wrap gap-2.5">
+                          {siteOptions.map((site) => (
+                            <span key={site.id} className="rounded-full border border-sky-200 bg-sky-50 px-3.5 py-1.5 text-sm font-medium text-sky-700">
+                              {site.name}
+                            </span>
+                          ))}
+                        </div>
+                      ) : displaySiteName ? (
+                        <div className="mt-5 rounded-2xl border border-slate-200 bg-white/80 px-4 py-4 text-sm text-slate-500 shadow-sm">
+                          <div className="mb-2 text-2xl font-bold tracking-[-0.03em] text-[#6d6bf4]">{displaySiteName}</div>
+                          这是当前默认站点名称。
+                        </div>
+                      ) : null}
+
+                      {siteOptions.length < siteNameLimit ? (
+                        <form onSubmit={onAddSiteName} className="mt-5 flex items-stretch gap-3">
+                          <input
+                            className="workspace-input input input-bordered h-13 flex-1 rounded-2xl"
+                            placeholder={siteOptions.length > 0 ? "输入新的站点名称" : "请输入第一个站点名称"}
+                            value={newSiteName}
+                            onChange={(e) => setNewSiteName(e.target.value)}
+                            disabled={createUserSiteMutation.status === "pending"}
+                          />
+                          <button className="landing-button-primary shrink-0 rounded-2xl px-5 py-3 text-sm" type="submit" disabled={!newSiteName.trim() || createUserSiteMutation.status === "pending"}>
+                            {createUserSiteMutation.status === "pending" ? "添加中..." : "添加"}
+                          </button>
+                        </form>
+                      ) : (
+                        <div className="mt-5 workspace-alert alert border border-sky-200 bg-sky-50 text-sky-700 text-sm py-3">
+                          <span>已达到当前账号可添加的站点名称上限。</span>
+                        </div>
+                      )}
+                    </>
+                  ) : showSiteNameForm ? (
                     <form onSubmit={onSubmit} className="mt-5 flex items-stretch gap-3">
                       <input
                         className="workspace-input input input-bordered h-13 flex-1 rounded-2xl"
@@ -357,6 +418,7 @@ const HomePage = () => {
                   )}
                 </div>
 
+                {requiresFrontendOrigins && (
                 <div className="workspace-card-soft p-5">
                   <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                     <div>
@@ -408,6 +470,7 @@ const HomePage = () => {
                     </div>
                   )}
                 </div>
+                )}
               </div>
 
             <div className="mt-5 flex flex-wrap gap-3">

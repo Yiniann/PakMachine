@@ -5,6 +5,8 @@ import { useAuth } from "../../components/useAuth";
 export type SiteProfile = {
   siteName: string | null;
   frontendOrigins: string[];
+  sites?: { id: number; name: string }[];
+  siteNameLimit?: number;
 };
 
 export const useSiteProfile = (): UseQueryResult<SiteProfile> => {
@@ -31,6 +33,33 @@ export const useAddFrontendOrigin = (): UseMutationResult<{ frontendOrigins: str
   useMutation({
     mutationFn: async ({ frontendOrigin }) => {
       const res = await api.post<{ frontendOrigins: string[] }>("/build/frontend-origins", { frontendOrigin });
+      return res.data;
+    },
+  });
+
+export type UserSite = {
+  id: number;
+  name: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export const useUserSites = (): UseQueryResult<UserSite[]> => {
+  const { token } = useAuth();
+  return useQuery({
+    queryKey: ["user-sites", token],
+    queryFn: async () => {
+      const res = await api.get("/build/sites");
+      return res.data as UserSite[];
+    },
+    enabled: Boolean(token),
+  });
+};
+
+export const useCreateUserSite = (): UseMutationResult<UserSite, unknown, { name: string }, unknown> =>
+  useMutation({
+    mutationFn: async ({ name }) => {
+      const res = await api.post<UserSite>("/build/sites", { name });
       return res.data;
     },
   });

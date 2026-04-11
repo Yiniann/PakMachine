@@ -10,7 +10,7 @@ import {
   saveBuildProfile,
 } from "../controllers/buildController";
 import { getBuildQuota } from "../controllers/quotaController";
-import { addFrontendOrigin, getSiteName, setSiteName } from "../controllers/profileController";
+import { addFrontendOrigin, createUserSite, getSiteName, listUserSites, setSiteName } from "../controllers/profileController";
 import { authenticate } from "../middleware/auth";
 import { UploadError } from "../services/uploadService";
 
@@ -24,6 +24,8 @@ router.get("/profile", getBuildProfile);
 router.put("/profile", saveBuildProfile);
 router.get("/site-name", getSiteName);
 router.post("/site-name", setSiteName);
+router.get("/sites", listUserSites);
+router.post("/sites", createUserSite);
 router.post("/frontend-origins", addFrontendOrigin);
 router.get("/download/:id", downloadBuildArtifact);
 router.get("/artifacts", listUserArtifacts);

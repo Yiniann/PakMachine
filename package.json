@@ -7,12 +7,13 @@
     "backend"
   ],
   "scripts": {
-    "dev": "concurrently -n frontend,backend -c blue,green \"npm run dev --workspace frontend\" \"npm run dev --workspace backend\"",
+    "dev": "npm run dev --workspace frontend & npm run dev --workspace backend & wait",
     "build": "npm run build --workspace frontend && npm run build --workspace backend",
-    "start": "concurrently -n frontend,backend -c blue,green \"npm run start --workspace frontend\" \"npm run start --workspace backend\""
+    "start": "npm run start --workspace frontend & npm run start --workspace backend & wait"
   },
   "devDependencies": {
-    "concurrently": "^7.0.0"
+    "concurrently": "^7.6.0",
+    "yargs": "^17.7.2"
   },
   "description": "",
   "main": "index.js",

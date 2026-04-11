@@ -6,6 +6,8 @@ export type BuildJob = {
   status: string;
   message?: string;
   artifactId?: number;
+  siteId?: number | null;
+  siteName?: string | null;
   filename: string;
   createdAt: string;
 };

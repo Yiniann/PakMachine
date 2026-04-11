@@ -1,0 +1,2 @@
+ALTER TABLE `User`
+  ADD COLUMN `siteNameLimit` INT NOT NULL DEFAULT 1 AFTER `siteName`;

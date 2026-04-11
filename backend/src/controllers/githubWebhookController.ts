@@ -75,7 +75,7 @@ export const handleGithubBuildWebhook = async (req: Request, res: Response, next
           where: { id: job.userId },
           select: { siteName: true },
         });
-        const sourceFilename = buildArtifactFilename(owner?.siteName, artifactFilename || job.filename, job.createdAt);
+        const sourceFilename = buildArtifactFilename((job as any).siteNameSnapshot ?? owner?.siteName, artifactFilename || job.filename, job.createdAt);
         const created = await tx.buildArtifact.create({
           data: {
             userId: job.userId,

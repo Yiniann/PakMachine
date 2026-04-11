@@ -13,7 +13,7 @@ import path from "path";
 import { Readable } from "stream";
 import { URL } from "url";
 import { normalizeArtifactUrl } from "../lib/artifactUrl";
-import { canBuildBff, canBuildSpa, normalizeUserType } from "../lib/userAccess";
+import { canBuildBff, canBuildSpa, getDailyBuildLimit, normalizeUserType, shouldValidateFrontendOrigins } from "../lib/userAccess";
 
 const ADMIN_BUILD_JOBS_LIMIT = 200;
 const ALLOWED_ENV_KEYS = new Set([
@@ -30,7 +30,7 @@ const ALLOWED_ENV_KEYS = new Set([
   "VITE_IDHUB_API_URL",
   "VITE_IDHUB_API_KEY",
   "VITE_PROD_API_URL",
-  "VITE_ALLOWED_CLIENT_ORIGINS",
+  "VITE_ENABLE_CLIENT_ORIGIN_RESTRICTION",
   "VITE_THIRD_PARTY_SCRIPTS",
   "VITE_ENABLE_DOWNLOAD",
   "VITE_DOWNLOAD_IOS",
@@ -251,6 +251,41 @@ const normalizeEnvLines = (content: string, overrides: Record<string, string | n
   return filtered.join("\n");
 };
 
+const parseOptionalSiteId = (value: unknown) => {
+  if (value === undefined || value === null || value === "") return null;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw Object.assign(new Error("siteId 不合法"), { statusCode: 400 });
+  }
+  return parsed;
+};
+
+const extractSiteScopedConfig = (config: unknown, siteId: number | null) => {
+  if (!config || typeof config !== "object" || Array.isArray(config)) return null;
+  if (siteId === null) return config;
+  const source = config as Record<string, unknown>;
+  const siteConfigs = source.siteConfigs;
+  if (!siteConfigs || typeof siteConfigs !== "object" || Array.isArray(siteConfigs)) return null;
+  return (siteConfigs as Record<string, unknown>)[String(siteId)] ?? null;
+};
+
+const mergeSiteScopedConfig = (config: unknown, siteId: number | null, nextConfig: unknown) => {
+  if (siteId === null) return nextConfig;
+  const source = config && typeof config === "object" && !Array.isArray(config) ? (config as Record<string, unknown>) : {};
+  const siteConfigs =
+    source.siteConfigs && typeof source.siteConfigs === "object" && !Array.isArray(source.siteConfigs)
+      ? { ...(source.siteConfigs as Record<string, unknown>) }
+      : {};
+  siteConfigs[String(siteId)] = nextConfig;
+  return {
+    version: 2,
+    selectedSiteId: siteId,
+    siteConfigs,
+  };
+};
+
+const toPrismaJsonValue = (value: unknown): Prisma.InputJsonValue => value as Prisma.InputJsonValue;
+
 export const listUploadedTemplates = async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const templates = listGithubTemplates().map((item) => ({
@@ -302,8 +337,9 @@ export const removeGithubTemplateEntry = async (req: Request, res: Response, nex
 
 export const buildTemplatePackage = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { filename, buildMode: rawBuildMode, frontendEnvContent, envContent, serverEnvContent, runtimeSettings } = req.body ?? {};
+    const { filename, buildMode: rawBuildMode, frontendEnvContent, envContent, serverEnvContent, runtimeSettings, siteId: rawSiteId } = req.body ?? {};
     const buildMode = rawBuildMode === "bff" ? "bff" : "legacy";
+    const requestedSiteId = parseOptionalSiteId(rawSiteId);
     const finalFrontendEnvContent = typeof frontendEnvContent === "string" && frontendEnvContent.trim()
       ? frontendEnvContent
       : typeof envContent === "string"
@@ -346,15 +382,27 @@ export const buildTemplatePackage = async (req: Request, res: Response, next: Ne
 
     const dbUser: any = await prisma.user.findUnique({
       where: { id: Number(user.sub) },
-      select: { siteName: true, frontendOriginsJson: true },
+      include: {
+        sites: requestedSiteId
+          ? { where: { id: requestedSiteId }, select: { id: true, name: true } }
+          : { select: { id: true, name: true }, orderBy: [{ createdAt: "asc" }, { id: "asc" }] },
+      },
     });
     const frontendOrigins = parseFrontendOrigins(dbUser?.frontendOriginsJson);
-    if (frontendOrigins.length === 0) {
+    const normalizedUserType = normalizeUserType(dbUser?.userType);
+    const selectedSite = dbUser?.sites?.[0] ?? null;
+    const effectiveSiteName = selectedSite?.name ?? dbUser?.siteName ?? null;
+    const effectiveSiteId = selectedSite?.id ?? null;
+    if (requestedSiteId && !selectedSite) {
+      return res.status(404).json({ error: "站点不存在" });
+    }
+    const requiresFrontendOrigins = shouldValidateFrontendOrigins(dbUser?.role, normalizedUserType);
+    if (requiresFrontendOrigins && frontendOrigins.length === 0) {
       return res.status(400).json({ error: "请先在首页绑定至少一个前端域名" });
     }
     const enforcedFrontendEnv = normalizeEnvLines(finalFrontendEnvContent ?? "", {
-      VITE_SITE_NAME: dbUser?.siteName ?? null,
-      VITE_ALLOWED_CLIENT_ORIGINS: frontendOrigins.join(","),
+      VITE_SITE_NAME: effectiveSiteName,
+      VITE_ENABLE_CLIENT_ORIGIN_RESTRICTION: requiresFrontendOrigins ? "true" : "false",
       VITE_API_MODE: buildMode,
     });
     const normalizedServerEnv = (serverEnvContent || "").trim();
@@ -383,15 +431,16 @@ export const buildTemplatePackage = async (req: Request, res: Response, next: Ne
         throw Object.assign(new Error("当前账号为待开通状态，请联系管理员开通构建权限"), { statusCode: 403 });
       }
       if (buildMode === "bff" && !canBuildBff(txUser.role, normalizedUserType)) {
-        throw Object.assign(new Error("当前账号仅支持 SPA 构建，升级到专业版后可使用 Pro 构建"), { statusCode: 403 });
+        throw Object.assign(new Error("当前账号仅支持 SPA 构建，升级到订阅版或优先版后可使用 Pro 构建"), { statusCode: 403 });
       }
 
       if (!isAdmin) {
+        const limit = getDailyBuildLimit(txUser.role, normalizedUserType);
         const now = new Date();
         const isSameDay = txUser.buildQuotaDate && new Date(txUser.buildQuotaDate).toDateString() === now.toDateString();
         const used = isSameDay ? txUser.buildQuotaUsed || 0 : 0;
-        if (used >= 2) {
-          throw Object.assign(new Error("今日构建次数已用完（每日最多 2 次）"), { statusCode: 429, quotaLeft: 0, quotaUsed: used });
+        if (used >= limit) {
+          throw Object.assign(new Error(`今日构建次数已用完（每日最多 ${limit} 次）`), { statusCode: 429, quotaLeft: 0, quotaUsed: used, quotaLimit: limit });
         }
 
         await tx.user.update({
@@ -403,6 +452,8 @@ export const buildTemplatePackage = async (req: Request, res: Response, next: Ne
       return tx.buildJob.create({
         data: {
           userId: Number(user.sub),
+          siteId: effectiveSiteId,
+          siteNameSnapshot: effectiveSiteName,
           filename,
           envJson: snapshot,
           status: template.type === "github" ? "queued" : "pending",
@@ -431,6 +482,9 @@ export const buildTemplatePackage = async (req: Request, res: Response, next: Ne
       throw err;
     }
   } catch (err) {
+    if ((err as any)?.statusCode === 400) {
+      return res.status(400).json({ error: (err as Error).message });
+    }
     if ((err as any)?.statusCode === 403) {
       return res.status(403).json({ error: (err as Error).message });
     }
@@ -438,7 +492,8 @@ export const buildTemplatePackage = async (req: Request, res: Response, next: Ne
       return res.status(429).json({
         error: (err as Error).message,
         quotaLeft: (err as any).quotaLeft ?? 0,
-        quotaUsed: (err as any).quotaUsed ?? 2,
+        quotaUsed: (err as any).quotaUsed ?? 0,
+        quotaLimit: (err as any).quotaLimit ?? 0,
       });
     }
     next(err);
@@ -451,9 +506,22 @@ export const getBuildProfile = async (req: Request, res: Response, next: NextFun
     if (!user?.sub) {
       return res.status(401).json({ error: "Unauthorized" });
     }
+    const siteId = parseOptionalSiteId(req.query.siteId);
+    if (siteId !== null) {
+      const site = await prisma.userSite.findFirst({
+        where: { id: siteId, userId: Number(user.sub) },
+        select: { id: true },
+      });
+      if (!site) {
+        return res.status(404).json({ error: "站点不存在" });
+      }
+    }
     const profile = await prisma.buildProfile.findUnique({ where: { userId: Number(user.sub) } });
-    res.json(profile?.config ?? null);
+    res.json(extractSiteScopedConfig(profile?.config ?? null, siteId));
   } catch (err) {
+    if ((err as any)?.statusCode === 400) {
+      return res.status(400).json({ error: (err as Error).message });
+    }
     next(err);
   }
 };
@@ -464,17 +532,32 @@ export const saveBuildProfile = async (req: Request, res: Response, next: NextFu
     if (!user?.sub) {
       return res.status(401).json({ error: "Unauthorized" });
     }
-    const { config } = req.body ?? {};
+    const { config, siteId: rawSiteId } = req.body ?? {};
+    const siteId = parseOptionalSiteId(rawSiteId);
     if (config === undefined) {
       return res.status(400).json({ error: "缺少 config" });
     }
+    if (siteId !== null) {
+      const site = await prisma.userSite.findFirst({
+        where: { id: siteId, userId: Number(user.sub) },
+        select: { id: true },
+      });
+      if (!site) {
+        return res.status(404).json({ error: "站点不存在" });
+      }
+    }
+    const existing = await prisma.buildProfile.findUnique({ where: { userId: Number(user.sub) } });
+    const nextConfig = toPrismaJsonValue(mergeSiteScopedConfig(existing?.config ?? null, siteId, config));
     const saved = await prisma.buildProfile.upsert({
       where: { userId: Number(user.sub) },
-      update: { config },
-      create: { userId: Number(user.sub), config },
+      update: { config: nextConfig },
+      create: { userId: Number(user.sub), config: nextConfig },
     });
-    res.json(saved.config);
+    res.json(extractSiteScopedConfig(saved.config, siteId));
   } catch (err) {
+    if ((err as any)?.statusCode === 400) {
+      return res.status(400).json({ error: (err as Error).message });
+    }
     next(err);
   }
 };
@@ -554,6 +637,8 @@ export const buildTemplateJobStatus = async (req: Request, res: Response, next: 
       status: job.status,
       message: job.message,
       artifactId: job.artifactId,
+      siteId: (job as any).siteId ?? null,
+      siteName: (job as any).siteNameSnapshot ?? null,
       filename: job.filename,
       createdAt: job.createdAt,
     });
@@ -603,6 +688,8 @@ export const listUserBuildJobs = async (req: Request, res: Response, next: NextF
         status: j.status,
         message: j.message,
         artifactId: j.artifactId,
+        siteId: (j as any).siteId ?? null,
+        siteName: (j as any).siteNameSnapshot ?? null,
         filename: j.filename,
         createdAt: j.createdAt,
       })),
@@ -633,7 +720,7 @@ export const listAllBuildJobs = async (req: Request, res: Response, next: NextFu
         user: {
           id: j.user.id,
           email: j.user.email,
-          siteName: j.user.siteName,
+          siteName: (j as any).siteNameSnapshot ?? j.user.siteName,
         },
       })),
     );

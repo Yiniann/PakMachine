@@ -10,6 +10,8 @@ export interface User {
   updatedAt: string;
   emailVerified?: boolean;
   siteName?: string | null;
+  siteNameLimit?: number;
+  sites?: { id: number; name: string }[];
   frontendOrigins?: string[];
   buildQuotaUsed?: number | null;
   buildQuotaDate?: string | null;

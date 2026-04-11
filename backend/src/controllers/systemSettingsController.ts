@@ -24,7 +24,11 @@ const settingsPath = path.join(__dirname, "../../config/system-settings.json");
 export const loadSettings = (): SystemSettings => {
   try {
     const raw = fs.readFileSync(settingsPath, "utf8");
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    return {
+      allowRegister: true,
+      ...parsed,
+    };
   } catch {
     return { allowRegister: true };
   }

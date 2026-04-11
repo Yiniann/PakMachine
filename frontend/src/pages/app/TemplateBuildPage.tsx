@@ -5,7 +5,7 @@ import { useBuildTemplate } from "../../features/builds/build";
 import { useBuildProfile, useSaveBuildProfile } from "../../features/builds/profile";
 import { useTemplateFiles } from "../../features/builds/queries";
 import { useSiteProfile } from "../../features/builds/siteName";
-import { canBuildBff, canBuildSpa, getUserTypeLabel, normalizeUserType } from "../../lib/userAccess";
+import { canBuildBff, canBuildSpa, getUserTypeLabel, normalizeUserType, shouldValidateFrontendOrigins } from "../../lib/userAccess";
 
 type BuildMode = "legacy" | "bff";
 
@@ -157,13 +157,13 @@ const normalizeStoredProfiles = (input: unknown): StoredProfiles => {
   };
 };
 
-const buildLegacyEnvContent = (siteName: string, frontendOriginsValue: string, form: LegacyForm) => {
+const buildLegacyEnvContent = (siteName: string, clientOriginRestrictionValue: string, form: LegacyForm) => {
   return [
     "VITE_API_MODE=legacy",
     `VITE_PROD_API_URL=${normalizeEnvValue(form.prodApiUrl) || "/api/v1/"}`,
     `VITE_SITE_NAME=${normalizeEnvValue(siteName)}`,
     `VITE_SITE_LOGO=${normalizeEnvValue(form.siteLogo)}`,
-    `VITE_ALLOWED_CLIENT_ORIGINS=${normalizeEnvValue(frontendOriginsValue)}`,
+    `VITE_ENABLE_CLIENT_ORIGIN_RESTRICTION=${normalizeEnvValue(clientOriginRestrictionValue)}`,
     `VITE_BACKEND_TYPE=${normalizeEnvValue(form.backendType)}`,
   ].join("\n");
 };
@@ -188,15 +188,15 @@ const buildLegacyRuntimeSettings = (form: LegacyForm) => {
   };
 };
 
-const buildBffFrontendEnvContent = (siteName: string, frontendOriginsValue: string, form: BffForm) => {
+const buildBffFrontendEnvContent = (siteName: string, clientOriginRestrictionValue: string, form: BffForm) => {
   const lines = [
     "VITE_API_MODE=bff",
     `VITE_SITE_NAME=${normalizeEnvValue(siteName)}`,
     `VITE_SITE_LOGO=${normalizeEnvValue(form.frontend.siteLogo)}`,
     `VITE_BACKEND_TYPE=${normalizeEnvValue(form.frontend.backendType)}`,
   ];
-  if (frontendOriginsValue.trim()) {
-    lines.push(`VITE_ALLOWED_CLIENT_ORIGINS=${normalizeEnvValue(frontendOriginsValue)}`);
+  if (clientOriginRestrictionValue.trim()) {
+    lines.push(`VITE_ENABLE_CLIENT_ORIGIN_RESTRICTION=${normalizeEnvValue(clientOriginRestrictionValue)}`);
   }
   return lines.join("\n");
 };
@@ -213,24 +213,28 @@ const TemplateBuildPage = () => {
   const { role, userType } = useAuth();
   const templates = useTemplateFiles();
   const buildMutation = useBuildTemplate();
-  const profileQuery = useBuildProfile();
   const saveProfile = useSaveBuildProfile();
   const siteProfileQuery = useSiteProfile();
-
   const [selected, setSelected] = useState<string | null>(null);
   const [selectedMode, setSelectedMode] = useState<BuildMode | null>(null);
+  const [selectedSiteId, setSelectedSiteId] = useState<number | null>(null);
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [stepError, setStepError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [legacyForm, setLegacyForm] = useState<LegacyForm>(createLegacyForm());
   const [bffForm, setBffForm] = useState<BffForm>(createBffForm());
 
-  const siteName = siteProfileQuery.data?.siteName || "";
-  const frontendOrigins = siteProfileQuery.data?.frontendOrigins || [];
-  const frontendOriginsValue = frontendOrigins.join(",");
-  const adminBasePathPreview = bffForm.server.adminBasePath.trim() || "/admin";
-  const previewFrontendOrigin = frontendOrigins[0] || "https://your-domain.com";
   const normalizedUserType = normalizeUserType(userType);
+  const siteOptions = siteProfileQuery.data?.sites || [];
+  const canManageSites = siteOptions.length > 0;
+  const selectedSite = siteOptions.find((item) => item.id === selectedSiteId) ?? null;
+  const siteName = selectedSite?.name || siteProfileQuery.data?.siteName || "";
+  const frontendOrigins = siteProfileQuery.data?.frontendOrigins || [];
+  const shouldRequireFrontendOrigins = shouldValidateFrontendOrigins(role, normalizedUserType);
+  const clientOriginRestrictionValue = shouldRequireFrontendOrigins ? "true" : "false";
+  const profileQuery = useBuildProfile(selectedSiteId);
+  const adminBasePathPreview = bffForm.server.adminBasePath.trim() || "/admin";
+  const previewFrontendOrigin = shouldRequireFrontendOrigins ? (frontendOrigins[0] || "https://your-domain.com") : "https://客户访问网址";
   const canUseSpaMode = canBuildSpa(role, normalizedUserType);
   const canUseBffMode = canBuildBff(role, normalizedUserType);
   const selectedTemplate = useMemo(() => templates.data?.find((item) => item.filename === selected) ?? null, [selected, templates.data]);
@@ -263,12 +267,12 @@ const TemplateBuildPage = () => {
   const legacyCanSubmit = useMemo(() => {
     if (!canUseSpaMode) return false;
     if (!selected || !siteName.trim() || !legacyForm.backendType.trim() || !legacyForm.siteLogo.trim() || !legacyForm.prodApiUrl.trim()) return false;
-    if (frontendOrigins.length === 0) return false;
+    if (shouldRequireFrontendOrigins && frontendOrigins.length === 0) return false;
     if (legacyForm.thirdPartySupportEnabled && !legacyForm.supportScript.trim()) return false;
     if (legacyForm.appleAutoProShareEnabled && (!legacyForm.appleAutoProApiBaseUrl.trim() || !legacyForm.appleAutoProApiKey.trim())) return false;
     if (legacyHasInvalidNewline) return false;
     return true;
-  }, [canUseSpaMode, selected, siteName, legacyForm, frontendOrigins.length, legacyHasInvalidNewline]);
+  }, [canUseSpaMode, selected, siteName, legacyForm, frontendOrigins.length, legacyHasInvalidNewline, shouldRequireFrontendOrigins]);
 
   const bffCanSubmit = useMemo(() => {
     if (!selected || !canUseBffMode || !siteName.trim() || !bffForm.frontend.siteLogo.trim() || !bffForm.frontend.backendType.trim() || !bffForm.server.panelBaseUrl.trim()) return false;
@@ -288,18 +292,31 @@ const TemplateBuildPage = () => {
   }, [selected, templates.data]);
 
   useEffect(() => {
-    if (!profileQuery.data) return;
+    if (siteOptions.length === 0) {
+      if (selectedSiteId !== null) setSelectedSiteId(null);
+      return;
+    }
+    if (selectedSiteId && siteOptions.some((item) => item.id === selectedSiteId)) return;
+    setSelectedSiteId(siteOptions[0]?.id ?? null);
+  }, [siteOptions, selectedSiteId]);
+
+  useEffect(() => {
+    if (!profileQuery.isSuccess) return;
     const profiles = normalizeStoredProfiles(profileQuery.data);
     setLegacyForm(profiles.legacy);
     setBffForm(profiles.bff);
-    setSelectedMode((prev) => prev ?? profiles.lastMode);
-  }, [profileQuery.data]);
+    setSelectedMode((prev) => profiles.lastMode ?? prev ?? "legacy");
+  }, [profileQuery.data, profileQuery.isSuccess]);
 
   const updateLegacy = <K extends keyof LegacyForm>(key: K, value: LegacyForm[K]) => setLegacyForm((prev) => ({ ...prev, [key]: value }));
   const updateBffFrontend = <K extends keyof BffForm["frontend"]>(key: K, value: BffForm["frontend"][K]) => setBffForm((prev) => ({ ...prev, frontend: { ...prev.frontend, [key]: value } }));
   const updateBffServer = <K extends keyof BffForm["server"]>(key: K, value: BffForm["server"][K]) => setBffForm((prev) => ({ ...prev, server: { ...prev.server, [key]: value } }));
 
-  const saveProfiles = (lastMode: BuildMode) => saveProfile.mutate({ legacy: legacyForm, bff: bffForm, lastMode });
+  const saveProfiles = (lastMode: BuildMode) =>
+    saveProfile.mutate({
+      siteId: selectedSiteId,
+      config: { legacy: legacyForm, bff: bffForm, lastMode },
+    });
 
   const resetCurrentForm = () => {
     if (selectedMode === "bff") setBffForm(createBffForm());
@@ -315,14 +332,18 @@ const TemplateBuildPage = () => {
       setError("请先选择一个版本");
       return;
     }
+    if (canManageSites && siteOptions.length > 0 && !selectedSiteId) {
+      setError("请先添加并选择站点名称");
+      return;
+    }
     if (!siteName.trim()) {
-      setError("请先在主页设置站点名称");
+      setError(canManageSites ? "请先添加并选择站点名称" : "请先在主页设置站点名称");
       return;
     }
 
     if (selectedMode === "legacy") {
       if (!canUseSpaMode) {
-        setError("当前账号为待开通状态，请联系管理员开通基础版或专业版权限");
+        setError("当前账号为待开通状态，请联系管理员开通基础版或订阅版权限");
         return;
       }
       if (!legacyCanSubmit) {
@@ -332,8 +353,9 @@ const TemplateBuildPage = () => {
       buildMutation.mutate(
         {
           filename: selected,
+          siteId: selectedSiteId,
           buildMode: "legacy",
-          frontendEnvContent: buildLegacyEnvContent(siteName, frontendOriginsValue, legacyForm),
+          frontendEnvContent: buildLegacyEnvContent(siteName, clientOriginRestrictionValue, legacyForm),
           runtimeSettings: buildLegacyRuntimeSettings(legacyForm),
         },
         {
@@ -349,7 +371,7 @@ const TemplateBuildPage = () => {
 
     if (selectedMode === "bff") {
       if (!canUseBffMode) {
-        setError("当前账号仅专业版可使用 Pro 构建");
+        setError("当前账号仅订阅版或优先版可使用 Pro 构建");
         return;
       }
       if (!bffCanSubmit) {
@@ -359,8 +381,9 @@ const TemplateBuildPage = () => {
       buildMutation.mutate(
         {
           filename: selected,
+          siteId: selectedSiteId,
           buildMode: "bff",
-          frontendEnvContent: buildBffFrontendEnvContent(siteName, frontendOriginsValue, bffForm),
+          frontendEnvContent: buildBffFrontendEnvContent(siteName, clientOriginRestrictionValue, bffForm),
           serverEnvContent: buildBffServerEnvContent(bffForm),
         },
         {
@@ -402,7 +425,7 @@ const TemplateBuildPage = () => {
           <div className="rounded-2xl border border-base-200 bg-base-100 p-3 shadow-sm sm:p-4">
             <p className="text-xs uppercase tracking-wide text-base-content/50">站点名称</p>
             <p className="mt-2 truncate text-sm font-semibold sm:text-base">{siteName || "未设置站点名称"}</p>
-            <p className="mt-1 text-xs text-base-content/60 sm:text-sm">{siteName ? "名称将自动带入本次构建配置。" : "请先在首页完成站点名称设置。"}</p>
+            <p className="mt-1 text-xs text-base-content/60 sm:text-sm">{siteName ? "名称将自动带入本次构建配置。" : canManageSites ? "请先在构建页添加并选择站点名称。" : "请先在首页完成站点名称设置。"}</p>
           </div>
         </div>
       )}
@@ -466,7 +489,7 @@ const TemplateBuildPage = () => {
                     <div className="text-xs font-bold uppercase tracking-[0.2em] text-[#6d6bf4]">Build Access</div>
                     <div className="mt-2 text-xl font-bold">当前账号档位：待开通</div>
                     <p className="mt-2 text-sm leading-7 text-slate-600">
-                      你的账号暂未开通任何构建权限，当前无法选择 `SPA` 或 `Pro` 构建方式。请先返回主页开通基础版或专业版，再继续提交构建。
+                      你的账号暂未开通任何构建权限，当前无法选择 `SPA` 或 `Pro` 构建方式。请先返回主页开通基础版、订阅版或优先版，再继续提交构建。
                     </p>
                   </div>
                   <button
@@ -484,14 +507,16 @@ const TemplateBuildPage = () => {
                 当前账号档位：<span className="font-semibold">{getUserTypeLabel(normalizedUserType)}</span>
                 {normalizedUserType === "basic"
                   ? "，可使用 SPA 构建。"
-                  : "，可使用 SPA 与 Pro 构建。"}
+                  : normalizedUserType === "priority"
+                    ? "，可使用 SPA 与 Pro 构建，且构建时不会校验前端域名。"
+                    : "，可使用 SPA 与 Pro 构建。"}
               </div>
             )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className={`rounded-2xl border p-6 space-y-4 flex h-full flex-col shadow-sm ${selectedMode === "bff" ? "border-secondary bg-secondary/5" : "border-base-200"} ${!canUseBffMode ? "opacity-60" : ""}`}>
                 <div className="flex items-start justify-between gap-3"><div><p className="text-sm text-base-content/60">经服务端中转</p><h3 className="text-xl font-bold">Pro 版（BFF）</h3></div><span className="badge badge-secondary">推荐</span></div>
                 <p className="text-sm text-base-content/70">前端先请求 BFF 服务，再由服务端统一转发和处理，适合需要后台管理和更强隔离的场景。</p>
-                {!canUseBffMode && <p className="text-warning text-sm">仅专业版可用。</p>}
+                {!canUseBffMode && <p className="text-warning text-sm">仅订阅版或优先版可用。</p>}
                 <button className="btn btn-secondary btn-block mt-auto" type="button" disabled={!canUseBffMode} onClick={() => { setSelectedMode("bff"); setStep(3); }}>进入 Pro 配置</button>
               </div>
               <div className={`rounded-2xl border p-6 space-y-4 flex h-full flex-col shadow-sm ${selectedMode === "legacy" ? "border-primary bg-primary/5" : "border-base-200"} ${!canUseSpaMode ? "opacity-60" : ""}`}>
@@ -518,15 +543,40 @@ const TemplateBuildPage = () => {
 
             <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
               <form id="build-config-form" className="order-2 flex min-h-[60vh] flex-col gap-6 xl:order-1" onSubmit={onSubmit}>
+                {canManageSites && (
+                  <div className="rounded-2xl border border-base-200 bg-base-200/40 p-6 shadow-sm space-y-4">
+                    <div className="flex flex-col gap-2">
+                      <h3 className="font-bold text-lg">站点名称</h3>
+                      <p className="text-sm text-base-content/60">切换站点后会自动载入该站点自己的构建配置。站点名称请在首页维护，这里只负责选择。</p>
+                    </div>
+                    <div className="grid grid-cols-1 gap-3">
+                      <label className="form-control">
+                        <span className="label-text">选择站点</span>
+                        <select
+                          className="select select-bordered"
+                          value={selectedSiteId ?? ""}
+                          onChange={(e) => setSelectedSiteId(e.target.value ? Number(e.target.value) : null)}
+                        >
+                          <option value="">请选择站点</option>
+                          {siteOptions.map((site) => (
+                            <option key={site.id} value={site.id}>
+                              {site.name}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                  </div>
+                )}
                 {selectedMode === "legacy" ? (
                   <>
                     <div className="rounded-2xl border border-base-200 bg-base-200/40 p-6 shadow-sm space-y-6">
                       <h3 className="font-bold text-lg border-b border-base-200 pb-3">前端构建变量</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <label className="form-control"><span className="label-text">站点名称</span><input className="input input-bordered bg-base-200 text-base-content/60 cursor-not-allowed" value={siteName} readOnly disabled={siteProfileQuery.isLoading} /></label>
+                        <label className="form-control"><span className="label-text">站点名称</span><input className="input input-bordered bg-base-200 text-base-content/60 cursor-not-allowed" value={siteName} readOnly disabled={siteProfileQuery.isLoading || (canManageSites && siteOptions.length > 0 && !selectedSiteId)} /></label>
                         <label className="form-control"><span className="label-text">面板类型</span><select className="select select-bordered" value={legacyForm.backendType} onChange={(e) => updateLegacy("backendType", e.target.value)}><option value="">请选择</option><option value="xboard">xboard</option><option value="v2board">v2board</option><option value="xiaov2board">xiaov2board</option></select></label>
                         <label className="form-control"><span className="label-text">站点 Logo</span><input className="input input-bordered" value={legacyForm.siteLogo} onChange={(e) => updateLegacy("siteLogo", e.target.value)} placeholder="请输入站点 Logo 地址，支持本地文件路径或 URL" /></label>
-                        <label className="form-control md:col-span-2"><span className="label-text">已绑定前端域名</span><textarea className="textarea textarea-bordered min-h-24 bg-base-200 text-base-content/60 cursor-not-allowed" value={frontendOrigins.length ? frontendOrigins.join("\n") : "请先前往首页绑定前端域名"} readOnly />{!frontendOrigins.length && <span className="text-warning text-xs">请先在首页绑定至少 1 个前端域名后再构建。</span>}</label>
+                        {shouldRequireFrontendOrigins && <label className="form-control md:col-span-2"><span className="label-text">已绑定前端域名</span><textarea className="textarea textarea-bordered min-h-24 bg-base-200 text-base-content/60 cursor-not-allowed" value={frontendOrigins.length ? frontendOrigins.join("\n") : "请先前往首页绑定前端域名"} readOnly />{!frontendOrigins.length && <span className="text-warning text-xs">请先在首页绑定至少 1 个前端域名后再构建。</span>}</label>}
                         <label className="form-control md:col-span-2"><span className="label-text">面板 API 地址</span><input className="input input-bordered" value={legacyForm.prodApiUrl} onChange={(e) => updateLegacy("prodApiUrl", e.target.value)} placeholder="请输入后端 API 地址，如 https://api.example.com/api/v1/" /><span className="label-text-alt text-base-content/60">默认情况下无需修改；如果不通过 Nginx 转发，可以直接填写面板地址加 `/api/v1/`，例如 `https://panel.example.com/api/v1/`。</span></label>
                       </div>
                     </div>
@@ -618,14 +668,14 @@ const TemplateBuildPage = () => {
                     <div className="rounded-2xl border border-base-200 bg-base-200/40 p-6 shadow-sm space-y-6">
                       <h3 className="font-bold text-lg border-b border-base-200 pb-3">前端构建变量</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <label className="form-control md:col-span-2"><span className="label-text">站点名称</span><input className="input input-bordered bg-base-200 text-base-content/60 cursor-not-allowed" value={siteName} readOnly disabled={siteProfileQuery.isLoading} /></label>
+                        <label className="form-control md:col-span-2"><span className="label-text">站点名称</span><input className="input input-bordered bg-base-200 text-base-content/60 cursor-not-allowed" value={siteName} readOnly disabled={siteProfileQuery.isLoading || (canManageSites && siteOptions.length > 0 && !selectedSiteId)} /></label>
                         <label className="form-control"><span className="label-text">站点 Logo</span><input className="input input-bordered" value={bffForm.frontend.siteLogo} onChange={(e) => updateBffFrontend("siteLogo", e.target.value)} placeholder="请输入站点 Logo 地址，支持本地文件路径或 URL" /></label>
                         <label className="form-control"><span className="label-text">面板类型</span><select className="select select-bordered" value={bffForm.frontend.backendType} onChange={(e) => updateBffFrontend("backendType", e.target.value)}><option value="">请选择</option><option value="xboard">xboard</option><option value="v2board">v2board</option><option value="xiaov2board">xiaov2board</option></select></label>
-                        <label className="form-control md:col-span-2"><span className="label-text">已绑定前端域名</span><textarea className="textarea textarea-bordered min-h-24 bg-base-200 text-base-content/60 cursor-not-allowed" value={frontendOrigins.length ? frontendOrigins.join("\n") : "请先前往首页绑定前端域名"} readOnly />{!frontendOrigins.length && <span className="text-base-content/60 text-xs">如未绑定前端域名，本次构建将不会写入 `VITE_ALLOWED_CLIENT_ORIGINS`。</span>}</label>
+                        {shouldRequireFrontendOrigins && <label className="form-control md:col-span-2"><span className="label-text">已绑定前端域名</span><textarea className="textarea textarea-bordered min-h-24 bg-base-200 text-base-content/60 cursor-not-allowed" value={frontendOrigins.length ? frontendOrigins.join("\n") : "请先前往首页绑定前端域名"} readOnly />{!frontendOrigins.length && <span className="text-base-content/60 text-xs">如未绑定前端域名，本次构建将不会开启前端域名校验。</span>}</label>}
                         <label className="form-control md:col-span-2">
                           <span className="label-text">管理中台访问路径</span>
                           <div className="join w-full">
-                            <span className="join-item flex items-center rounded-l-btn border border-base-300 bg-base-200 px-3 text-sm text-base-content/70">
+                            <span className="join-item flex items-center whitespace-nowrap rounded-l-btn border border-base-300 bg-base-200 px-3 text-sm text-base-content/70">
                               {previewFrontendOrigin}
                             </span>
                             <input
@@ -635,8 +685,8 @@ const TemplateBuildPage = () => {
                               placeholder="请输入管理中台访问路径，如 /admin"
                             />
                           </div>
-                          <span className="label-text-alt text-base-content/60">上面先展示第一个已绑定前端域名作为示例；实际上所有已绑定前端域名都可以访问管理中台，访问方式相同。</span>
-                          {frontendOrigins.length > 0 && (
+                          <span className="label-text-alt text-base-content/60">{shouldRequireFrontendOrigins ? "上面先展示第一个已绑定前端域名作为示例；实际上所有已绑定前端域名都可以访问管理中台，访问方式相同。" : "优先版不要求绑定前端域名；这里仅作为常规部署示例，构建时会直接关闭前端来源校验。"}</span>
+                          {shouldRequireFrontendOrigins && frontendOrigins.length > 0 && (
                             <div className="mt-2 flex flex-wrap gap-2">
                               {frontendOrigins.map((origin) => (
                                 <span key={origin} className="rounded-full bg-base-200 px-3 py-1 text-xs text-base-content/70">
@@ -691,8 +741,12 @@ const TemplateBuildPage = () => {
                   </div>
                   <div className="mt-5 rounded-xl bg-base-200/60 p-4 text-sm text-base-content/70">
                     {selectedMode === "legacy"
-                      ? "SPA 版只会写入最小前端 env 集合；站点名称和前端域名继续自动取主页设置。"
-                      : "Pro 版只会写入最小前端 env 集合；站点名称和前端域名继续自动取主页设置。"}
+                      ? shouldRequireFrontendOrigins
+                        ? "SPA 版只会写入最小前端 env 集合；站点名称和前端域名继续自动取主页设置。"
+                        : "SPA 版只会写入最小前端 env 集合；当前档位会固定写入 VITE_ENABLE_CLIENT_ORIGIN_RESTRICTION=false。"
+                      : shouldRequireFrontendOrigins
+                        ? "Pro 版只会写入最小前端 env 集合；站点名称和前端域名继续自动取主页设置。"
+                        : "Pro 版只会写入最小前端 env 集合；当前档位会固定写入 VITE_ENABLE_CLIENT_ORIGIN_RESTRICTION=false。"}
                   </div>
                 </div>
               </aside>

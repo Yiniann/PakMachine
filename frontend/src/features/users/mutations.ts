@@ -57,6 +57,45 @@ export const useUpdateUserType = (): UseMutationResult<{ message: string }, unkn
   });
 };
 
+export const useUpdateSiteNameLimit = (): UseMutationResult<{ message: string; siteNameLimit: number }, unknown, { email: string; siteNameLimit: number }, unknown> => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ email, siteNameLimit }) => {
+      const res = await api.patch<{ message: string; siteNameLimit: number }>(`/admin/changeSiteNameLimit`, { email, siteNameLimit });
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      queryClient.invalidateQueries({ queryKey: ["site-profile"] });
+      queryClient.invalidateQueries({ queryKey: ["user-sites"] });
+    },
+  });
+};
+
+export const useRemoveSiteName = (): UseMutationResult<
+  { message: string; sites: { id: number; name: string }[]; siteName: string | null },
+  unknown,
+  { email: string; siteId?: number; siteName?: string },
+  unknown
+> => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ email, siteId, siteName }) => {
+      const res = await api.patch<{ message: string; sites: { id: number; name: string }[]; siteName: string | null }>(`/admin/removeSiteName`, {
+        email,
+        siteId,
+        siteName,
+      });
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      queryClient.invalidateQueries({ queryKey: ["site-profile"] });
+      queryClient.invalidateQueries({ queryKey: ["user-sites"] });
+    },
+  });
+};
+
 export const useResetSiteName = (): UseMutationResult<{ message: string }, unknown, { email: string }, unknown> => {
   const queryClient = useQueryClient();
   return useMutation({
@@ -64,7 +103,11 @@ export const useResetSiteName = (): UseMutationResult<{ message: string }, unkno
       const res = await api.patch<{ message: string }>(`/admin/resetSiteName`, { email });
       return res.data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      queryClient.invalidateQueries({ queryKey: ["site-profile"] });
+      queryClient.invalidateQueries({ queryKey: ["user-sites"] });
+    },
   });
 };
 

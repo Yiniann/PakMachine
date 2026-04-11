@@ -8,6 +8,8 @@ import {
   adminResetSiteName,
   adminUpdatePassword,
   adminUpdateRole,
+  adminRemoveSiteName,
+  adminUpdateSiteNameLimit,
   adminUpdateUserType,
   listUsers,
 } from "../controllers/userController";
@@ -32,6 +34,8 @@ router.delete("/deleteUser/:id", adminDeleteUser);
 router.patch("/changePwd", adminUpdatePassword);
 router.patch("/changeRole", adminUpdateRole);
 router.patch("/changeUserType", adminUpdateUserType);
+router.patch("/changeSiteNameLimit", adminUpdateSiteNameLimit);
+router.patch("/removeSiteName", adminRemoveSiteName);
 router.patch("/resetSiteName", adminResetSiteName);
 router.patch("/resetFrontendOrigins", adminResetFrontendOrigins);
 router.patch("/removeFrontendOrigin", adminRemoveFrontendOrigin);

@@ -33,10 +33,17 @@ const parseFrontendOrigins = (value: unknown): string[] => {
 
 export const listUsers = async (_req: Request, res: Response, next: NextFunction) => {
   try {
-    const users = await prisma.user.findMany({ orderBy: { id: "asc" } });
-    const safe = users.map(({ password: _pw, resetToken, resetTokenExpires, frontendOriginsJson, ...rest }: typeof users[number]) => ({
+    const users = await prisma.user.findMany({
+      orderBy: { id: "asc" },
+      include: {
+        sites: { orderBy: [{ createdAt: "asc" }, { id: "asc" }], select: { id: true, name: true } },
+      },
+    });
+    const safe = users.map(({ password: _pw, resetToken, resetTokenExpires, frontendOriginsJson, sites, ...rest }: typeof users[number] & { sites?: { id: number; name: string }[] }) => ({
       ...rest,
       userType: normalizeUserType(rest.userType),
+      siteNameLimit: Math.max(Number((rest as any).siteNameLimit) || 1, 1),
+      sites: sites ?? [],
       frontendOrigins: parseFrontendOrigins(frontendOriginsJson),
     }));
     res.json(safe);
@@ -58,7 +65,7 @@ export const adminCreateUser = async (req: Request, res: Response, next: NextFun
       return res.status(400).json({ error: "Password must be at least 8 characters" });
     }
     if (userType && !isValidUserType(userType)) {
-      return res.status(400).json({ error: "UserType must be 'pending', 'basic' or 'pro'" });
+      return res.status(400).json({ error: "UserType must be 'pending', 'basic', 'pro' or 'priority'" });
     }
 
     const existing = await prisma.user.findUnique({ where: { email } });
@@ -162,11 +169,93 @@ export const adminUpdateUserType = async (req: Request, res: Response, next: Nex
       return res.status(400).json({ error: "不能修改自己的用户类型" });
     }
     if (!isValidUserType(userType)) {
-      return res.status(400).json({ error: "UserType must be 'pending', 'basic' or 'pro'" });
+      return res.status(400).json({ error: "UserType must be 'pending', 'basic', 'pro' or 'priority'" });
     }
 
     await prisma.user.update({ where: { email }, data: { userType: normalizeUserType(userType) } });
     res.json({ message: "UserType updated" });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const adminUpdateSiteNameLimit = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { email, siteNameLimit } = req.body ?? {};
+    if (!email) {
+      return res.status(400).json({ error: "Email is required" });
+    }
+    const parsed = Number(siteNameLimit);
+    if (!Number.isFinite(parsed) || parsed < 1) {
+      return res.status(400).json({ error: "站点名称数量必须大于等于 1" });
+    }
+
+    const updated = await prisma.user.update({
+      where: { email },
+      data: { siteNameLimit: Math.floor(parsed) },
+      select: { siteNameLimit: true },
+    });
+    res.json({ message: "Site name limit updated", siteNameLimit: updated.siteNameLimit });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const adminRemoveSiteName = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { email, siteId, siteName } = req.body ?? {};
+    if (!email) {
+      return res.status(400).json({ error: "Email is required" });
+    }
+    const parsedSiteId = Number(siteId);
+    const hasValidSiteId = Number.isInteger(parsedSiteId);
+    const normalizedSiteName = typeof siteName === "string" ? siteName.trim() : "";
+    if (!hasValidSiteId && !normalizedSiteName) {
+      return res.status(400).json({ error: "siteId or siteName is required" });
+    }
+
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const site = await prisma.userSite.findFirst({
+      where: {
+        userId: user.id,
+        OR: [
+          hasValidSiteId ? { id: parsedSiteId } : undefined,
+          normalizedSiteName ? { name: normalizedSiteName } : undefined,
+        ].filter(Boolean) as Array<{ id?: number; name?: string }>,
+      },
+      select: { id: true, name: true },
+    });
+    if (!site) {
+      return res.status(404).json({ error: "Site name not found" });
+    }
+
+    const remaining = await prisma.$transaction(async (tx) => {
+      await tx.userSite.delete({ where: { id: site.id } });
+      const nextSites = await tx.userSite.findMany({
+        where: { userId: user.id },
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        select: { id: true, name: true },
+      });
+      const nextSiteName = nextSites[0]?.name ?? null;
+      const shouldUpdateLegacyName = (user as any).siteName === site.name || !(user as any).siteName;
+      if (shouldUpdateLegacyName) {
+        await tx.user.update({
+          where: { id: user.id },
+          data: { siteName: nextSiteName } as any,
+        });
+      }
+      return { nextSites, nextSiteName };
+    });
+
+    res.json({
+      message: "Site name removed",
+      sites: remaining.nextSites,
+      siteName: remaining.nextSiteName,
+    });
   } catch (error) {
     next(error);
   }
@@ -184,8 +273,11 @@ export const adminResetSiteName = async (req: Request, res: Response, next: Next
       return res.status(404).json({ error: "User not found" });
     }
 
-    await prisma.user.update({ where: { email }, data: { siteName: null } });
-    res.json({ message: "Site name reset, user needs to set it again on next login" });
+    await prisma.$transaction([
+      prisma.userSite.deleteMany({ where: { userId: user.id } }),
+      prisma.user.update({ where: { email }, data: { siteName: null } }),
+    ]);
+    res.json({ message: "Site names reset, user needs to add them again on next login" });
   } catch (error) {
     next(error);
   }

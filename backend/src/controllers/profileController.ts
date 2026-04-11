@@ -35,14 +35,22 @@ const normalizeFrontendOrigin = (value: unknown) => {
   return parsed.origin;
 };
 
+const getUserSiteNameLimit = (user: { siteNameLimit?: number | null } | null | undefined) =>
+  Math.max(Number(user?.siteNameLimit) || 1, 1);
+
 export const getSiteName = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const user = (req as any).user;
     if (!user?.sub) return res.status(401).json({ error: "Unauthorized" });
-    const dbUser = await prisma.user.findUnique({ where: { id: Number(user.sub) } });
-    const siteName = (dbUser as any)?.siteName ?? null;
+    const dbUser = await prisma.user.findUnique({
+      where: { id: Number(user.sub) },
+      include: { sites: { orderBy: [{ createdAt: "asc" }, { id: "asc" }] } },
+    });
+    const sites = ((dbUser as any)?.sites ?? []).map((site: any) => ({ id: site.id, name: site.name }));
+    const siteName = sites[0]?.name ?? (dbUser as any)?.siteName ?? null;
     const frontendOrigins = parseFrontendOrigins((dbUser as any)?.frontendOriginsJson);
-    res.json({ siteName, frontendOrigins });
+    const siteNameLimit = getUserSiteNameLimit(dbUser as any);
+    res.json({ siteName, frontendOrigins, sites, siteNameLimit });
   } catch (err) {
     next(err);
   }
@@ -62,6 +70,14 @@ export const setSiteName = async (req: Request, res: Response, next: NextFunctio
     if (!canBuildSpa((existing as any)?.role, normalizedUserType)) {
       return res.status(403).json({ error: "当前账号为待开通状态，暂不支持设置站点名" });
     }
+    const existingSites = await prisma.userSite.findMany({
+      where: { userId: Number(user.sub) },
+      orderBy: { id: "asc" },
+      select: { id: true, name: true },
+    });
+    if (existingSites.length > 0 && !isAdmin) {
+      return res.status(409).json({ error: "已有站点名称，请前往构建页面切换或新增站点" });
+    }
     const current = (existing as any)?.siteName;
     if (current && !isAdmin) {
       return res.status(409).json({ error: "站点名称已设置，不能修改" });
@@ -73,8 +89,78 @@ export const setSiteName = async (req: Request, res: Response, next: NextFunctio
     res.json({
       siteName: (updated as any)?.siteName || siteName.trim(),
       frontendOrigins: parseFrontendOrigins((updated as any)?.frontendOriginsJson),
+      sites: [],
+      siteNameLimit: getUserSiteNameLimit(updated as any),
     });
   } catch (err) {
+    next(err);
+  }
+};
+
+export const listUserSites = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const user = (req as any).user;
+    if (!user?.sub) return res.status(401).json({ error: "Unauthorized" });
+    const existing = await prisma.user.findUnique({ where: { id: Number(user.sub) } });
+    const normalizedUserType = normalizeUserType((existing as any)?.userType);
+    if (!canBuildSpa((existing as any)?.role, normalizedUserType)) {
+      return res.status(403).json({ error: "当前账号暂不支持站点名称管理" });
+    }
+    const sites = await prisma.userSite.findMany({
+      where: { userId: Number(user.sub) },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      select: { id: true, name: true, createdAt: true, updatedAt: true },
+    });
+    res.json(sites);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const createUserSite = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const user = (req as any).user;
+    if (!user?.sub) return res.status(401).json({ error: "Unauthorized" });
+    const { name } = req.body ?? {};
+    if (!name || typeof name !== "string" || !name.trim()) {
+      return res.status(400).json({ error: "站点名称不能为空" });
+    }
+    const existing = await prisma.user.findUnique({ where: { id: Number(user.sub) } });
+    const normalizedUserType = normalizeUserType((existing as any)?.userType);
+    if (!canBuildSpa((existing as any)?.role, normalizedUserType)) {
+      return res.status(403).json({ error: "当前账号暂不支持站点名称管理" });
+    }
+    const limit = getUserSiteNameLimit(existing as any);
+    const currentCount = await prisma.userSite.count({ where: { userId: Number(user.sub) } });
+    const legacySiteName = typeof (existing as any)?.siteName === "string" ? (existing as any).siteName.trim() : "";
+    const shouldSeedLegacySite = currentCount === 0 && legacySiteName.length > 0 && legacySiteName !== name.trim();
+    const effectiveCount = currentCount + (shouldSeedLegacySite ? 1 : 0);
+    if (effectiveCount >= limit) {
+      return res.status(400).json({ error: `当前账号最多只能添加 ${limit} 个站点名称` });
+    }
+    const created = await prisma.$transaction(async (tx) => {
+      if (shouldSeedLegacySite) {
+        await tx.userSite.create({
+          data: { userId: Number(user.sub), name: legacySiteName },
+        });
+      }
+      const site = await tx.userSite.create({
+        data: { userId: Number(user.sub), name: name.trim() },
+        select: { id: true, name: true, createdAt: true, updatedAt: true },
+      });
+      if (currentCount === 0) {
+        await tx.user.update({
+          where: { id: Number(user.sub) },
+          data: { siteName: site.name } as any,
+        });
+      }
+      return site;
+    });
+    res.status(201).json(created);
+  } catch (err: any) {
+    if (err?.code === "P2002") {
+      return res.status(409).json({ error: "该站点名称已存在" });
+    }
     next(err);
   }
 };
