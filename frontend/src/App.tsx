@@ -23,6 +23,7 @@ import DeployGuidePrinciplePage from "./pages/app/DeployGuidePrinciplePage";
 import UserSettingsPage from "./pages/app/UserSettingsPage";
 import TicketSupportPage from "./pages/app/TicketSupportPage";
 import TicketDetailPage from "./pages/app/TicketDetailPage";
+import AdminUserDetailPage from "./pages/admin/UserDetailPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import InitGate from "./components/InitGate";
 import InitPage from "./pages/InitPage";
@@ -66,6 +67,7 @@ const App = () => {
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<AdminHomePage />} />
             <Route path="users" element={<AdminUsersPage />} />
+            <Route path="users/:id" element={<AdminUserDetailPage />} />
             <Route path="templates" element={<TemplateManagePage />} />
             <Route path="settings" element={<SystemSettingsPage />} />
             <Route path="builds" element={<BuildRecordsPage />} />
