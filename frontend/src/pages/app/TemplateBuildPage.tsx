@@ -743,10 +743,10 @@ const TemplateBuildPage = () => {
                     {selectedMode === "legacy"
                       ? shouldRequireFrontendOrigins
                         ? "SPA 版只会写入最小前端 env 集合；站点名称和前端域名继续自动取主页设置。"
-                        : "SPA 版只会写入最小前端 env 集合；当前档位会固定写入 VITE_ENABLE_CLIENT_ORIGIN_RESTRICTION=false。"
+                        : "SPA 版只会写入最小前端 env 集合。"
                       : shouldRequireFrontendOrigins
                         ? "Pro 版只会写入最小前端 env 集合；站点名称和前端域名继续自动取主页设置。"
-                        : "Pro 版只会写入最小前端 env 集合；当前档位会固定写入 VITE_ENABLE_CLIENT_ORIGIN_RESTRICTION=false。"}
+                        : "Pro 版只会写入最小前端 env 集合。"}
                   </div>
                 </div>
               </aside>
