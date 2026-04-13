@@ -157,12 +157,18 @@ const normalizeStoredProfiles = (input: unknown): StoredProfiles => {
   };
 };
 
-const buildLegacyEnvContent = (siteName: string, clientOriginRestrictionValue: string, form: LegacyForm) => {
+const buildLegacyEnvContent = (
+  siteName: string,
+  frontendOriginsValue: string,
+  clientOriginRestrictionValue: string,
+  form: LegacyForm,
+) => {
   return [
     "VITE_API_MODE=legacy",
     `VITE_PROD_API_URL=${normalizeEnvValue(form.prodApiUrl) || "/api/v1/"}`,
     `VITE_SITE_NAME=${normalizeEnvValue(siteName)}`,
     `VITE_SITE_LOGO=${normalizeEnvValue(form.siteLogo)}`,
+    `VITE_ALLOWED_CLIENT_ORIGINS=${normalizeEnvValue(frontendOriginsValue)}`,
     `VITE_ENABLE_CLIENT_ORIGIN_RESTRICTION=${normalizeEnvValue(clientOriginRestrictionValue)}`,
     `VITE_BACKEND_TYPE=${normalizeEnvValue(form.backendType)}`,
   ].join("\n");
@@ -188,11 +194,17 @@ const buildLegacyRuntimeSettings = (form: LegacyForm) => {
   };
 };
 
-const buildBffFrontendEnvContent = (siteName: string, clientOriginRestrictionValue: string, form: BffForm) => {
+const buildBffFrontendEnvContent = (
+  siteName: string,
+  frontendOriginsValue: string,
+  clientOriginRestrictionValue: string,
+  form: BffForm,
+) => {
   const lines = [
     "VITE_API_MODE=bff",
     `VITE_SITE_NAME=${normalizeEnvValue(siteName)}`,
     `VITE_SITE_LOGO=${normalizeEnvValue(form.frontend.siteLogo)}`,
+    `VITE_ALLOWED_CLIENT_ORIGINS=${normalizeEnvValue(frontendOriginsValue)}`,
     `VITE_BACKEND_TYPE=${normalizeEnvValue(form.frontend.backendType)}`,
   ];
   if (clientOriginRestrictionValue.trim()) {
@@ -230,6 +242,7 @@ const TemplateBuildPage = () => {
   const selectedSite = siteOptions.find((item) => item.id === selectedSiteId) ?? null;
   const siteName = selectedSite?.name || siteProfileQuery.data?.siteName || "";
   const frontendOrigins = siteProfileQuery.data?.frontendOrigins || [];
+  const frontendOriginsValue = frontendOrigins.join(",");
   const shouldRequireFrontendOrigins = shouldValidateFrontendOrigins(role, normalizedUserType);
   const clientOriginRestrictionValue = shouldRequireFrontendOrigins ? "true" : "false";
   const profileQuery = useBuildProfile(selectedSiteId);
@@ -355,7 +368,12 @@ const TemplateBuildPage = () => {
           filename: selected,
           siteId: selectedSiteId,
           buildMode: "legacy",
-          frontendEnvContent: buildLegacyEnvContent(siteName, clientOriginRestrictionValue, legacyForm),
+          frontendEnvContent: buildLegacyEnvContent(
+            siteName,
+            frontendOriginsValue,
+            clientOriginRestrictionValue,
+            legacyForm,
+          ),
           runtimeSettings: buildLegacyRuntimeSettings(legacyForm),
         },
         {
@@ -383,7 +401,12 @@ const TemplateBuildPage = () => {
           filename: selected,
           siteId: selectedSiteId,
           buildMode: "bff",
-          frontendEnvContent: buildBffFrontendEnvContent(siteName, clientOriginRestrictionValue, bffForm),
+          frontendEnvContent: buildBffFrontendEnvContent(
+            siteName,
+            frontendOriginsValue,
+            clientOriginRestrictionValue,
+            bffForm,
+          ),
           serverEnvContent: buildBffServerEnvContent(bffForm),
         },
         {

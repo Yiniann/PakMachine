@@ -30,6 +30,7 @@ const ALLOWED_ENV_KEYS = new Set([
   "VITE_IDHUB_API_URL",
   "VITE_IDHUB_API_KEY",
   "VITE_PROD_API_URL",
+  "VITE_ALLOWED_CLIENT_ORIGINS",
   "VITE_ENABLE_CLIENT_ORIGIN_RESTRICTION",
   "VITE_THIRD_PARTY_SCRIPTS",
   "VITE_ENABLE_DOWNLOAD",
@@ -400,8 +401,10 @@ export const buildTemplatePackage = async (req: Request, res: Response, next: Ne
     if (requiresFrontendOrigins && frontendOrigins.length === 0) {
       return res.status(400).json({ error: "请先在首页绑定至少一个前端域名" });
     }
+    const frontendOriginsValue = frontendOrigins.join(",");
     const enforcedFrontendEnv = normalizeEnvLines(finalFrontendEnvContent ?? "", {
       VITE_SITE_NAME: effectiveSiteName,
+      VITE_ALLOWED_CLIENT_ORIGINS: frontendOriginsValue,
       VITE_ENABLE_CLIENT_ORIGIN_RESTRICTION: requiresFrontendOrigins ? "true" : "false",
       VITE_API_MODE: buildMode,
     });
