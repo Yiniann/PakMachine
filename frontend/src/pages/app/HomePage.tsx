@@ -236,13 +236,13 @@ const HomePage = () => {
           ) : (
             <div className={`badge badge-lg ${getUserTypeBadgeClass(userType)}`}>{getUserTypeLabel(userType)}</div>
           )}
-          {!isAdmin && (userType === "basic" || userType === "pro") ? (
+          {!isAdmin && userType === "basic" ? (
             <button
               type="button"
               className="landing-button-primary rounded-2xl px-4 py-2 text-sm"
               onClick={() => setIsUpgradeOpen(true)}
             >
-              {userType === "basic" ? "升级 Pro 版本" : "升级优先版"}
+              升级 Pro 版本
             </button>
           ) : null}
         </div>
