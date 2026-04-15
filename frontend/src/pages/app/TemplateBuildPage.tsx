@@ -211,10 +211,11 @@ const buildBffFrontendEnvContent = (
   return lines.join("\n");
 };
 
-const buildBffServerEnvContent = (form: BffForm) => {
+const buildBffServerEnvContent = (form: BffForm, priorityModeValue: string) => {
   return [
     `PANEL_BASE_URL=${normalizeEnvValue(form.server.panelBaseUrl)}`,
     `ADMIN_BASE_PATH=${normalizeEnvValue(form.server.adminBasePath) || "/admin"}`,
+    `VITE_ENABLE_PRIORITY_MODE=${normalizeEnvValue(priorityModeValue)}`,
   ].join("\n");
 };
 
@@ -359,7 +360,7 @@ const TemplateBuildPage = () => {
             priorityModeValue,
             bffForm,
           ),
-          serverEnvContent: buildBffServerEnvContent(bffForm),
+          serverEnvContent: buildBffServerEnvContent(bffForm, priorityModeValue),
         },
         {
           onSuccess: (data) => {

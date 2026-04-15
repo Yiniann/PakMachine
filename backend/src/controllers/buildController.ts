@@ -54,6 +54,7 @@ const ALLOWED_SERVER_ENV_KEYS = new Set([
   "IDHUB_BASE_URL",
   "IDHUB_AUTH_TOKEN",
   "ADMIN_ALLOWLIST_EMAILS",
+  "VITE_ENABLE_PRIORITY_MODE",
 ]);
 
 const RUNTIME_PANEL_TYPES = new Set(["xboard", "v2board", "xiaov2board"]);
