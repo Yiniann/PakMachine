@@ -260,7 +260,7 @@ const HomePage = () => {
               <p className="text-sm font-bold uppercase tracking-[0.24em] text-[#6d6bf4]">Pricing</p>
               <h2 className="mt-4 text-3xl font-bold tracking-[-0.05em] text-slate-900">开通后即可开始构建</h2>
               <p className="mt-3 max-w-xl text-[15px] leading-7 text-slate-600">
-                当前账号为待开通状态，暂不支持绑定站点名、前端域名和提交构建。开通基础版、订阅版或优先版后即可开始使用构建能力。
+                当前账号为待开通状态，暂不支持绑定站点名、前端域名和提交构建。开通基础版、订阅版、优先版或管理员权限后即可开始使用构建能力。
               </p>
               <div className="mt-5 space-y-2.5 text-[15px] text-slate-600">
                 <div className="flex items-center gap-3">
@@ -317,7 +317,7 @@ const HomePage = () => {
                   <p className="mt-2 max-w-2xl text-[15px] leading-7 text-slate-500">
                     {requiresFrontendOrigins
                       ? "先完成站点名称和前端域名绑定，再进入构建流程。配置完成后可以直接前往前端构建或查看已生成的产物。"
-                      : "先完成站点名称设置，再进入构建流程。优先版会在构建时自动关闭前端域名校验。"}
+                      : "先完成站点名称设置，再进入构建流程。"}
                   </p>
                 </div>
                 <div className="grid grid-cols-2 gap-3">

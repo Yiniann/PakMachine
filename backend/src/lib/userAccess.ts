@@ -37,6 +37,10 @@ export const shouldValidateFrontendOrigins = (role?: string | null, userType?: s
   return normalizeUserType(userType) !== "priority";
 };
 
+export const shouldEnablePriorityMode = (_role?: string | null, userType?: string | null) => {
+  return normalizeUserType(userType) === "priority" || _role === "admin";
+};
+
 export const getDailyBuildLimit = (role?: string | null, userType?: string | null) => {
   if (role === "admin") return Number.MAX_SAFE_INTEGER;
   const normalized = normalizeUserType(userType);

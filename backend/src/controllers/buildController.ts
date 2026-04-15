@@ -13,7 +13,14 @@ import path from "path";
 import { Readable } from "stream";
 import { URL } from "url";
 import { normalizeArtifactUrl } from "../lib/artifactUrl";
-import { canBuildBff, canBuildSpa, getDailyBuildLimit, normalizeUserType, shouldValidateFrontendOrigins } from "../lib/userAccess";
+import {
+  canBuildBff,
+  canBuildSpa,
+  getDailyBuildLimit,
+  normalizeUserType,
+  shouldEnablePriorityMode,
+  shouldValidateFrontendOrigins,
+} from "../lib/userAccess";
 
 const ADMIN_BUILD_JOBS_LIMIT = 200;
 const ALLOWED_ENV_KEYS = new Set([
@@ -31,7 +38,7 @@ const ALLOWED_ENV_KEYS = new Set([
   "VITE_IDHUB_API_KEY",
   "VITE_PROD_API_URL",
   "VITE_ALLOWED_CLIENT_ORIGINS",
-  "VITE_ENABLE_CLIENT_ORIGIN_RESTRICTION",
+  "VITE_ENABLE_PRIORITY_MODE",
   "VITE_THIRD_PARTY_SCRIPTS",
   "VITE_ENABLE_DOWNLOAD",
   "VITE_DOWNLOAD_IOS",
@@ -398,6 +405,7 @@ export const buildTemplatePackage = async (req: Request, res: Response, next: Ne
       return res.status(404).json({ error: "站点不存在" });
     }
     const requiresFrontendOrigins = shouldValidateFrontendOrigins(dbUser?.role, normalizedUserType);
+    const priorityModeEnabled = shouldEnablePriorityMode(dbUser?.role, normalizedUserType);
     if (requiresFrontendOrigins && frontendOrigins.length === 0) {
       return res.status(400).json({ error: "请先在首页绑定至少一个前端域名" });
     }
@@ -405,7 +413,7 @@ export const buildTemplatePackage = async (req: Request, res: Response, next: Ne
     const enforcedFrontendEnv = normalizeEnvLines(finalFrontendEnvContent ?? "", {
       VITE_SITE_NAME: effectiveSiteName,
       VITE_ALLOWED_CLIENT_ORIGINS: frontendOriginsValue,
-      VITE_ENABLE_CLIENT_ORIGIN_RESTRICTION: requiresFrontendOrigins ? "true" : "false",
+      VITE_ENABLE_PRIORITY_MODE: priorityModeEnabled ? "true" : "false",
       VITE_API_MODE: buildMode,
     });
     const normalizedServerEnv = (serverEnvContent || "").trim();

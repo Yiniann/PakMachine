@@ -25,7 +25,7 @@ export const getUserTypeLabel = (value?: string | null) => {
 
 export const getUserTypeDescription = (value?: string | null) => {
   const normalized = normalizeUserType(value);
-  if (normalized === "priority") return "可构建 SPA 与 Pro，且无需绑定前端域名";
+  if (normalized === "priority") return "可构建 SPA 与 Pro";
   if (normalized === "pro") return "可构建 SPA 与 Pro";
   if (normalized === "basic") return "可构建 SPA";
   return "暂未开通构建权限";
@@ -54,6 +54,10 @@ export const canBuildBff = (role?: string | null, userType?: string | null) => {
 export const shouldValidateFrontendOrigins = (role?: string | null, userType?: string | null) => {
   if (role === "admin") return false;
   return normalizeUserType(userType) !== "priority";
+};
+
+export const shouldEnablePriorityMode = (_role?: string | null, userType?: string | null) => {
+  return normalizeUserType(userType) === "priority" || _role === "admin";
 };
 
 export const getDailyBuildLimit = (role?: string | null, userType?: string | null) => {
