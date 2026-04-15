@@ -9,6 +9,50 @@ type DispatchPayload = {
   runtimeSettings?: Record<string, unknown> | null;
 };
 
+const RETRIABLE_FETCH_ERROR_CODES = new Set([
+  "EAI_AGAIN",
+  "ENOTFOUND",
+  "ECONNRESET",
+  "ETIMEDOUT",
+  "EHOSTUNREACH",
+  "ECONNREFUSED",
+]);
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const isRetriableFetchError = (error: unknown) => {
+  if (!(error instanceof TypeError)) return false;
+  if (!/fetch failed/i.test(error.message)) return false;
+  const cause = (error as any).cause;
+  const code = typeof cause?.code === "string" ? cause.code : "";
+  return RETRIABLE_FETCH_ERROR_CODES.has(code) || code === "";
+};
+
+const normalizeFetchError = (error: unknown, context: string) => {
+  const cause = (error as any)?.cause;
+  const code = typeof cause?.code === "string" ? ` (${cause.code})` : "";
+  const message = cause?.hostname ? `${cause.hostname}${code}` : `${cause?.message || "fetch failed"}${code}`;
+  return new Error(`${context}: 无法连接 GitHub API，${message}。请检查 DNS、网络连通性或代理配置后重试。`);
+};
+
+const fetchWithRetry = async (url: string, init: RequestInit, context: string, retries = 2) => {
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    try {
+      return await fetch(url, init);
+    } catch (error) {
+      lastError = error;
+      if (!isRetriableFetchError(error) || attempt === retries) {
+        throw normalizeFetchError(error, context);
+      }
+      await sleep(300 * (attempt + 1));
+    }
+  }
+
+  throw normalizeFetchError(lastError, context);
+};
+
 const githubHeaders = () => {
   const settings = loadSettings();
   const token = settings.actionDispatchToken || process.env.ACTION_DISPATCH_TOKEN || process.env.GITHUB_TOKEN;
@@ -96,11 +140,15 @@ export const dispatchGithubWorkflow = async (template: TemplateEntry, jobId: num
   for (const workflowCandidate of candidateWorkflowFiles(workflowFile)) {
     const url = `https://api.github.com/repos/${owner}/${name}/actions/workflows/${workflowCandidate}/dispatches`;
     const body = workflowCandidate === "package.yml" ? legacyBody : currentBody;
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...githubHeaders() },
-      body: JSON.stringify(body),
-    });
+    const res = await fetchWithRetry(
+      url,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...githubHeaders() },
+        body: JSON.stringify(body),
+      },
+      `GitHub dispatch 失败（repo=${template.repo}, workflow=${workflowCandidate}, branch=${branch}）`,
+    );
 
     if (res.ok) {
       return;
@@ -125,7 +173,11 @@ export const deleteGithubRunArtifacts = async (repo: string, runId: number | str
 
   while (true) {
     const listUrl = `https://api.github.com/repos/${owner}/${name}/actions/runs/${runId}/artifacts?per_page=${perPage}&page=${page}`;
-    const listRes = await fetch(listUrl, { headers: githubHeaders() });
+    const listRes = await fetchWithRetry(
+      listUrl,
+      { headers: githubHeaders() },
+      `获取 GitHub artifacts 失败（repo=${repo}, runId=${runId}）`,
+    );
     if (!listRes.ok) {
       const text = await listRes.text();
       throw new Error(`获取 GitHub artifacts 失败: ${listRes.status} ${text}`);
@@ -138,7 +190,11 @@ export const deleteGithubRunArtifacts = async (repo: string, runId: number | str
 
     for (const artifact of artifacts) {
       const deleteUrl = `https://api.github.com/repos/${owner}/${name}/actions/artifacts/${artifact.id}`;
-      const delRes = await fetch(deleteUrl, { method: "DELETE", headers: githubHeaders() });
+      const delRes = await fetchWithRetry(
+        deleteUrl,
+        { method: "DELETE", headers: githubHeaders() },
+        `删除 GitHub artifact 失败（repo=${repo}, artifactId=${artifact.id}）`,
+      );
       if (!delRes.ok && delRes.status !== 204) {
         const text = await delRes.text();
         throw new Error(`删除 GitHub artifact 失败: ${delRes.status} ${text}`);
