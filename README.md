@@ -48,7 +48,7 @@ Actions 里需要配置的 Secrets/Variables：
 - `CF_R2_ACCESS_KEY_ID` / `CF_R2_SECRET_ACCESS_KEY` / `CF_R2_ACCOUNT_ID` / `CF_R2_BUCKET` / `CF_R2_PUBLIC_BASE`：构建产物上传到 Cloudflare R2 的凭据与公开基址（不使用 R2 可不填，会自动跳过上传）
 
 ### Variables（Actions Variables）
-- `BACKEND_WEBHOOK_URL`：后端 webhook 接口地址（例如 `https://你的域名/webhooks/`，已在 Nginx 配置中反代到后端）
+- `BACKEND_WEBHOOK_URL`：后端 webhook 接口地址，必须指向 `https://你的域名/webhooks/github`，已在 Nginx 配置中反代到后端
 
 ### 说明
 - `ACTION_DISPATCH_TOKEN` **不要放在 Repository Secrets**。它是后端用来触发 GitHub Actions 的 PAT，应配置在后端环境或系统设置里：
@@ -59,7 +59,7 @@ Actions 里需要配置的 Secrets/Variables：
 对接步骤（概述）：
 1) 在 GitHub 仓库 Settings → Secrets and variables → Actions，把上述键值全部填好。  
 2) Nginx 已有 `location /webhooks/` 反代到后端（端口 3000），确保公网可达。  
-3) 后端使用 `ACTION_WEBHOOK_SECRET` 验证签名；`BACKEND_WEBHOOK_URL` 由前端/Actions 调用。  
+3) 后端使用 `ACTION_WEBHOOK_SECRET` 验证签名；`BACKEND_WEBHOOK_URL` 必须与后端 webhook 路由 `/webhooks/github` 完全一致。  
 4) 构建产物上传依赖 CF_R2_* 变量，确保桶名称和公开地址正确。  
 5) 在 Actions 里查看运行日志确认成功；若有 403/签名错误，检查 `ACTION_WEBHOOK_SECRET` 与后端保持一致。
 

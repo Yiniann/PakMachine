@@ -252,46 +252,7 @@ const TemplateBuildPage = () => {
   const selectedTemplate = useMemo(() => templates.data?.find((item) => item.filename === selected) ?? null, [selected, templates.data]);
   const selectedModeLabel = selectedMode === "legacy" ? "SPA 版（纯前端）" : selectedMode === "bff" ? "Pro 版（BFF）" : "未选择";
 
-  const legacyHasInvalidNewline = useMemo(
-    () =>
-      [
-        siteName,
-        legacyForm.siteLogo,
-        legacyForm.prodApiUrl,
-        legacyForm.authBackground,
-        legacyForm.downloadIos,
-        legacyForm.downloadAndroid,
-        legacyForm.downloadWindows,
-        legacyForm.downloadMacos,
-        legacyForm.downloadHarmony,
-        legacyForm.supportScript,
-        legacyForm.appleAutoProApiBaseUrl,
-        legacyForm.appleAutoProApiKey,
-      ].some(hasNewline),
-    [siteName, legacyForm],
-  );
-
-  const bffHasInvalidNewline = useMemo(
-    () => [siteName, bffForm.frontend.siteLogo, bffForm.frontend.backendType, bffForm.server.panelBaseUrl, bffForm.server.adminBasePath].some(hasNewline),
-    [siteName, bffForm],
-  );
-
-  const legacyCanSubmit = useMemo(() => {
-    if (!canUseSpaMode) return false;
-    if (!selected || !siteName.trim() || !legacyForm.backendType.trim() || !legacyForm.siteLogo.trim() || !legacyForm.prodApiUrl.trim()) return false;
-    if (shouldRequireFrontendOrigins && frontendOrigins.length === 0) return false;
-    if (legacyForm.thirdPartySupportEnabled && !legacyForm.supportScript.trim()) return false;
-    if (legacyForm.appleAutoProShareEnabled && (!legacyForm.appleAutoProApiBaseUrl.trim() || !legacyForm.appleAutoProApiKey.trim())) return false;
-    if (legacyHasInvalidNewline) return false;
-    return true;
-  }, [canUseSpaMode, selected, siteName, legacyForm, frontendOrigins.length, legacyHasInvalidNewline, shouldRequireFrontendOrigins]);
-
-  const bffCanSubmit = useMemo(() => {
-    if (!selected || !canUseBffMode || !siteName.trim() || !bffForm.frontend.siteLogo.trim() || !bffForm.frontend.backendType.trim() || !bffForm.server.panelBaseUrl.trim()) return false;
-    if (bffHasInvalidNewline) return false;
-    return true;
-  }, [selected, canUseBffMode, siteName, bffForm, bffHasInvalidNewline]);
-  const currentCanSubmit = selectedMode === "legacy" ? legacyCanSubmit : selectedMode === "bff" ? bffCanSubmit : false;
+  const currentCanSubmit = Boolean(selected && selectedMode);
 
   useEffect(() => {
     if (selected || !templates.data || templates.data.length === 0) return;
@@ -358,10 +319,6 @@ const TemplateBuildPage = () => {
         setError("当前账号为待开通状态，请联系管理员开通基础版或订阅版权限");
         return;
       }
-      if (!legacyCanSubmit) {
-        setError("请补全 SPA 配置");
-        return;
-      }
       buildMutation.mutate(
         {
           filename: selected,
@@ -389,10 +346,6 @@ const TemplateBuildPage = () => {
     if (selectedMode === "bff") {
       if (!canUseBffMode) {
         setError("当前账号仅订阅版或优先版可使用 Pro 构建");
-        return;
-      }
-      if (!bffCanSubmit) {
-        setError("请补全 Pro 配置");
         return;
       }
       buildMutation.mutate(
@@ -785,7 +738,7 @@ const TemplateBuildPage = () => {
           <button className="btn btn-outline" type="button" onClick={() => setStep(2)}>上一步</button>
           <div className="flex flex-wrap items-center gap-2">
             <button className="btn btn-ghost text-error hover:bg-error/10" type="button" onClick={resetCurrentForm}>清空当前配置</button>
-            <button className="btn btn-primary min-w-[160px] shadow-lg shadow-primary/30" type="submit" form="build-config-form" disabled={buildMutation.status === "pending" || (selectedMode === "legacy" ? !legacyCanSubmit : !bffCanSubmit)}>
+            <button className="btn btn-primary min-w-[160px] shadow-lg shadow-primary/30" type="submit" form="build-config-form" disabled={buildMutation.status === "pending"}>
               {buildMutation.status === "pending" ? "构建中..." : "开始构建"}
             </button>
           </div>
