@@ -109,24 +109,24 @@ const DeployGuideBffPage = () => {
                   <input type="checkbox" />
                   <div className="collapse-title pr-10">
                     <div className="flex items-center justify-between gap-3">
-                      <h4 className="text-lg font-semibold">方式一：Docker Compose 部署</h4>
+                      <h4 className="text-lg font-semibold">方式一：一键 Docker 部署</h4>
                       <span className="badge badge-secondary">推荐</span>
                     </div>
-                    <p className="mt-2 text-sm font-normal text-base-content/80">推荐使用 Docker Compose 一次性拉起 `gateway`、`frontend` 和 `bff`。这种方式对宝塔站点的要求更简单，通常只需要把域名请求统一转发到 Docker 的 `gateway` 端口，不用再手动拆分 `/api`、`/admin`、`/_next` 等路径，中台地址也会跟随 `gateway` 一起处理。</p>
+                    <p className="mt-2 text-sm font-normal text-base-content/80">推荐直接运行打包机附带的一键部署脚本，脚本会自动完成容器拉起、服务编排。</p>
                   </div>
                   <div className="collapse-content space-y-4">
                     <div className="space-y-3">
-                      <h5 className="font-semibold">1. 启动容器</h5>
-                      <p>进入部署目录后，先执行启动命令：</p>
-                      <CodeBlock code={`cd /www/wwwroot/你的部署目录\ndocker compose up -d --build`} />
+                      <h5 className="font-semibold">1. 执行一键部署脚本</h5>
+                      <p>进入部署目录后，直接运行脚本即可，脚本内部会自动处理 Docker 启动、编排：</p>
+                      <CodeBlock code={`cd /www/wwwroot/你的部署目录\nbash ./scripts/deploy.sh main`} />
                       <div className="collapse collapse-arrow rounded-xl border border-base-200 bg-base-100">
                         <input type="checkbox" />
                         <div className="collapse-title py-3 text-sm font-medium">
                           可选：自定义对外端口
                         </div>
                         <div className="collapse-content space-y-3 text-sm text-base-content/80">
-                          <p>默认对外端口一般为 `8081`。如果你要改成 `80` 或其它端口，可以在启动前设置：</p>
-                          <CodeBlock code={`export SHUTTLE_HTTP_PORT=80\ndocker compose up -d --build`} />
+                          <p>默认对外端口一般为 `8081`。如果你要改成 `80` 或其它端口，可以在执行脚本前先设置环境变量，脚本会自动读取并应用：</p>
+                          <CodeBlock code={`export SHUTTLE_HTTP_PORT=80\nbash ./scripts/deploy.sh main`} />
                         </div>
                       </div>
                       <ul className="list-disc space-y-1 pl-5">
@@ -159,7 +159,7 @@ const DeployGuideBffPage = () => {
                       </div>
                       <div className="rounded-xl border border-base-200 p-4">
                         <p className="font-semibold">再补下面这段 Nginx 配置</p>
-                        <p className="mt-2 text-sm text-base-content/80">删除完成后，再把域名请求统一转发到 Docker 暴露出来的 `gateway` 端口，例如转发到默认端口为 8081（取决于你docker compose启动时设置的端口号）。</p>
+                        <p className="mt-2 text-sm text-base-content/80">删除完成后，再把域名请求统一转发到 Docker 暴露出来的 `gateway` 端口，例如转发到默认端口为 8081（取决于你在一键脚本里设置的对外端口）。</p>
                         <div className="mt-3">
                           <CodeBlock
                             code={`location / {\n    proxy_pass http://127.0.0.1:8081;\n    proxy_http_version 1.1;\n    proxy_set_header Host $host;\n    proxy_set_header X-Real-IP $remote_addr;\n    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n    proxy_set_header X-Forwarded-Proto $scheme;\n}`}
@@ -246,7 +246,7 @@ const DeployGuideBffPage = () => {
               <div className="card-body">
                 <h3 className="card-title text-lg">默认流程</h3>
                 <ul className="list-disc space-y-1 pl-5 text-sm text-base-content/80">
-                  <li>你已经从打包机下载了 Pro 版产物。</li>
+                  <li>你已经从打包机下载了 Pro 版产物，并带有一键部署脚本。</li>
                   <li>在宝塔面板里新增站点并绑定正式域名。</li>
                   <li>服务器可运行 Docker 或 Node.js + PM2。</li>
                   <li>根据不同部署方式做好反代和ssl证书。</li>
