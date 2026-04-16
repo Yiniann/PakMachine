@@ -119,16 +119,7 @@ const DeployGuideBffPage = () => {
                       <h5 className="font-semibold">1. 执行一键部署脚本</h5>
                       <p>进入部署目录后，直接运行脚本即可，脚本内部会自动处理 Docker 启动和编排：</p>
                       <CodeBlock code={`cd /www/wwwroot/你的部署目录\nbash ./deploy.sh`} />
-                      <div className="collapse collapse-arrow rounded-xl border border-base-200 bg-base-100">
-                        <input type="checkbox" />
-                        <div className="collapse-title py-3 text-sm font-medium">
-                          可选：自定义对外端口
-                        </div>
-                        <div className="collapse-content space-y-3 text-sm text-base-content/80">
-                          <p>默认对外端口一般为 `8081`。如果你要改成 `80` 或其它端口，可以在执行脚本前先设置环境变量，脚本会自动读取并应用：</p>
-                          <CodeBlock code={`export SHUTTLE_HTTP_PORT=80\nbash ./deploy.sh`} />
-                        </div>
-                      </div>
+                      <p className="text-sm text-base-content/80">选择首次安装后，会提示输入端口号，直接回车使用默认端口 `8081`，或者输入你想要的端口。</p>
                       <ul className="list-disc space-y-1 pl-5">
                         <li>`gateway`：统一入口，负责转发 `/`、`/api/*`、`/_next/*` 和管理台路径。</li>
                         <li>`frontend`：提供静态前端资源。</li>
