@@ -112,13 +112,13 @@ const DeployGuideBffPage = () => {
                       <h4 className="text-lg font-semibold">方式一：一键 Docker 部署</h4>
                       <span className="badge badge-secondary">推荐</span>
                     </div>
-                    <p className="mt-2 text-sm font-normal text-base-content/80">推荐直接运行打包机附带的一键部署脚本，脚本会自动完成容器拉起、服务编排。</p>
+                    <p className="mt-2 text-sm font-normal text-base-content/80">推荐直接运行打包产物根目录下自带的一键部署脚本 `deploy.sh`，脚本会自动完成容器拉起和服务编排。这样就不需要手动输入 `docker compose`，只需要在产物目录下执行一次脚本即可。</p>
                   </div>
                   <div className="collapse-content space-y-4">
                     <div className="space-y-3">
                       <h5 className="font-semibold">1. 执行一键部署脚本</h5>
-                      <p>进入部署目录后，直接运行脚本即可，脚本内部会自动处理 Docker 启动、编排：</p>
-                      <CodeBlock code={`cd /www/wwwroot/你的部署目录\nbash ./scripts/deploy.sh main`} />
+                      <p>进入部署目录后，直接运行脚本即可，脚本内部会自动处理 Docker 启动和编排：</p>
+                      <CodeBlock code={`cd /www/wwwroot/你的部署目录\nbash ./deploy.sh`} />
                       <div className="collapse collapse-arrow rounded-xl border border-base-200 bg-base-100">
                         <input type="checkbox" />
                         <div className="collapse-title py-3 text-sm font-medium">
@@ -126,7 +126,7 @@ const DeployGuideBffPage = () => {
                         </div>
                         <div className="collapse-content space-y-3 text-sm text-base-content/80">
                           <p>默认对外端口一般为 `8081`。如果你要改成 `80` 或其它端口，可以在执行脚本前先设置环境变量，脚本会自动读取并应用：</p>
-                          <CodeBlock code={`export SHUTTLE_HTTP_PORT=80\nbash ./scripts/deploy.sh main`} />
+                          <CodeBlock code={`export SHUTTLE_HTTP_PORT=80\nbash ./deploy.sh`} />
                         </div>
                       </div>
                       <ul className="list-disc space-y-1 pl-5">
@@ -246,7 +246,7 @@ const DeployGuideBffPage = () => {
               <div className="card-body">
                 <h3 className="card-title text-lg">默认流程</h3>
                 <ul className="list-disc space-y-1 pl-5 text-sm text-base-content/80">
-                  <li>你已经从打包机下载了 Pro 版产物，并带有一键部署脚本。</li>
+                  <li>你已经从打包机下载了 Pro 版产物，并带有位于产物根目录的一键部署脚本。</li>
                   <li>在宝塔面板里新增站点并绑定正式域名。</li>
                   <li>服务器可运行 Docker 或 Node.js + PM2。</li>
                   <li>根据不同部署方式做好反代和ssl证书。</li>
