@@ -728,6 +728,7 @@ export const listAllBuildJobs = async (req: Request, res: Response, next: NextFu
         message: j.message,
         artifactId: j.artifactId,
         filename: j.filename,
+        envJson: j.envJson,
         createdAt: j.createdAt,
         user: {
           id: j.user.id,

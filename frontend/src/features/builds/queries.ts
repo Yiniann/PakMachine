@@ -22,6 +22,7 @@ export type AdminBuildJob = {
   message?: string | null;
   artifactId?: number | null;
   filename: string;
+  envJson?: string | null;
   createdAt: string;
   user: {
     id: number;

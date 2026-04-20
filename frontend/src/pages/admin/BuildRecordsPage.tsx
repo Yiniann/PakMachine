@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useAdminBuildJobs } from "../../features/builds/queries";
 
 const statusBadgeClass: Record<string, string> = {
@@ -8,8 +8,97 @@ const statusBadgeClass: Record<string, string> = {
   failed: "badge-error",
 };
 
+type EnvSnapshot = {
+  buildMode?: string;
+  frontendEnv?: string;
+  serverEnv?: string;
+  runtimeSettings?: unknown;
+  rawText: string;
+};
+
+const parseEnvSnapshot = (value?: string | null): EnvSnapshot | null => {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(value);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      const record = parsed as Record<string, unknown>;
+      return {
+        buildMode: typeof record.buildMode === "string" ? record.buildMode : undefined,
+        frontendEnv: typeof record.frontendEnv === "string" ? record.frontendEnv : undefined,
+        serverEnv: typeof record.serverEnv === "string" ? record.serverEnv : undefined,
+        runtimeSettings: record.runtimeSettings ?? null,
+        rawText: value,
+      };
+    }
+    return { rawText: value };
+  } catch {
+    return { frontendEnv: value, rawText: value };
+  }
+};
+
+const formatObject = (value: unknown) => {
+  if (value === null || value === undefined) return "无";
+  if (typeof value === "string") return value;
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+};
+
+const RuntimeSettingsList = ({ value }: { value: unknown }) => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return <pre className="overflow-x-auto rounded-xl bg-slate-900 p-3 text-xs leading-6 text-slate-100">{formatObject(value)}</pre>;
+  }
+
+  const entries = Object.entries(value as Record<string, unknown>);
+  if (entries.length === 0) {
+    return <div className="text-sm text-base-content/60">无</div>;
+  }
+
+  return (
+    <div className="space-y-2">
+      {entries.map(([key, item]) => (
+        <div key={key} className="rounded-xl border border-base-200 bg-white/80 px-4 py-3">
+          <div className="text-xs font-medium uppercase tracking-wide text-slate-500">{key}</div>
+          {item && typeof item === "object" && !Array.isArray(item) ? (
+            <div className="mt-2 space-y-2">
+              {Object.entries(item as Record<string, unknown>).map(([nestedKey, nestedValue]) => (
+                <div key={nestedKey} className="grid gap-2 sm:grid-cols-[180px_minmax(0,1fr)]">
+                  <div className="text-sm font-medium text-slate-700">{nestedKey}</div>
+                  <div className="overflow-x-auto rounded-lg bg-slate-900 px-3 py-2 text-xs leading-5 text-slate-100">
+                    {formatObject(nestedValue)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-2 overflow-x-auto rounded-lg bg-slate-900 px-3 py-2 text-xs leading-5 text-slate-100">
+              {formatObject(item)}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const EnvBlock = ({ title, description, value }: { title: string; description: string; value?: string | null }) => {
+  if (!value) return null;
+  return (
+    <div className="space-y-2 rounded-2xl border border-base-300 bg-white/80 p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="badge badge-outline">{title}</span>
+        <span className="text-xs text-base-content/60">{description}</span>
+      </div>
+      <pre className="overflow-x-auto rounded-xl bg-slate-900 p-3 text-xs leading-6 text-slate-100">{value}</pre>
+    </div>
+  );
+};
+
 const BuildRecordsPage = () => {
   const { data, isLoading, error, refetch } = useAdminBuildJobs(200);
+  const [expandedJobIds, setExpandedJobIds] = useState<number[]>([]);
 
   const errorMessage =
     error && (error as any)?.response?.data?.error
@@ -23,9 +112,14 @@ const BuildRecordsPage = () => {
       data?.map((j) => ({
         ...j,
         createdAtLabel: new Date(j.createdAt).toLocaleString(),
+        envSnapshot: parseEnvSnapshot(j.envJson),
       })) ?? [],
     [data],
   );
+
+  const toggleExpanded = (jobId: number) => {
+    setExpandedJobIds((prev) => (prev.includes(jobId) ? prev.filter((id) => id !== jobId) : [...prev, jobId]));
+  };
 
   return (
     <div className="space-y-6">
@@ -66,11 +160,25 @@ const BuildRecordsPage = () => {
                     <th>状态</th>
                     <th>时间</th>
                     <th>消息</th>
+                    <th className="text-right">操作</th>
                   </tr>
                 </thead>
                 <tbody>
                   {jobs.map((j) => (
-                    <tr key={j.id}>
+                    <Fragment key={j.id}>
+                    <tr
+                      className="cursor-pointer hover:bg-base-200/70"
+                      onClick={() => toggleExpanded(j.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          toggleExpanded(j.id);
+                        }
+                      }}
+                      tabIndex={0}
+                      role="button"
+                      aria-expanded={expandedJobIds.includes(j.id)}
+                    >
                       <td>{j.id}</td>
                       <td>
                         <div className="flex flex-col">
@@ -91,7 +199,69 @@ const BuildRecordsPage = () => {
                           {j.message ?? "-"}
                         </div>
                       </td>
+                      <td className="text-right">
+                        <button
+                          type="button"
+                          className="btn btn-xs btn-ghost"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleExpanded(j.id);
+                          }}
+                          aria-expanded={expandedJobIds.includes(j.id)}
+                          aria-label={expandedJobIds.includes(j.id) ? "收起环境信息" : "展开环境信息"}
+                        >
+                          {expandedJobIds.includes(j.id) ? (
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="h-4 w-4">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="m5 15 7-7 7 7" />
+                            </svg>
+                          ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="h-4 w-4">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="m19 9-7 7-7-7" />
+                            </svg>
+                          )}
+                        </button>
+                      </td>
                     </tr>
+                    {expandedJobIds.includes(j.id) && (
+                      <tr key={`${j.id}-env`}>
+                        <td colSpan={8} className="bg-base-200/70">
+                          <div className="space-y-3 p-4">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="badge badge-outline">env 快照</span>
+                              <span className="text-xs text-base-content/60">包含本次构建携带的前端 / 后端 / 运行时配置</span>
+                            </div>
+                            {j.envSnapshot?.buildMode && (
+                              <div className="flex flex-wrap items-center gap-2 text-sm text-base-content/70">
+                                <span className="font-medium text-base-content">构建模式</span>
+                                <span className="badge badge-ghost badge-sm">{j.envSnapshot.buildMode}</span>
+                              </div>
+                            )}
+                            <div className="space-y-3">
+                              <EnvBlock
+                                title="前端 env"
+                                description="最终写入前端的环境变量内容"
+                                value={j.envSnapshot?.frontendEnv?.trim() || (typeof j.envSnapshot?.rawText === "string" ? j.envSnapshot.rawText : "")}
+                              />
+                              <EnvBlock
+                                title="后端 env"
+                                description="仅 BFF 构建时包含的后端环境变量"
+                                value={j.envSnapshot?.serverEnv?.trim() || null}
+                              />
+                              {j.envSnapshot?.runtimeSettings !== undefined && (
+                                <div className="space-y-2 rounded-2xl border border-base-300 bg-white/80 p-4">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span className="badge badge-outline">运行时设置</span>
+                                    <span className="text-xs text-base-content/60">当前构建的 runtimeSettings 快照</span>
+                                  </div>
+                                  <RuntimeSettingsList value={j.envSnapshot.runtimeSettings} />
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    </Fragment>
                   ))}
                   {!isLoading && jobs.length === 0 && (
                     <tr>
@@ -107,16 +277,49 @@ const BuildRecordsPage = () => {
 
           <div className="workspace-table-shell md:hidden flex flex-col divide-y divide-base-200">
             {jobs.map((j) => (
-              <div key={j.id} className="space-y-2 p-4">
-                <div className="flex items-start justify-between">
+              <div
+                key={j.id}
+                className="space-y-2 p-4 hover:bg-base-200/60"
+                role="button"
+                tabIndex={0}
+                aria-expanded={expandedJobIds.includes(j.id)}
+                onClick={() => toggleExpanded(j.id)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    toggleExpanded(j.id);
+                  }
+                }}
+              >
+                <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-2">
                     <span className="font-mono text-xs opacity-50">#{j.id}</span>
                     <div className={`badge badge-sm capitalize ${statusBadgeClass[j.status] ?? "badge-ghost"}`}>
                       {j.status}
                     </div>
                   </div>
-                  <span className="text-xs text-base-content/50">{j.createdAtLabel}</span>
+                  <button
+                    type="button"
+                    className="btn btn-xs btn-ghost"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleExpanded(j.id);
+                    }}
+                    aria-expanded={expandedJobIds.includes(j.id)}
+                    aria-label={expandedJobIds.includes(j.id) ? "收起环境信息" : "展开环境信息"}
+                  >
+                    {expandedJobIds.includes(j.id) ? (
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="h-4 w-4">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="m5 15 7-7 7 7" />
+                      </svg>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="h-4 w-4">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="m19 9-7 7-7-7" />
+                      </svg>
+                    )}
+                  </button>
                 </div>
+                <div className="text-xs text-base-content/50">{j.createdAtLabel}</div>
 
                 <div className="text-sm">
                   <div className="font-semibold">{j.user.siteName ?? "未设置"}</div>
@@ -126,6 +329,42 @@ const BuildRecordsPage = () => {
                 <div className="text-xs text-base-content/60">{j.user.email}</div>
 
                 {j.message && <div className="mt-1 break-all rounded-xl bg-slate-100 p-2 text-xs">{j.message}</div>}
+
+                {expandedJobIds.includes(j.id) && (
+                  <div className="mt-3 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="badge badge-outline badge-sm">env 快照</span>
+                      <span className="text-xs text-base-content/60">点击可收起</span>
+                    </div>
+                    {j.envSnapshot?.buildMode && (
+                      <div className="flex items-center gap-2 text-xs text-base-content/70">
+                        <span className="font-medium text-base-content">构建模式</span>
+                        <span className="badge badge-ghost badge-sm">{j.envSnapshot.buildMode}</span>
+                      </div>
+                    )}
+                    <div className="space-y-3">
+                      <EnvBlock
+                        title="前端 env"
+                        description="最终写入前端的环境变量内容"
+                        value={j.envSnapshot?.frontendEnv?.trim() || (typeof j.envSnapshot?.rawText === "string" ? j.envSnapshot.rawText : "")}
+                      />
+                      <EnvBlock
+                        title="后端 env"
+                        description="仅 BFF 构建时包含的后端环境变量"
+                        value={j.envSnapshot?.serverEnv?.trim() || null}
+                      />
+                      {j.envSnapshot?.runtimeSettings !== undefined && (
+                        <div className="space-y-2 rounded-2xl border border-base-300 bg-white/80 p-4">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="badge badge-outline">运行时设置</span>
+                            <span className="text-xs text-base-content/60">当前构建的 runtimeSettings 快照</span>
+                          </div>
+                          <RuntimeSettingsList value={j.envSnapshot.runtimeSettings} />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
             {!isLoading && jobs.length === 0 && <div className="p-4 text-center text-base-content/60">暂无记录</div>}
