@@ -609,6 +609,38 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
   }
 };
 
+export const getCurrentUser = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const user = (req as any).user;
+    if (!user?.sub) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const dbUser = await prisma.user.findUnique({
+      where: { id: Number(user.sub) },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        userType: true,
+      },
+    });
+
+    if (!dbUser) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.json({
+      id: dbUser.id,
+      email: dbUser.email,
+      role: dbUser.role,
+      userType: normalizeUserType(dbUser.userType),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const forgotPassword = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { email } = req.body ?? {};

@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../components/useAuth";
+import { useCurrentUser } from "../../features/auth/queries";
 import { useBuildTemplate } from "../../features/builds/build";
 import { useBuildProfile, useSaveBuildProfile } from "../../features/builds/profile";
 import { useTemplateFiles } from "../../features/builds/queries";
@@ -222,6 +223,7 @@ const buildBffServerEnvContent = (form: BffForm, priorityModeValue: string) => {
 const TemplateBuildPage = () => {
   const navigate = useNavigate();
   const { role, userType } = useAuth();
+  const currentUserQuery = useCurrentUser();
   const templates = useTemplateFiles();
   const buildMutation = useBuildTemplate();
   const saveProfile = useSaveBuildProfile();
@@ -235,21 +237,22 @@ const TemplateBuildPage = () => {
   const [legacyForm, setLegacyForm] = useState<LegacyForm>(createLegacyForm());
   const [bffForm, setBffForm] = useState<BffForm>(createBffForm());
 
-  const normalizedUserType = normalizeUserType(userType);
+  const effectiveRole = currentUserQuery.data?.role ?? role;
+  const effectiveUserType = normalizeUserType(currentUserQuery.data?.userType ?? userType);
   const siteOptions = siteProfileQuery.data?.sites || [];
   const canManageSites = siteOptions.length > 0;
   const selectedSite = siteOptions.find((item) => item.id === selectedSiteId) ?? null;
   const siteName = selectedSite?.name || siteProfileQuery.data?.siteName || "";
   const frontendOrigins = siteProfileQuery.data?.frontendOrigins || [];
   const frontendOriginsValue = frontendOrigins.join(",");
-  const shouldRequireFrontendOrigins = shouldValidateFrontendOrigins(role, normalizedUserType);
-  const priorityModeEnabled = shouldEnablePriorityMode(role, normalizedUserType);
+  const shouldRequireFrontendOrigins = shouldValidateFrontendOrigins(effectiveRole, effectiveUserType);
+  const priorityModeEnabled = shouldEnablePriorityMode(effectiveRole, effectiveUserType);
   const priorityModeValue = priorityModeEnabled ? "true" : "false";
   const profileQuery = useBuildProfile(selectedSiteId);
   const adminBasePathPreview = bffForm.server.adminBasePath.trim() || "/admin";
   const previewFrontendOrigin = shouldRequireFrontendOrigins ? (frontendOrigins[0] || "https://your-domain.com") : "https://客户访问网址";
-  const canUseSpaMode = canBuildSpa(role, normalizedUserType);
-  const canUseBffMode = canBuildBff(role, normalizedUserType);
+  const canUseSpaMode = canBuildSpa(effectiveRole, effectiveUserType);
+  const canUseBffMode = canBuildBff(effectiveRole, effectiveUserType);
   const selectedTemplate = useMemo(() => templates.data?.find((item) => item.filename === selected) ?? null, [selected, templates.data]);
   const selectedModeLabel = selectedMode === "legacy" ? "SPA 版（纯前端）" : selectedMode === "bff" ? "Pro 版（BFF）" : "未选择";
 
@@ -458,7 +461,7 @@ const TemplateBuildPage = () => {
               <h2 className="card-title text-2xl font-bold">选择构建方式</h2>
               <p className="text-base-content/70 mt-1">同一版本支持两种构建方式：SPA 直连面板，或 Pro 通过 BFF 中转。</p>
             </div>
-            {role !== "admin" && normalizedUserType === "pending" && (
+            {effectiveRole !== "admin" && effectiveUserType === "pending" && (
               <div className="rounded-2xl border border-[#6d6bf4]/20 bg-[#6d6bf4]/8 px-5 py-5 text-slate-900 shadow-sm">
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                   <div>
@@ -478,12 +481,12 @@ const TemplateBuildPage = () => {
                 </div>
               </div>
             )}
-            {role !== "admin" && normalizedUserType !== "pending" && (
+            {effectiveRole !== "admin" && effectiveUserType !== "pending" && (
               <div className="rounded-2xl border border-base-200 bg-base-200/50 px-4 py-3 text-sm text-base-content/70">
-                当前账号档位：<span className="font-semibold">{getUserTypeLabel(normalizedUserType)}</span>
-                {normalizedUserType === "basic"
+                当前账号档位：<span className="font-semibold">{getUserTypeLabel(effectiveUserType)}</span>
+                {effectiveUserType === "basic"
                   ? "，可使用 SPA 构建。"
-                  : normalizedUserType === "priority"
+                  : effectiveUserType === "priority"
                     ? "，可使用 SPA 与 Pro 构建，且构建时不会校验前端域名。"
                     : "，可使用 SPA 与 Pro 构建。"}
               </div>

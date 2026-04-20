@@ -1,5 +1,6 @@
 import { Router } from "express";
 import {
+  getCurrentUser,
   forgotPassword,
   login,
   register,
@@ -11,6 +12,7 @@ import { authenticate } from "../middleware/auth";
 
 const router = Router();
 
+router.get("/me", authenticate, getCurrentUser);
 router.post("/register", register);
 router.post("/register/send-code", sendRegisterCode);
 router.post("/login", login);
