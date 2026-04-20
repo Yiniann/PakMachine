@@ -72,6 +72,29 @@ export const useUpdateSiteNameLimit = (): UseMutationResult<{ message: string; s
   });
 };
 
+export const useUpdateFrontendOriginsLimit = (): UseMutationResult<
+  { message: string; frontendOriginsLimit: number },
+  unknown,
+  { email: string; frontendOriginsLimit: number },
+  unknown
+> => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ email, frontendOriginsLimit }) => {
+      const res = await api.patch<{ message: string; frontendOriginsLimit: number }>(`/admin/changeFrontendOriginsLimit`, {
+        email,
+        frontendOriginsLimit,
+      });
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      queryClient.invalidateQueries({ queryKey: ["site-profile"] });
+      queryClient.invalidateQueries({ queryKey: ["user-sites"] });
+    },
+  });
+};
+
 export const useRemoveSiteName = (): UseMutationResult<
   { message: string; sites: { id: number; name: string }[]; siteName: string | null },
   unknown,

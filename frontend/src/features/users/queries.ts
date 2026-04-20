@@ -11,6 +11,7 @@ export interface User {
   emailVerified?: boolean;
   siteName?: string | null;
   siteNameLimit?: number;
+  frontendOriginsLimit?: number;
   sites?: { id: number; name: string }[];
   frontendOrigins?: string[];
   buildQuotaUsed?: number | null;

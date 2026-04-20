@@ -7,6 +7,7 @@ export type SiteProfile = {
   frontendOrigins: string[];
   sites?: { id: number; name: string }[];
   siteNameLimit?: number;
+  frontendOriginsLimit?: number;
 };
 
 export const useSiteProfile = (): UseQueryResult<SiteProfile> => {

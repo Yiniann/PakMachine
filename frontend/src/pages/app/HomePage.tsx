@@ -45,6 +45,7 @@ const HomePage = () => {
   const siteName = siteProfileQuery.data?.siteName || null;
   const siteOptions = siteProfileQuery.data?.sites || [];
   const siteNameLimit = Math.max(siteProfileQuery.data?.siteNameLimit ?? 1, 1);
+  const frontendOriginsLimit = Math.max(siteProfileQuery.data?.frontendOriginsLimit ?? 4, 1);
   const frontendOrigins = siteProfileQuery.data?.frontendOrigins || [];
   const loadingSiteName = siteProfileQuery.isPending; // 只在首个请求未返回时认为 loading，避免阻塞展示
   const fetchedSiteName = siteProfileQuery.isSuccess || siteProfileQuery.isError;
@@ -428,7 +429,7 @@ const HomePage = () => {
                   </div>
 
                   <p className="mt-3 text-[15px] leading-7 text-slate-500">
-                    每个账号最多绑定 4 个前端域名。已绑定的域名用户侧不可删除，如需调整请联系管理员处理。
+                    当前账号最多绑定 {frontendOriginsLimit} 个前端域名。已绑定的域名用户侧不可删除，如需调整请联系管理员处理。
                   </p>
 
                   {frontendOrigins.length > 0 ? (
@@ -445,7 +446,7 @@ const HomePage = () => {
                     </div>
                   )}
 
-                  {frontendOrigins.length < 4 ? (
+                  {frontendOrigins.length < frontendOriginsLimit ? (
                     <form onSubmit={onAddFrontendOrigin} className="mt-5 flex items-stretch gap-3">
                       <input
                         className="workspace-input input input-bordered h-13 flex-1 rounded-2xl"
@@ -460,7 +461,7 @@ const HomePage = () => {
                     </form>
                   ) : (
                     <div className="mt-5 workspace-alert alert border border-pink-200 bg-pink-50 text-pink-700 text-sm py-3">
-                      <span>已达到 4 个前端域名上限，如需调整请联系管理员重置。</span>
+                      <span>已达到 {frontendOriginsLimit} 个前端域名上限，如需调整请联系管理员重置。</span>
                     </div>
                   )}
 

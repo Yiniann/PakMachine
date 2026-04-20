@@ -30,6 +30,9 @@ const parseFrontendOrigins = (value: unknown): string[] => {
   }
 };
 
+const getUserFrontendOriginsLimit = (user: { frontendOriginsLimit?: number | null } | null | undefined) =>
+  Math.max(Number(user?.frontendOriginsLimit) || 4, 1);
+
 
 export const listUsers = async (_req: Request, res: Response, next: NextFunction) => {
   try {
@@ -43,6 +46,7 @@ export const listUsers = async (_req: Request, res: Response, next: NextFunction
       ...rest,
       userType: normalizeUserType(rest.userType),
       siteNameLimit: Math.max(Number((rest as any).siteNameLimit) || 1, 1),
+      frontendOriginsLimit: getUserFrontendOriginsLimit(rest as any),
       sites: sites ?? [],
       frontendOrigins: parseFrontendOrigins(frontendOriginsJson),
     }));
@@ -78,7 +82,11 @@ export const adminCreateUser = async (req: Request, res: Response, next: NextFun
       data: { email, password: hashed, role, userType: normalizeUserType(userType), emailVerified: true },
     });
     const { password: _pw, resetToken, resetTokenExpires, ...rest } = created;
-    const safe = { ...rest, userType: normalizeUserType(rest.userType) };
+    const safe = {
+      ...rest,
+      userType: normalizeUserType(rest.userType),
+      frontendOriginsLimit: getUserFrontendOriginsLimit(rest as any),
+    };
     res.status(201).json(safe);
   } catch (error) {
     next(error);
@@ -196,6 +204,28 @@ export const adminUpdateSiteNameLimit = async (req: Request, res: Response, next
       select: { siteNameLimit: true },
     });
     res.json({ message: "Site name limit updated", siteNameLimit: updated.siteNameLimit });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const adminUpdateFrontendOriginsLimit = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { email, frontendOriginsLimit } = req.body ?? {};
+    if (!email) {
+      return res.status(400).json({ error: "Email is required" });
+    }
+    const parsed = Number(frontendOriginsLimit);
+    if (!Number.isFinite(parsed) || parsed < 1) {
+      return res.status(400).json({ error: "前端域名数量必须大于等于 1" });
+    }
+
+    const updated = await prisma.user.update({
+      where: { email },
+      data: { frontendOriginsLimit: Math.floor(parsed) },
+      select: { frontendOriginsLimit: true },
+    });
+    res.json({ message: "Frontend origins limit updated", frontendOriginsLimit: updated.frontendOriginsLimit });
   } catch (error) {
     next(error);
   }

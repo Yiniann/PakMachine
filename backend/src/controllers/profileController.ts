@@ -38,6 +38,13 @@ const normalizeFrontendOrigin = (value: unknown) => {
 const getUserSiteNameLimit = (user: { siteNameLimit?: number | null } | null | undefined) =>
   Math.max(Number(user?.siteNameLimit) || 1, 1);
 
+const getFrontendOriginsLimit = (user: { frontendOriginsLimit?: number | null } | null | undefined) => {
+  const parsed = Number(user?.frontendOriginsLimit);
+  if (!Number.isFinite(parsed)) return 4;
+  const normalized = Math.floor(parsed);
+  return normalized >= 1 ? normalized : 4;
+};
+
 export const getSiteName = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const user = (req as any).user;
@@ -50,7 +57,8 @@ export const getSiteName = async (req: Request, res: Response, next: NextFunctio
     const siteName = sites[0]?.name ?? (dbUser as any)?.siteName ?? null;
     const frontendOrigins = parseFrontendOrigins((dbUser as any)?.frontendOriginsJson);
     const siteNameLimit = getUserSiteNameLimit(dbUser as any);
-    res.json({ siteName, frontendOrigins, sites, siteNameLimit });
+    const frontendOriginsLimit = getFrontendOriginsLimit(dbUser as any);
+    res.json({ siteName, frontendOrigins, sites, siteNameLimit, frontendOriginsLimit });
   } catch (err) {
     next(err);
   }
@@ -91,6 +99,7 @@ export const setSiteName = async (req: Request, res: Response, next: NextFunctio
       frontendOrigins: parseFrontendOrigins((updated as any)?.frontendOriginsJson),
       sites: [],
       siteNameLimit: getUserSiteNameLimit(updated as any),
+      frontendOriginsLimit: getFrontendOriginsLimit(updated as any),
     });
   } catch (err) {
     next(err);
@@ -184,8 +193,9 @@ export const addFrontendOrigin = async (req: Request, res: Response, next: NextF
     if (currentOrigins.includes(frontendOrigin)) {
       return res.status(409).json({ error: "该前端域名已绑定" });
     }
-    if (currentOrigins.length >= 4) {
-      return res.status(400).json({ error: "最多只能绑定 4 个前端域名" });
+    const frontendOriginsLimit = getFrontendOriginsLimit(existing as any);
+    if (currentOrigins.length >= frontendOriginsLimit) {
+      return res.status(400).json({ error: `最多只能绑定 ${frontendOriginsLimit} 个前端域名` });
     }
 
     const updated = await prisma.user.update({

@@ -137,6 +137,7 @@ const UsersPage = () => {
                         <th>ID</th>
                         <th>邮箱</th>
                         <th>站点名</th>
+                        <th>站点名数</th>
                         <th>已绑定前端</th>
                         <th>今日剩余构建</th>
                         <th>权限档位</th>
@@ -150,6 +151,7 @@ const UsersPage = () => {
                           <td>{u.id}</td>
                           <td>{u.email}</td>
                           <td>{u.siteName ?? "未设置"}</td>
+                          <td>{`${u.sites?.length ?? 0} / ${Math.max(Number(u.siteNameLimit ?? 1) || 1, 1)}`}</td>
                           <td>{u.frontendOrigins?.length ? `${u.frontendOrigins.length} 个` : "未绑定"}</td>
                           <td>{getQuotaLabel(u)}</td>
                           <td>
@@ -182,6 +184,10 @@ const UsersPage = () => {
                       <div className="flex flex-col">
                         <span className="text-xs text-base-content/60">站点名</span>
                         <span>{u.siteName ?? "未设置"}</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-xs text-base-content/60">站点名数</span>
+                        <span>{`${u.sites?.length ?? 0} / ${Math.max(Number(u.siteNameLimit ?? 1) || 1, 1)}`}</span>
                       </div>
                       <div className="flex flex-col">
                         <span className="text-xs text-base-content/60">已绑定前端</span>

@@ -18,6 +18,7 @@ model User {
   userType           String    @default("pending") // "pending" | "basic" | "pro"
   siteName           String?
   siteNameLimit      Int       @default(1)
+  frontendOriginsLimit Int     @default(4)
   frontendOriginsJson String?  @db.Text
   buildQuotaUsed     Int       @default(0) // 当天已使用的构建次数
   buildQuotaDate     DateTime?

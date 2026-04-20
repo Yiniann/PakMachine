@@ -7,6 +7,7 @@ import {
   useResetBuildQuota,
   useResetFrontendOrigins,
   useResetSiteName,
+  useUpdateFrontendOriginsLimit,
   useUpdatePassword,
   useUpdateRole,
   useUpdateSiteNameLimit,
@@ -28,6 +29,7 @@ const UserDetailPage = () => {
   const updateUserType = useUpdateUserType();
   const removeSiteName = useRemoveSiteName();
   const updateSiteNameLimit = useUpdateSiteNameLimit();
+  const updateFrontendOriginsLimit = useUpdateFrontendOriginsLimit();
   const resetSiteName = useResetSiteName();
   const removeFrontendOrigin = useRemoveFrontendOrigin();
   const resetFrontendOrigins = useResetFrontendOrigins();
@@ -39,6 +41,7 @@ const UserDetailPage = () => {
   const [roleValue, setRoleValue] = useState("user");
   const [userTypeValue, setUserTypeValue] = useState("pending");
   const [siteNameLimitValue, setSiteNameLimitValue] = useState("1");
+  const [frontendOriginsLimitValue, setFrontendOriginsLimitValue] = useState("4");
   const [newPassword, setNewPassword] = useState("");
 
   useEffect(() => {
@@ -46,6 +49,7 @@ const UserDetailPage = () => {
     setRoleValue(user.role);
     setUserTypeValue(normalizeUserType(user.userType));
     setSiteNameLimitValue(String(Math.max(Number(user.siteNameLimit ?? 1) || 1, 1)));
+    setFrontendOriginsLimitValue(String(Math.max(Number(user.frontendOriginsLimit ?? 4) || 4, 1)));
     setNewPassword("");
   }, [user]);
 
@@ -217,9 +221,11 @@ const UserDetailPage = () => {
             <div className="flex items-end justify-between gap-3">
               <div>
                 <h3 className="text-lg font-semibold text-slate-900">前端域名</h3>
-                <p className="mt-1 text-sm text-slate-500">{frontendOriginCount ? `${frontendOriginCount} 个绑定` : "未绑定"}</p>
+                <p className="mt-1 text-sm text-slate-500">
+                  {frontendOriginCount ? `${frontendOriginCount} 个绑定` : "未绑定"} / 上限 {user.frontendOriginsLimit ?? 4}
+                </p>
               </div>
-              <span className="text-xs text-base-content/60">已绑定前端</span>
+              <span className="text-xs text-base-content/60">可单独配置</span>
             </div>
             <div className="mt-3 space-y-2">
               {user.frontendOrigins?.length ? (
@@ -256,6 +262,27 @@ const UserDetailPage = () => {
                 {resetFrontendOrigins.status === "pending" ? "清空中..." : "清空全部绑定"}
               </button>
             ) : null}
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+              <input
+                type="number"
+                min={1}
+                className="workspace-input input input-bordered h-11 w-full rounded-2xl"
+                value={frontendOriginsLimitValue}
+                onChange={(e) => setFrontendOriginsLimitValue(e.target.value)}
+              />
+              <button
+                type="button"
+                className="landing-button-primary inline-flex h-11 min-h-0 items-center justify-center rounded-2xl px-4 py-0 text-xs whitespace-nowrap leading-none sm:w-24 sm:text-sm"
+                disabled={updateFrontendOriginsLimit.status === "pending"}
+                onClick={() => {
+                  const parsed = Number(frontendOriginsLimitValue);
+                  if (!Number.isFinite(parsed) || parsed < 1) return;
+                  updateFrontendOriginsLimit.mutate({ email: user.email, frontendOriginsLimit: Math.floor(parsed) });
+                }}
+              >
+                {updateFrontendOriginsLimit.status === "pending" ? "保存中..." : "保存"}
+              </button>
+            </div>
           </section>
 
           <section className="workspace-card p-4">
