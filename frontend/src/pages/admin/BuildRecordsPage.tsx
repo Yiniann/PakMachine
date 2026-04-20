@@ -12,7 +12,6 @@ type EnvSnapshot = {
   buildMode?: string;
   frontendEnv?: string;
   serverEnv?: string;
-  runtimeSettings?: unknown;
   rawText: string;
 };
 
@@ -26,7 +25,6 @@ const parseEnvSnapshot = (value?: string | null): EnvSnapshot | null => {
         buildMode: typeof record.buildMode === "string" ? record.buildMode : undefined,
         frontendEnv: typeof record.frontendEnv === "string" ? record.frontendEnv : undefined,
         serverEnv: typeof record.serverEnv === "string" ? record.serverEnv : undefined,
-        runtimeSettings: record.runtimeSettings ?? null,
         rawText: value,
       };
     }
@@ -34,53 +32,6 @@ const parseEnvSnapshot = (value?: string | null): EnvSnapshot | null => {
   } catch {
     return { frontendEnv: value, rawText: value };
   }
-};
-
-const formatObject = (value: unknown) => {
-  if (value === null || value === undefined) return "无";
-  if (typeof value === "string") return value;
-  try {
-    return JSON.stringify(value, null, 2);
-  } catch {
-    return String(value);
-  }
-};
-
-const RuntimeSettingsList = ({ value }: { value: unknown }) => {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return <pre className="overflow-x-auto rounded-xl bg-slate-900 p-3 text-xs leading-6 text-slate-100">{formatObject(value)}</pre>;
-  }
-
-  const entries = Object.entries(value as Record<string, unknown>);
-  if (entries.length === 0) {
-    return <div className="text-sm text-base-content/60">无</div>;
-  }
-
-  return (
-    <div className="space-y-2">
-      {entries.map(([key, item]) => (
-        <div key={key} className="rounded-xl border border-base-200 bg-white/80 px-4 py-3">
-          <div className="text-xs font-medium uppercase tracking-wide text-slate-500">{key}</div>
-          {item && typeof item === "object" && !Array.isArray(item) ? (
-            <div className="mt-2 space-y-2">
-              {Object.entries(item as Record<string, unknown>).map(([nestedKey, nestedValue]) => (
-                <div key={nestedKey} className="grid gap-2 sm:grid-cols-[180px_minmax(0,1fr)]">
-                  <div className="text-sm font-medium text-slate-700">{nestedKey}</div>
-                  <div className="overflow-x-auto rounded-lg bg-slate-900 px-3 py-2 text-xs leading-5 text-slate-100">
-                    {formatObject(nestedValue)}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="mt-2 overflow-x-auto rounded-lg bg-slate-900 px-3 py-2 text-xs leading-5 text-slate-100">
-              {formatObject(item)}
-            </div>
-          )}
-        </div>
-      ))}
-    </div>
-  );
 };
 
 const EnvBlock = ({ title, description, value }: { title: string; description: string; value?: string | null }) => {
@@ -247,15 +198,6 @@ const BuildRecordsPage = () => {
                                 description="仅 BFF 构建时包含的后端环境变量"
                                 value={j.envSnapshot?.serverEnv?.trim() || null}
                               />
-                              {j.envSnapshot?.runtimeSettings !== undefined && (
-                                <div className="space-y-2 rounded-2xl border border-base-300 bg-white/80 p-4">
-                                  <div className="flex flex-wrap items-center gap-2">
-                                    <span className="badge badge-outline">运行时设置</span>
-                                    <span className="text-xs text-base-content/60">当前构建的 runtimeSettings 快照</span>
-                                  </div>
-                                  <RuntimeSettingsList value={j.envSnapshot.runtimeSettings} />
-                                </div>
-                              )}
                             </div>
                           </div>
                         </td>
@@ -353,15 +295,6 @@ const BuildRecordsPage = () => {
                         description="仅 BFF 构建时包含的后端环境变量"
                         value={j.envSnapshot?.serverEnv?.trim() || null}
                       />
-                      {j.envSnapshot?.runtimeSettings !== undefined && (
-                        <div className="space-y-2 rounded-2xl border border-base-300 bg-white/80 p-4">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="badge badge-outline">运行时设置</span>
-                            <span className="text-xs text-base-content/60">当前构建的 runtimeSettings 快照</span>
-                          </div>
-                          <RuntimeSettingsList value={j.envSnapshot.runtimeSettings} />
-                        </div>
-                      )}
                     </div>
                   </div>
                 )}
