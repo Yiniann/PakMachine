@@ -60,6 +60,7 @@ const HomePage = () => {
   const canConfigureSite = canBuildSpa(role, userType);
   const showSiteNameForm = fetchedSiteName && (!displaySiteName || isAdmin);
   const shouldUseSiteManager = canConfigureSite;
+  const showFrontendOriginsManager = canConfigureSite;
   const quota = quotaQuery.data;
   const isUnlimitedQuota =
     quota?.unlimited || (quota?.limit ?? 0) >= Number.MAX_SAFE_INTEGER / 2; // 后端用 MAX_SAFE_INTEGER 表示无限
@@ -318,7 +319,9 @@ const HomePage = () => {
                   <p className="mt-2 max-w-2xl text-[15px] leading-7 text-slate-500">
                     {requiresFrontendOrigins
                       ? "先完成站点名称和前端域名绑定，再进入构建流程。配置完成后可以直接前往前端构建或查看已生成的产物。"
-                      : "先完成站点名称设置，再进入构建流程。"}
+                      : showFrontendOriginsManager
+                        ? "先完成站点名称设置，再进入构建流程。前端域名可按需维护。"
+                        : "先完成站点名称设置，再进入构建流程。"}
                   </p>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
@@ -337,7 +340,7 @@ const HomePage = () => {
                 </div>
               </div>
 
-              <div className={`mt-5 grid gap-5 ${requiresFrontendOrigins ? "xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]" : ""}`}>
+              <div className={`mt-5 grid gap-5 ${showFrontendOriginsManager ? "xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]" : ""}`}>
                 <div className="workspace-card-soft p-5">
                   <div className="flex items-start justify-between gap-4">
                     <div>
@@ -419,7 +422,7 @@ const HomePage = () => {
                   )}
                 </div>
 
-                {requiresFrontendOrigins && (
+                {showFrontendOriginsManager && (
                 <div className="workspace-card-soft p-5">
                   <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                     <div>
