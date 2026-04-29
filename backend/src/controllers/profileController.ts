@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import prisma from "../lib/prisma";
-import { canBuildSpa, normalizeUserType } from "../lib/userAccess";
+import { canBuildSpa, getSiteNameLimit, normalizeUserType } from "../lib/userAccess";
 
 const parseFrontendOrigins = (value: unknown): string[] => {
   if (!value || typeof value !== "string") return [];
@@ -35,8 +35,8 @@ const normalizeFrontendOrigin = (value: unknown) => {
   return parsed.origin;
 };
 
-const getUserSiteNameLimit = (user: { siteNameLimit?: number | null } | null | undefined) =>
-  Math.max(Number(user?.siteNameLimit) || 1, 1);
+const getUserSiteNameLimit = (user: { role?: string | null; userType?: string | null; siteNameLimit?: number | null } | null | undefined) =>
+  getSiteNameLimit(user?.role, user?.userType, user?.siteNameLimit);
 
 const getFrontendOriginsLimit = (user: { frontendOriginsLimit?: number | null } | null | undefined) => {
   const parsed = Number(user?.frontendOriginsLimit);

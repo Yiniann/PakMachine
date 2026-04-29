@@ -32,13 +32,16 @@ export const canBuildBff = (role?: string | null, userType?: string | null) => {
   return normalized === "pro" || normalized === "priority";
 };
 
-export const shouldValidateFrontendOrigins = (role?: string | null, userType?: string | null) => {
-  if (role === "admin") return false;
-  return normalizeUserType(userType) !== "priority";
+export const getSiteNameLimit = (role?: string | null, userType?: string | null, configuredLimit?: number | null) => {
+  if (role === "admin") return Math.max(Number(configuredLimit) || 1, 1);
+  const normalized = normalizeUserType(userType);
+  if (normalized !== "priority") return 1;
+  return Math.max(Number(configuredLimit) || 1, 1);
 };
 
-export const shouldEnablePriorityMode = (_role?: string | null, userType?: string | null) => {
-  return normalizeUserType(userType) === "priority" || _role === "admin";
+export const shouldValidateFrontendOrigins = (role?: string | null, userType?: string | null) => {
+  if (role === "admin") return false;
+  return canBuildSpa(role, userType);
 };
 
 export const getDailyBuildLimit = (role?: string | null, userType?: string | null) => {

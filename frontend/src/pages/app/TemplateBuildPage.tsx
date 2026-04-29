@@ -6,7 +6,7 @@ import { useBuildTemplate } from "../../features/builds/build";
 import { useBuildProfile, useSaveBuildProfile } from "../../features/builds/profile";
 import { useTemplateFiles } from "../../features/builds/queries";
 import { useSiteProfile } from "../../features/builds/siteName";
-import { canBuildBff, canBuildSpa, getUserTypeLabel, normalizeUserType, shouldEnablePriorityMode, shouldValidateFrontendOrigins } from "../../lib/userAccess";
+import { canBuildBff, canBuildSpa, getUserTypeLabel, normalizeUserType, shouldValidateFrontendOrigins } from "../../lib/userAccess";
 
 type BuildMode = "legacy" | "bff";
 
@@ -161,7 +161,6 @@ const normalizeStoredProfiles = (input: unknown): StoredProfiles => {
 const buildLegacyEnvContent = (
   siteName: string,
   frontendOriginsValue: string,
-  priorityModeValue: string,
   form: LegacyForm,
 ) => {
   return [
@@ -170,7 +169,6 @@ const buildLegacyEnvContent = (
     `VITE_SITE_NAME=${normalizeEnvValue(siteName)}`,
     `VITE_SITE_LOGO=${normalizeEnvValue(form.siteLogo)}`,
     `VITE_ALLOWED_CLIENT_ORIGINS=${normalizeEnvValue(frontendOriginsValue)}`,
-    `VITE_ENABLE_PRIORITY_MODE=${normalizeEnvValue(priorityModeValue)}`,
     `VITE_BACKEND_TYPE=${normalizeEnvValue(form.backendType)}`,
   ].join("\n");
 };
@@ -198,7 +196,6 @@ const buildLegacyRuntimeSettings = (form: LegacyForm) => {
 const buildBffFrontendEnvContent = (
   siteName: string,
   frontendOriginsValue: string,
-  priorityModeValue: string,
   form: BffForm,
 ) => {
   const lines = [
@@ -206,17 +203,15 @@ const buildBffFrontendEnvContent = (
     `VITE_SITE_NAME=${normalizeEnvValue(siteName)}`,
     `VITE_SITE_LOGO=${normalizeEnvValue(form.frontend.siteLogo)}`,
     `VITE_ALLOWED_CLIENT_ORIGINS=${normalizeEnvValue(frontendOriginsValue)}`,
-    `VITE_ENABLE_PRIORITY_MODE=${normalizeEnvValue(priorityModeValue)}`,
     `VITE_BACKEND_TYPE=${normalizeEnvValue(form.frontend.backendType)}`,
   ];
   return lines.join("\n");
 };
 
-const buildBffServerEnvContent = (form: BffForm, priorityModeValue: string) => {
+const buildBffServerEnvContent = (form: BffForm) => {
   return [
     `PANEL_BASE_URL=${normalizeEnvValue(form.server.panelBaseUrl)}`,
     `ADMIN_BASE_PATH=${normalizeEnvValue(form.server.adminBasePath) || "/admin"}`,
-    `VITE_ENABLE_PRIORITY_MODE=${normalizeEnvValue(priorityModeValue)}`,
   ].join("\n");
 };
 
@@ -246,8 +241,6 @@ const TemplateBuildPage = () => {
   const frontendOrigins = siteProfileQuery.data?.frontendOrigins || [];
   const frontendOriginsValue = frontendOrigins.join(",");
   const shouldRequireFrontendOrigins = shouldValidateFrontendOrigins(effectiveRole, effectiveUserType);
-  const priorityModeEnabled = shouldEnablePriorityMode(effectiveRole, effectiveUserType);
-  const priorityModeValue = priorityModeEnabled ? "true" : "false";
   const profileQuery = useBuildProfile(selectedSiteId);
   const adminBasePathPreview = bffForm.server.adminBasePath.trim() || "/admin";
   const previewFrontendOrigin = shouldRequireFrontendOrigins ? (frontendOrigins[0] || "https://your-domain.com") : "https://客户访问网址";
@@ -331,7 +324,6 @@ const TemplateBuildPage = () => {
           frontendEnvContent: buildLegacyEnvContent(
             siteName,
             frontendOriginsValue,
-            priorityModeValue,
             legacyForm,
           ),
           runtimeSettings: buildLegacyRuntimeSettings(legacyForm),
@@ -360,10 +352,9 @@ const TemplateBuildPage = () => {
           frontendEnvContent: buildBffFrontendEnvContent(
             siteName,
             frontendOriginsValue,
-            priorityModeValue,
             bffForm,
           ),
-          serverEnvContent: buildBffServerEnvContent(bffForm, priorityModeValue),
+          serverEnvContent: buildBffServerEnvContent(bffForm),
         },
         {
           onSuccess: (data) => {
@@ -486,9 +477,7 @@ const TemplateBuildPage = () => {
                 当前账号档位：<span className="font-semibold">{getUserTypeLabel(effectiveUserType)}</span>
                 {effectiveUserType === "basic"
                   ? "，可使用 SPA 构建。"
-                  : effectiveUserType === "priority"
-                    ? "，可使用 SPA 与 Pro 构建，且构建时不会校验前端域名。"
-                    : "，可使用 SPA 与 Pro 构建。"}
+                  : "，可使用 SPA 与 Pro 构建。"}
               </div>
             )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

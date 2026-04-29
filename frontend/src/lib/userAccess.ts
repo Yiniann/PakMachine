@@ -53,11 +53,7 @@ export const canBuildBff = (role?: string | null, userType?: string | null) => {
 
 export const shouldValidateFrontendOrigins = (role?: string | null, userType?: string | null) => {
   if (role === "admin") return false;
-  return normalizeUserType(userType) !== "priority";
-};
-
-export const shouldEnablePriorityMode = (_role?: string | null, userType?: string | null) => {
-  return normalizeUserType(userType) === "priority" || _role === "admin";
+  return canBuildSpa(role, userType);
 };
 
 export const getDailyBuildLimit = (role?: string | null, userType?: string | null) => {

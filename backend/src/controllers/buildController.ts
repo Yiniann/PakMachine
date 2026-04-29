@@ -18,7 +18,6 @@ import {
   canBuildSpa,
   getDailyBuildLimit,
   normalizeUserType,
-  shouldEnablePriorityMode,
   shouldValidateFrontendOrigins,
 } from "../lib/userAccess";
 
@@ -406,7 +405,6 @@ export const buildTemplatePackage = async (req: Request, res: Response, next: Ne
       return res.status(404).json({ error: "站点不存在" });
     }
     const requiresFrontendOrigins = shouldValidateFrontendOrigins(dbUser?.role, normalizedUserType);
-    const priorityModeEnabled = shouldEnablePriorityMode(dbUser?.role, normalizedUserType);
     if (requiresFrontendOrigins && frontendOrigins.length === 0) {
       return res.status(400).json({ error: "请先在首页绑定至少一个前端域名" });
     }
@@ -414,7 +412,6 @@ export const buildTemplatePackage = async (req: Request, res: Response, next: Ne
     const enforcedFrontendEnv = normalizeEnvLines(finalFrontendEnvContent ?? "", {
       VITE_SITE_NAME: effectiveSiteName,
       VITE_ALLOWED_CLIENT_ORIGINS: frontendOriginsValue,
-      VITE_ENABLE_PRIORITY_MODE: priorityModeEnabled ? "true" : "false",
       VITE_API_MODE: buildMode,
     });
     const normalizedServerEnv = (serverEnvContent || "").trim();

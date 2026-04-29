@@ -127,6 +127,7 @@ const UserDetailPage = () => {
   const onUserTypeSubmit = () => updateUserType.mutate({ email: user.email, userType: userTypeValue });
 
   const frontendOriginCount = user.frontendOrigins?.length ?? 0;
+  const canEditSiteNameLimit = user.role === "admin" || normalizeUserType(user.userType) === "priority";
 
   return (
     <div className="space-y-6">
@@ -158,7 +159,7 @@ const UserDetailPage = () => {
                 <h3 className="text-lg font-semibold text-slate-900">站点名称</h3>
                 <p className="mt-1 text-sm text-slate-500">当前绑定 {user.sites?.length ?? 0} / {Math.max(Number(user.siteNameLimit ?? 1) || 1, 1)}</p>
               </div>
-              <span className="text-xs text-base-content/60">上限 {user.siteNameLimit ?? 1}</span>
+              <span className="text-xs text-base-content/60">{canEditSiteNameLimit ? "可单独配置" : `上限 ${user.siteNameLimit ?? 1}`}</span>
             </div>
             <div className="mt-3 space-y-2">
               {user.sites?.length ? (
@@ -183,27 +184,29 @@ const UserDetailPage = () => {
                 <div className="py-2 text-sm text-base-content/60">-</div>
               )}
             </div>
-            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-              <input
-                type="number"
-                min={1}
-                className="workspace-input input input-bordered h-11 w-full rounded-2xl"
-                value={siteNameLimitValue}
-                onChange={(e) => setSiteNameLimitValue(e.target.value)}
-              />
-              <button
-                type="button"
-                className="landing-button-primary inline-flex h-11 min-h-0 items-center justify-center rounded-2xl px-4 py-0 text-xs whitespace-nowrap leading-none sm:w-24 sm:text-sm"
-                disabled={updateSiteNameLimit.status === "pending"}
-                onClick={() => {
-                  const parsed = Number(siteNameLimitValue);
-                  if (!Number.isFinite(parsed) || parsed < 1) return;
-                  updateSiteNameLimit.mutate({ email: user.email, siteNameLimit: Math.floor(parsed) });
-                }}
-              >
-                {updateSiteNameLimit.status === "pending" ? "保存中..." : "保存"}
-              </button>
-            </div>
+            {canEditSiteNameLimit ? (
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                <input
+                  type="number"
+                  min={1}
+                  className="workspace-input input input-bordered h-11 w-full rounded-2xl"
+                  value={siteNameLimitValue}
+                  onChange={(e) => setSiteNameLimitValue(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className="landing-button-primary inline-flex h-11 min-h-0 items-center justify-center rounded-2xl px-4 py-0 text-xs whitespace-nowrap leading-none sm:w-24 sm:text-sm"
+                  disabled={updateSiteNameLimit.status === "pending"}
+                  onClick={() => {
+                    const parsed = Number(siteNameLimitValue);
+                    if (!Number.isFinite(parsed) || parsed < 1) return;
+                    updateSiteNameLimit.mutate({ email: user.email, siteNameLimit: Math.floor(parsed) });
+                  }}
+                >
+                  {updateSiteNameLimit.status === "pending" ? "保存中..." : "保存"}
+                </button>
+              </div>
+            ) : null}
             <button
               type="button"
               className="mt-3 text-sm font-medium text-rose-600"

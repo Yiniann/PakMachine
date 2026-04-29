@@ -6,7 +6,7 @@ import fs from "fs";
 import prisma from "../lib/prisma";
 import { loadSettings } from "./systemSettingsController";
 import { buildResetUrl, sendPasswordResetEmail, sendRegisterVerificationEmail } from "../services/mailService";
-import { isValidUserType, normalizeUserType } from "../lib/userAccess";
+import { getSiteNameLimit, isValidUserType, normalizeUserType } from "../lib/userAccess";
 
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
 const TOKEN_EXPIRES_HOURS = 1;
@@ -45,7 +45,7 @@ export const listUsers = async (_req: Request, res: Response, next: NextFunction
     const safe = users.map(({ password: _pw, resetToken, resetTokenExpires, frontendOriginsJson, sites, ...rest }: typeof users[number] & { sites?: { id: number; name: string }[] }) => ({
       ...rest,
       userType: normalizeUserType(rest.userType),
-      siteNameLimit: Math.max(Number((rest as any).siteNameLimit) || 1, 1),
+      siteNameLimit: getSiteNameLimit(rest.role, rest.userType, (rest as any).siteNameLimit),
       frontendOriginsLimit: getUserFrontendOriginsLimit(rest as any),
       sites: sites ?? [],
       frontendOrigins: parseFrontendOrigins(frontendOriginsJson),
