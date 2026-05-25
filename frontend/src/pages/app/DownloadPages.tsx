@@ -4,7 +4,7 @@ import { Artifact, useArtifacts } from "../../features/builds/artifacts";
 import api from "../../api/client";
 
 const DownloadPages = () => {
-  const artifacts = useArtifacts(2);
+  const artifacts = useArtifacts(5);
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
 
   const onDownload = async (item: Artifact) => {
@@ -39,7 +39,7 @@ const DownloadPages = () => {
       <div>
         <p className="workspace-kicker">Downloads</p>
         <h2 className="mt-3 text-4xl font-bold tracking-[-0.05em] text-slate-900">产物下载</h2>
-        <p className="mt-2 text-lg leading-8 text-slate-500">查看并下载您生成的站点前端产物，仅保留最新两次构建记录。</p>
+        <p className="mt-2 text-lg leading-8 text-slate-500">查看并下载您生成的站点前端产物，仅保留最新五次构建记录。</p>
       </div>
 
       <div className="workspace-card-soft">

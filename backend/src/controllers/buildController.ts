@@ -662,10 +662,11 @@ export const listUserArtifacts = async (req: Request, res: Response, next: NextF
     if (!user?.sub) {
       return res.status(401).json({ error: "Unauthorized" });
     }
+    const limit = Number(req.query.limit) || 5;
     const artifacts = await prisma.buildArtifact.findMany({
       where: { userId: Number(user.sub) },
       orderBy: { id: "desc" },
-      take: 2,
+      take: Math.min(limit, 20),
     });
     const data = artifacts.map((a: BuildArtifact) => ({
       id: a.id,
