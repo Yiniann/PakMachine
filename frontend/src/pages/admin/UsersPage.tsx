@@ -155,11 +155,11 @@ const UsersPage = () => {
                           <td>{u.frontendOrigins?.length ? `${u.frontendOrigins.length} 个` : "未绑定"}</td>
                           <td>{getQuotaLabel(u)}</td>
                           <td>
-                            <div className={`badge badge-sm ${getUserBadgeClass(u)}`}>{u.role === "admin" ? "管理员" : getUserTypeLabel(u.userType)}</div>
+                            <div className={`badge badge-sm whitespace-nowrap ${getUserBadgeClass(u)}`}>{u.role === "admin" ? "管理员" : getUserTypeLabel(u.userType)}</div>
                           </td>
                           <td>{u.createdAtLabel}</td>
                           <td>
-                            <button type="button" className="btn btn-xs btn-outline" onClick={() => navigate(`/admin/users/${u.id}`)}>
+                            <button type="button" className="btn btn-xs btn-outline whitespace-nowrap" onClick={() => navigate(`/admin/users/${u.id}`)}>
                               设置
                             </button>
                           </td>
@@ -178,7 +178,7 @@ const UsersPage = () => {
                         <div className="break-all font-bold">{u.email}</div>
                         <div className="text-xs text-base-content/60">ID: {u.id}</div>
                       </div>
-                      <div className={`badge badge-sm ${getUserBadgeClass(u)}`}>{u.role === "admin" ? "管理员" : getUserTypeLabel(u.userType)}</div>
+                      <div className={`badge badge-sm shrink-0 whitespace-nowrap ${getUserBadgeClass(u)}`}>{u.role === "admin" ? "管理员" : getUserTypeLabel(u.userType)}</div>
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-sm">
                       <div className="flex flex-col">
@@ -200,7 +200,7 @@ const UsersPage = () => {
                     </div>
                     <div className="flex items-center justify-between pt-1">
                       <span className="text-xs text-base-content/50">{u.createdAtLabel}</span>
-                      <button type="button" className="btn btn-xs btn-outline" onClick={() => navigate(`/admin/users/${u.id}`)}>
+                      <button type="button" className="btn btn-xs btn-outline whitespace-nowrap" onClick={() => navigate(`/admin/users/${u.id}`)}>
                         设置
                       </button>
                     </div>
