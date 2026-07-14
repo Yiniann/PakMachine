@@ -4,6 +4,7 @@ import api from "../../api/client";
 export type AdminStats = {
   totalUsers: number;
   proUsers: number;
+  paidSiteNameLimit: number;
   totalBuildJobs: number;
   buildsToday: number;
   buildsLast7Days: number;

@@ -61,6 +61,19 @@ const AdminHomePage = () => {
           <div className="workspace-card p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Paid Sites</p>
+                <p className="mt-2 text-3xl font-bold text-slate-900">{data.paidSiteNameLimit}</p>
+                <p className="mt-2 text-sm text-slate-500">付费用户站点名额</p>
+              </div>
+              <div className="text-amber-500">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="h-8 w-8 stroke-current"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 21a9 9 0 100-18 9 9 0 000 18zm0 0c2.21 0 4-4.03 4-9s-1.79-9-4-9-4 4.03-4 9 1.79 9 4 9zM3.6 9h16.8M3.6 15h16.8" /></svg>
+              </div>
+            </div>
+          </div>
+
+          <div className="workspace-card p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
                 <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Build Jobs</p>
                 <p className="mt-2 text-3xl font-bold text-slate-900">{data.totalBuildJobs}</p>
                 <p className="mt-2 text-sm text-slate-500">历史总任务数</p>
