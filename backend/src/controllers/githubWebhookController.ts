@@ -14,6 +14,8 @@ type GithubWebhookPayload = {
   githubRunId?: number | string;
 };
 
+const ARTIFACT_HISTORY_LIMIT = 5;
+
 const formatArtifactTimestamp = (date: Date) => {
   const formatter = new Intl.DateTimeFormat("en-US", {
     timeZone: "Asia/Shanghai",
@@ -86,7 +88,7 @@ export const handleGithubBuildWebhook = async (req: Request, res: Response, next
         const oldArtifacts = await tx.buildArtifact.findMany({
           where: { userId: job.userId },
           orderBy: { id: "desc" },
-          skip: 2,
+          skip: ARTIFACT_HISTORY_LIMIT,
           select: { id: true },
         });
         if (oldArtifacts.length > 0) {
