@@ -1,8 +1,10 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import BuildProgressModal, { BuildProgressStatus } from "../../components/BuildProgressModal";
 import { useAuth } from "../../components/useAuth";
 import { useCurrentUser } from "../../features/auth/queries";
 import { useBuildTemplate } from "../../features/builds/build";
+import { useBuildJob } from "../../features/builds/jobs";
 import { useBuildProfile, useSaveBuildProfile } from "../../features/builds/profile";
 import { useTemplateFiles } from "../../features/builds/queries";
 import { useSiteProfile } from "../../features/builds/siteName";
@@ -47,13 +49,6 @@ type StoredProfiles = {
 
 const normalizeEnvValue = (value: string) => value.replace(/[\r\n]+/g, " ").trim();
 const hasNewline = (value: string) => /[\r\n]/.test(value);
-const formatDateTime = (value?: string) => {
-  if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  const pad = (num: number) => num.toString().padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-};
 const isRecord = (value: unknown): value is Record<string, any> => Boolean(value) && typeof value === "object" && !Array.isArray(value);
 const normalizeString = (value: unknown, fallback = "") => (typeof value === "string" ? value : fallback);
 const createLegacyForm = (): LegacyForm => ({
@@ -223,14 +218,18 @@ const TemplateBuildPage = () => {
   const buildMutation = useBuildTemplate();
   const saveProfile = useSaveBuildProfile();
   const siteProfileQuery = useSiteProfile();
-  const [selected, setSelected] = useState<string | null>(null);
   const [selectedMode, setSelectedMode] = useState<BuildMode | null>(null);
   const [selectedSiteId, setSelectedSiteId] = useState<number | null>(null);
-  const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [stepError, setStepError] = useState<string | null>(null);
+  const [step, setStep] = useState<2 | 3>(2);
   const [error, setError] = useState<string | null>(null);
+  const [buildProgress, setBuildProgress] = useState<{
+    jobId: number | null;
+    status: BuildProgressStatus;
+    message?: string | null;
+  } | null>(null);
   const [legacyForm, setLegacyForm] = useState<LegacyForm>(createLegacyForm());
   const [bffForm, setBffForm] = useState<BffForm>(createBffForm());
+  const activeBuildJob = useBuildJob(buildProgress?.jobId ?? undefined);
 
   const effectiveRole = currentUserQuery.data?.role ?? role;
   const effectiveUserType = normalizeUserType(currentUserQuery.data?.userType ?? userType);
@@ -238,7 +237,7 @@ const TemplateBuildPage = () => {
   const canManageSites = siteOptions.length > 0;
   const selectedSite = siteOptions.find((item) => item.id === selectedSiteId) ?? null;
   const siteName = selectedSite?.name || siteProfileQuery.data?.siteName || "";
-  const frontendOrigins = siteProfileQuery.data?.frontendOrigins || [];
+  const frontendOrigins = selectedSite?.frontendOrigins || [];
   const frontendOriginsValue = frontendOrigins.join(",");
   const shouldRequireFrontendOrigins = shouldValidateFrontendOrigins(effectiveRole, effectiveUserType);
   const profileQuery = useBuildProfile(selectedSiteId);
@@ -246,20 +245,10 @@ const TemplateBuildPage = () => {
   const previewFrontendOrigin = shouldRequireFrontendOrigins ? (frontendOrigins[0] || "https://your-domain.com") : "https://客户访问网址";
   const canUseSpaMode = canBuildSpa(effectiveRole, effectiveUserType);
   const canUseBffMode = canBuildBff(effectiveRole, effectiveUserType);
-  const selectedTemplate = useMemo(() => templates.data?.find((item) => item.filename === selected) ?? null, [selected, templates.data]);
+  const selected = templates.data?.[0]?.filename ?? null;
   const selectedModeLabel = selectedMode === "legacy" ? "SPA 版（纯前端）" : selectedMode === "bff" ? "Pro 版（BFF）" : "未选择";
 
   const currentCanSubmit = Boolean(selected && selectedMode);
-
-  useEffect(() => {
-    if (selected || !templates.data || templates.data.length === 0) return;
-    const latest = [...templates.data].sort((a, b) => {
-      const aTime = a.modifiedAt ? new Date(a.modifiedAt).getTime() : 0;
-      const bTime = b.modifiedAt ? new Date(b.modifiedAt).getTime() : 0;
-      return bTime - aTime;
-    })[0] ?? templates.data[0];
-    setSelected(latest?.filename || null);
-  }, [selected, templates.data]);
 
   useEffect(() => {
     if (siteOptions.length === 0) {
@@ -277,6 +266,27 @@ const TemplateBuildPage = () => {
     setBffForm(profiles.bff);
     setSelectedMode((prev) => profiles.lastMode ?? prev ?? "legacy");
   }, [profileQuery.data, profileQuery.isSuccess]);
+
+  useEffect(() => {
+    if (!buildProgress?.jobId || !activeBuildJob.data) return;
+    const status = activeBuildJob.data.status;
+    if (status === "success") {
+      setBuildProgress((current) => current ? { ...current, status: "success", message: null } : current);
+      const redirectTimer = window.setTimeout(() => navigate("/app/downloads?category=web"), 350);
+      return () => window.clearTimeout(redirectTimer);
+    }
+    if (status === "failed") {
+      setBuildProgress((current) => current ? {
+        ...current,
+        status: "failed",
+        message: activeBuildJob.data?.message || "构建失败，请稍后重试",
+      } : current);
+      return;
+    }
+    if (status === "pending" || status === "running") {
+      setBuildProgress((current) => current ? { ...current, status } : current);
+    }
+  }, [activeBuildJob.data?.status, activeBuildJob.data?.message, buildProgress?.jobId, navigate]);
 
   const updateLegacy = <K extends keyof LegacyForm>(key: K, value: LegacyForm[K]) => setLegacyForm((prev) => ({ ...prev, [key]: value }));
   const updateBffFrontend = <K extends keyof BffForm["frontend"]>(key: K, value: BffForm["frontend"][K]) => setBffForm((prev) => ({ ...prev, frontend: { ...prev.frontend, [key]: value } }));
@@ -299,7 +309,7 @@ const TemplateBuildPage = () => {
     setError(null);
 
     if (!selected) {
-      setError("请先选择一个版本");
+      setError("管理员尚未配置前端构建模板");
       return;
     }
     if (canManageSites && siteOptions.length > 0 && !selectedSiteId) {
@@ -316,9 +326,9 @@ const TemplateBuildPage = () => {
         setError("当前账号为待开通状态，请联系管理员开通基础版或订阅版权限");
         return;
       }
+      setBuildProgress({ jobId: null, status: "submitting" });
       buildMutation.mutate(
         {
-          filename: selected,
           siteId: selectedSiteId,
           buildMode: "legacy",
           frontendEnvContent: buildLegacyEnvContent(
@@ -330,10 +340,15 @@ const TemplateBuildPage = () => {
         },
         {
           onSuccess: (data) => {
-            if (data.jobId) navigate(`/app?jobId=${data.jobId}`);
+            if (data.jobId) setBuildProgress({ jobId: data.jobId, status: "pending" });
+            else setBuildProgress({ jobId: null, status: "failed", message: "构建任务未返回任务编号" });
             saveProfiles("legacy");
           },
-          onError: (err: any) => setError(err?.response?.data?.error || "构建失败，请稍后再试"),
+          onError: (err: any) => setBuildProgress({
+            jobId: null,
+            status: "failed",
+            message: err?.response?.data?.error || "构建失败，请稍后再试",
+          }),
         },
       );
       return;
@@ -344,9 +359,9 @@ const TemplateBuildPage = () => {
         setError("当前账号仅订阅版或优先版可使用 Pro 构建");
         return;
       }
+      setBuildProgress({ jobId: null, status: "submitting" });
       buildMutation.mutate(
         {
-          filename: selected,
           siteId: selectedSiteId,
           buildMode: "bff",
           frontendEnvContent: buildBffFrontendEnvContent(
@@ -358,100 +373,42 @@ const TemplateBuildPage = () => {
         },
         {
           onSuccess: (data) => {
-            if (data.jobId) navigate(`/app?jobId=${data.jobId}`);
+            if (data.jobId) setBuildProgress({ jobId: data.jobId, status: "pending" });
+            else setBuildProgress({ jobId: null, status: "failed", message: "构建任务未返回任务编号" });
             saveProfiles("bff");
           },
-          onError: (err: any) => setError(err?.response?.data?.error || "构建失败，请稍后再试"),
+          onError: (err: any) => setBuildProgress({
+            jobId: null,
+            status: "failed",
+            message: err?.response?.data?.error || "构建失败，请稍后再试",
+          }),
         },
       );
       return;
     }
 
-    setError("请先选择构建版本");
+    setError("请选择构建方式");
   };
 
   return (
     <div className="space-y-6">
       <div className="flex justify-center py-4">
         <ul className="steps w-full max-w-2xl">
-          <li className={`step ${step >= 1 ? "step-primary" : ""} cursor-pointer`} onClick={() => setStep(1)}>选择版本</li>
-          <li className={`step ${step >= 2 ? "step-primary" : ""} ${selected ? "cursor-pointer" : ""}`} onClick={() => selected && setStep(2)}>选择构建方式</li>
+          <li className="step step-primary cursor-pointer" onClick={() => setStep(2)}>选择构建方式</li>
           <li className={`step ${step >= 3 ? "step-primary" : ""}`}>填写配置</li>
         </ul>
       </div>
-
-      {(selected || selectedMode || siteName) && (
-        <div className="grid grid-cols-3 gap-2 sm:gap-3">
-          <div className="rounded-2xl border border-base-200 bg-base-100 p-3 shadow-sm sm:p-4">
-            <p className="text-xs uppercase tracking-wide text-base-content/50">当前版本</p>
-            <p className="mt-2 truncate text-sm font-semibold sm:text-base">{selected || "未选择版本"}</p>
-            <p className="mt-1 text-xs text-base-content/60 sm:text-sm">{formatDateTime(selectedTemplate?.modifiedAt)}</p>
-          </div>
-          <div className="rounded-2xl border border-base-200 bg-base-100 p-3 shadow-sm sm:p-4">
-            <p className="text-xs uppercase tracking-wide text-base-content/50">构建方式</p>
-            <p className="mt-2 truncate text-sm font-semibold sm:text-base">{selectedModeLabel}</p>
-            <p className="mt-1 text-xs text-base-content/60 sm:text-sm">{selectedMode === "bff" ? "请求通过服务端中转，更适合增强隔离场景。" : selectedMode === "legacy" ? "浏览器直连面板 API，适合传统部署场景。" : "先选择版本，再进入详细配置。"}</p>
-          </div>
-          <div className="rounded-2xl border border-base-200 bg-base-100 p-3 shadow-sm sm:p-4">
-            <p className="text-xs uppercase tracking-wide text-base-content/50">站点名称</p>
-            <p className="mt-2 truncate text-sm font-semibold sm:text-base">{siteName || "未设置站点名称"}</p>
-            <p className="mt-1 text-xs text-base-content/60 sm:text-sm">{siteName ? "名称将自动带入本次构建配置。" : canManageSites ? "请先在构建页添加并选择站点名称。" : "请先在首页完成站点名称设置。"}</p>
-          </div>
-        </div>
-      )}
-
-      {step === 1 && (
-        <div className="card bg-base-100 shadow-xl border border-base-200">
-          <div className="card-body gap-6">
-            <div>
-              <h2 className="card-title text-2xl font-bold">选择版本</h2>
-              <p className="mt-1 text-base-content/70">先选择要打包的版本，再根据需求选择构建方式并填写配置。</p>
-            </div>
-            {templates.isLoading && <p>加载中...</p>}
-            {templates.error && <p className="text-error">加载失败</p>}
-            {!templates.isLoading && templates.data && templates.data.length === 0 && <p>暂无可用版本，请先在后台配置可构建版本。</p>}
-            {!templates.isLoading && templates.data && templates.data.length > 0 && (
-              <div className="overflow-hidden rounded-2xl border border-base-200">
-                <div className="overflow-x-auto">
-                  <table className="table table-zebra">
-                    <thead>
-                      <tr><th className="w-12"></th><th>版本名</th><th>描述</th><th className="w-40">更新时间</th></tr>
-                    </thead>
-                    <tbody>
-                      {templates.data.map((item) => (
-                        <tr key={item.filename} className={`hover cursor-pointer transition-colors ${selected === item.filename ? "bg-base-200" : ""}`} onClick={() => setSelected(item.filename)}>
-                          <td><input type="radio" name="template" className="radio" checked={selected === item.filename} onChange={() => setSelected(item.filename)} /></td>
-                          <td className="font-medium">{item.filename}</td>
-                          <td className="max-w-xs whitespace-pre-wrap break-words text-sm text-base-content/80">{item.description || "-"}</td>
-                          <td className="text-sm text-base-content/60">{formatDateTime(item.modifiedAt)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-            {stepError && <p className="text-error text-sm">{stepError}</p>}
-            <div className="flex justify-end">
-              <button className="btn btn-primary px-8" type="button" disabled={!selected} onClick={() => {
-                if (!selected) {
-                  setStepError("请先选择一个版本");
-                  return;
-                }
-                setStep(2);
-              }}>下一步</button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {step === 2 && (
         <div className="card bg-base-100 shadow-xl border border-base-200">
           <div className="card-body gap-6">
             <div>
               <h2 className="card-title text-2xl font-bold">选择构建方式</h2>
-              <p className="text-base-content/70 mt-1">同一版本支持两种构建方式：SPA 直连面板，或 Pro 通过 BFF 中转。</p>
+              <p className="text-base-content/70 mt-1">选择 SPA 直连面板，或 Pro 通过 BFF 中转。</p>
             </div>
+            {templates.isLoading && <div className="flex justify-center py-6"><span className="loading loading-spinner" /></div>}
+            {templates.error && <div className="alert alert-error">前端构建模板加载失败</div>}
+            {!templates.isLoading && templates.data?.length === 0 && <div className="alert alert-warning">管理员尚未配置前端构建模板</div>}
             {effectiveRole !== "admin" && effectiveUserType === "pending" && (
               <div className="rounded-2xl border border-[#6d6bf4]/20 bg-[#6d6bf4]/8 px-5 py-5 text-slate-900 shadow-sm">
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -485,16 +442,15 @@ const TemplateBuildPage = () => {
                 <div className="flex items-start justify-between gap-3"><div><p className="text-sm text-base-content/60">经服务端中转</p><h3 className="text-xl font-bold">Pro 版（BFF）</h3></div><span className="badge badge-secondary">推荐</span></div>
                 <p className="text-sm text-base-content/70">前端先请求 BFF 服务，再由服务端统一转发和处理，适合需要后台管理和更强隔离的场景。</p>
                 {!canUseBffMode && <p className="text-warning text-sm">仅订阅版、优先版或管理员可用。</p>}
-                <button className="btn btn-secondary btn-block mt-auto" type="button" disabled={!canUseBffMode} onClick={() => { setSelectedMode("bff"); setStep(3); }}>进入 Pro 配置</button>
+                <button className="btn btn-secondary btn-block mt-auto" type="button" disabled={!selected || !canUseBffMode} onClick={() => { setSelectedMode("bff"); setStep(3); }}>进入 Pro 配置</button>
               </div>
               <div className={`rounded-2xl border p-6 space-y-4 flex h-full flex-col shadow-sm ${selectedMode === "legacy" ? "border-primary bg-primary/5" : "border-base-200"} ${!canUseSpaMode ? "opacity-60" : ""}`}>
                 <div><p className="text-sm text-base-content/60">前端直连面板</p><h3 className="text-xl font-bold">SPA 版（纯前端）</h3></div>
                 <p className="text-sm text-base-content/70">浏览器直接请求面板 API，构建时写入前端环境变量，适合传统前端部署场景。</p>
                 {!canUseSpaMode && <p className="text-warning text-sm">待开通账号暂不支持构建。</p>}
-                <button className="btn btn-primary btn-block mt-auto" type="button" disabled={!canUseSpaMode} onClick={() => { setSelectedMode("legacy"); setStep(3); }}>进入 SPA 配置</button>
+                <button className="btn btn-primary btn-block mt-auto" type="button" disabled={!selected || !canUseSpaMode} onClick={() => { setSelectedMode("legacy"); setStep(3); }}>进入 SPA 配置</button>
               </div>
             </div>
-            <div className="flex justify-between"><button className="btn btn-outline" type="button" onClick={() => setStep(1)}>上一步</button></div>
           </div>
         </div>
       )}
@@ -692,15 +648,9 @@ const TemplateBuildPage = () => {
                       <p className="text-base-content/50">站点名称</p>
                       <p className="mt-1 font-medium">{siteName || "未设置"}</p>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-base-content/50">构建方式</p>
-                        <p className="mt-1 font-medium">{selectedModeLabel}</p>
-                      </div>
-                      <div>
-                        <p className="text-base-content/50">版本</p>
-                        <p className="mt-1 font-medium break-all">{selected || "未选择"}</p>
-                      </div>
+                    <div>
+                      <p className="text-base-content/50">构建方式</p>
+                      <p className="mt-1 font-medium">{selectedModeLabel}</p>
                     </div>
                     <div>
                       <p className="text-base-content/50">当前状态</p>
@@ -731,12 +681,20 @@ const TemplateBuildPage = () => {
           <button className="btn btn-outline" type="button" onClick={() => setStep(2)}>上一步</button>
           <div className="flex flex-wrap items-center gap-2">
             <button className="btn btn-ghost text-error hover:bg-error/10" type="button" onClick={resetCurrentForm}>清空当前配置</button>
-            <button className="btn btn-primary min-w-[160px] shadow-lg shadow-primary/30" type="submit" form="build-config-form" disabled={buildMutation.status === "pending"}>
-              {buildMutation.status === "pending" ? "构建中..." : "开始构建"}
+            <button className="btn btn-primary min-w-[160px] shadow-lg shadow-primary/30" type="submit" form="build-config-form" disabled={buildMutation.status === "pending" || Boolean(buildProgress && buildProgress.status !== "failed")}>
+              {buildMutation.status === "pending" || (buildProgress && buildProgress.status !== "failed") ? "构建中..." : "开始构建"}
             </button>
           </div>
         </div>
       )}
+      <BuildProgressModal
+        open={Boolean(buildProgress)}
+        title="前端构建"
+        jobId={buildProgress?.jobId}
+        status={buildProgress?.status || "submitting"}
+        message={buildProgress?.message}
+        onClose={() => setBuildProgress(null)}
+      />
     </div>
   );
 };

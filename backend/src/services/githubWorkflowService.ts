@@ -9,6 +9,11 @@ type DispatchPayload = {
   runtimeSettings?: Record<string, unknown> | null;
 };
 
+type ClientDispatchPayload = {
+  platform: "macos" | "windows" | "android";
+  clientEnvContent: string;
+};
+
 const RETRIABLE_FETCH_ERROR_CODES = new Set([
   "EAI_AGAIN",
   "ENOTFOUND",
@@ -95,8 +100,7 @@ const candidateWorkflowFiles = (workflowFile: string) => {
 };
 
 export const dispatchGithubWorkflow = async (template: TemplateEntry, jobId: number, payload: DispatchPayload) => {
-  const settings = loadSettings();
-  const workflowFile = (settings.workflowFile || process.env.GITHUB_WORKFLOW_FILE || "package.yml").trim();
+  const workflowFile = (template.workflowFile || process.env.GITHUB_WORKFLOW_FILE || "package.yml").trim();
   if (!template.repo) {
     throw new Error("模板缺少 repo 配置");
   }
@@ -163,6 +167,39 @@ export const dispatchGithubWorkflow = async (template: TemplateEntry, jobId: num
   }
 
   throw new Error(lastError);
+};
+
+export const dispatchClientGithubWorkflow = async (template: TemplateEntry, jobId: number, payload: ClientDispatchPayload) => {
+  if (template.type !== "github" || !template.repo) {
+    throw new Error("客户端打包模板必须是有效的 GitHub 模板");
+  }
+  const repo = template.repo.trim();
+  const branch = template.branch?.trim() || "main";
+  const workflowFile = (template.workflowFile || process.env.CLIENT_GITHUB_WORKFLOW_FILE || "package-client.yml").trim();
+  const { owner, name } = parseRepo(repo);
+  const url = `https://api.github.com/repos/${owner}/${name}/actions/workflows/${workflowFile}/dispatches`;
+  const body = {
+    ref: branch,
+    inputs: {
+      job_id: String(jobId),
+      platform: payload.platform,
+      client_env: payload.clientEnvContent,
+    },
+  };
+
+  const res = await fetchWithRetry(
+    url,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...githubHeaders() },
+      body: JSON.stringify(body),
+    },
+    `客户端 GitHub dispatch 失败（repo=${repo}, workflow=${workflowFile}, branch=${branch}）`,
+  );
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(formatDispatchError(res.status, text, repo, workflowFile, branch));
+  }
 };
 
 export const deleteGithubRunArtifacts = async (repo: string, runId: number | string) => {

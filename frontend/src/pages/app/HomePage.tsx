@@ -7,6 +7,13 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../components/useAuth";
 import { canBuildSpa, getUserTypeBadgeClass, getUserTypeDescription, getUserTypeLabel, normalizeUserType, shouldValidateFrontendOrigins } from "../../lib/userAccess";
 
+const clientPlatformLabel = (platform?: string | null) => {
+  if (platform === "macos") return "macOS";
+  if (platform === "windows") return "Windows";
+  if (platform === "android") return "Android";
+  return "客户端";
+};
+
 const HomePage = () => {
   const siteProfileQuery = useSiteProfile();
   const setSiteNameMutation = useSetSiteName();
@@ -24,13 +31,19 @@ const HomePage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const [cachedSiteName, setCachedSiteName] = useState<string | null>(null);
+  const [selectedSiteId, setSelectedSiteId] = useState<number | null>(null);
   const [input, setInput] = useState("");
   const [newSiteName, setNewSiteName] = useState("");
   const [frontendOriginInput, setFrontendOriginInput] = useState("");
   const [siteMessage, setSiteMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [originMessage, setOriginMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
-  const [buildFailure, setBuildFailure] = useState<{ jobId: number; message: string; createdAt: string } | null>(null);
+  const [buildFailure, setBuildFailure] = useState<{
+    jobId: number;
+    buildKind: "web" | "client";
+    message: string;
+    createdAt: string;
+  } | null>(null);
   const [dismissedFailureId, setDismissedFailureId] = useState<number | null>(null);
   const prevJobIdRef = useRef<number | undefined>(undefined);
   const dismissedStorageKey = "pacmachine-dismissed-failure-id";
@@ -45,17 +58,20 @@ const HomePage = () => {
   const siteName = siteProfileQuery.data?.siteName || null;
   const siteOptions = siteProfileQuery.data?.sites || [];
   const siteNameLimit = Math.max(siteProfileQuery.data?.siteNameLimit ?? 1, 1);
-  const frontendOriginsLimit = Math.max(siteProfileQuery.data?.frontendOriginsLimit ?? 4, 1);
-  const frontendOrigins = siteProfileQuery.data?.frontendOrigins || [];
+  const selectedSite = siteOptions.find((site) => site.id === selectedSiteId) ?? null;
+  const frontendOriginsLimit = Math.max(selectedSite?.frontendOriginsLimit ?? 4, 1);
+  const frontendOrigins = selectedSite?.frontendOrigins || [];
   const loadingSiteName = siteProfileQuery.isPending; // 只在首个请求未返回时认为 loading，避免阻塞展示
   const fetchedSiteName = siteProfileQuery.isSuccess || siteProfileQuery.isError;
-  const displaySiteName = cachedSiteName || siteName;
+  const displaySiteName = selectedSite?.name || cachedSiteName || siteName;
   const jobIdParam = searchParams.get("jobId");
   const jobId = jobIdParam ? Number(jobIdParam) : undefined;
   const activeJobQuery = useBuildJob(jobId);
   const derivedActiveJob =
-    jobsQuery.data?.find((j) => j.status === "pending" || j.status === "running") ?? null;
-  const hasActiveJob = Boolean(jobId) || Boolean(derivedActiveJob);
+    jobsQuery.data?.find((j) => j.status === "pending" || j.status === "queued" || j.status === "running") ?? null;
+  const currentBuild = (jobId ? activeJobQuery.data : null) ?? derivedActiveJob;
+  const currentBuildKind = currentBuild?.buildKind === "client" ? "client" : "web";
+  const currentBuildPage = currentBuildKind === "client" ? "/app/client-build" : "/app/build";
   const isAdmin = role === "admin";
   const canConfigureSite = canBuildSpa(role, userType);
   const showSiteNameForm = fetchedSiteName && (!displaySiteName || isAdmin);
@@ -66,18 +82,18 @@ const HomePage = () => {
     quota?.unlimited || (quota?.limit ?? 0) >= Number.MAX_SAFE_INTEGER / 2; // 后端用 MAX_SAFE_INTEGER 表示无限
 
   const activeJobStatusLabel = useMemo(() => {
-    if (!activeJobQuery.data) return null;
-    const s = activeJobQuery.data.status;
-    if (s === "pending") return "等待中";
+    if (!currentBuild) return null;
+    const s = currentBuild.status;
+    if (s === "pending" || s === "queued") return "等待中";
     if (s === "running") return "构建中";
     if (s === "success") return "已完成";
     if (s === "failed") return "失败";
     return s;
-  }, [activeJobQuery.data]);
+  }, [currentBuild]);
   const jobStats = useMemo(() => {
     const jobs = jobsQuery.data ?? [];
     return {
-      pending: jobs.filter((j) => j.status === "pending").length,
+      pending: jobs.filter((j) => j.status === "pending" || j.status === "queued").length,
       running: jobs.filter((j) => j.status === "running").length,
       success: jobs.filter((j) => j.status === "success").length,
       failed: jobs.filter((j) => j.status === "failed").length,
@@ -85,9 +101,7 @@ const HomePage = () => {
   }, [jobsQuery.data]);
   const isTaskInProgress =
     activeJobStatusLabel === "等待中" ||
-    activeJobStatusLabel === "构建中" ||
-    derivedActiveJob?.status === "pending" ||
-    derivedActiveJob?.status === "running";
+    activeJobStatusLabel === "构建中";
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -108,8 +122,12 @@ const HomePage = () => {
   const onAddFrontendOrigin = (e: FormEvent) => {
     e.preventDefault();
     setOriginMessage(null);
+    if (!selectedSiteId) {
+      setOriginMessage({ type: "error", text: "请先选择品牌" });
+      return;
+    }
     addFrontendOriginMutation.mutate(
-      { frontendOrigin: frontendOriginInput },
+      { siteId: selectedSiteId, frontendOrigin: frontendOriginInput },
       {
         onSuccess: (data) => {
           const latest = data.frontendOrigins[data.frontendOrigins.length - 1];
@@ -133,6 +151,7 @@ const HomePage = () => {
           setCachedSiteName(data.name);
           setNewSiteName("");
           await siteProfileQuery.refetch();
+          setSelectedSiteId(data.id);
         },
         onError: (err: any) => setSiteMessage({ type: "error", text: err?.response?.data?.error || "添加站点名称失败" }),
       },
@@ -149,6 +168,16 @@ const HomePage = () => {
   }, [siteName, isAdmin]);
 
   useEffect(() => {
+    if (siteOptions.length === 0) {
+      setSelectedSiteId(null);
+      return;
+    }
+    if (!selectedSiteId || !siteOptions.some((site) => site.id === selectedSiteId)) {
+      setSelectedSiteId(siteOptions[0].id);
+    }
+  }, [siteOptions, selectedSiteId]);
+
+  useEffect(() => {
     if (!jobId) return;
     const status = activeJobQuery.data?.status;
     if (!status) return;
@@ -158,6 +187,7 @@ const HomePage = () => {
       if (isRecentFailure(createdAt)) {
         setBuildFailure({
           jobId,
+          buildKind: activeJobQuery.data?.buildKind === "client" ? "client" : "web",
           message: activeJobQuery.data?.message || "构建失败，请稍后重试",
           createdAt: createdAt!,
         });
@@ -174,10 +204,10 @@ const HomePage = () => {
       });
       if (status === "success") {
         setBuildFailure(null);
-        navigate("/app/downloads");
+        navigate(`/app/downloads?category=${activeJobQuery.data?.buildKind === "client" ? "client" : "web"}`);
       }
     }
-  }, [jobId, activeJobQuery.data?.status, activeJobQuery.data?.message, activeJobQuery.data?.createdAt, navigate, setSearchParams]);
+  }, [jobId, activeJobQuery.data?.status, activeJobQuery.data?.message, activeJobQuery.data?.createdAt, activeJobQuery.data?.buildKind, navigate, setSearchParams]);
 
   useEffect(() => {
     if (jobId !== undefined && jobId !== prevJobIdRef.current) {
@@ -208,6 +238,7 @@ const HomePage = () => {
     if (dismissedFailureId && latestFailed.id === dismissedFailureId) return;
     setBuildFailure({
       jobId: latestFailed.id,
+      buildKind: latestFailed.buildKind === "client" ? "client" : "web",
       message: latestFailed.message || "构建失败，请稍后重试",
       createdAt: latestFailed.createdAt,
     });
@@ -362,7 +393,10 @@ const HomePage = () => {
                       {siteOptions.length > 0 ? (
                         <div className="mt-5 flex flex-wrap gap-2.5">
                           {siteOptions.map((site) => (
-                            <span key={site.id} className="rounded-full border border-sky-200 bg-sky-50 px-3.5 py-1.5 text-sm font-medium text-sky-700">
+                            <span
+                              key={site.id}
+                              className="rounded-full border border-sky-200 bg-sky-50 px-3.5 py-1.5 text-sm font-medium text-sky-700"
+                            >
                               {site.name}
                             </span>
                           ))}
@@ -424,15 +458,35 @@ const HomePage = () => {
 
                 {showFrontendOriginsManager && (
                 <div className="workspace-card-soft p-5">
-                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                  <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                     <div>
                       <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Origins</p>
                       <h4 className="mt-2 text-xl font-bold text-slate-900">前端域名</h4>
                     </div>
+                    <label className="form-control w-full md:w-72">
+                      <span className="label-text font-medium text-slate-600">绑定到品牌</span>
+                      <select
+                        className="workspace-input select select-bordered mt-2 w-full rounded-2xl"
+                        value={selectedSiteId ?? ""}
+                        disabled={siteOptions.length === 0}
+                        onChange={(event) => {
+                          setSelectedSiteId(Number(event.target.value));
+                          setFrontendOriginInput("");
+                          setOriginMessage(null);
+                        }}
+                      >
+                        {siteOptions.length === 0 ? <option value="">请先添加品牌</option> : null}
+                        {siteOptions.map((site) => (
+                          <option key={site.id} value={site.id}>{site.name}</option>
+                        ))}
+                      </select>
+                    </label>
                   </div>
 
                   <p className="mt-3 text-[15px] leading-7 text-slate-500">
-                    当前账号最多绑定 {frontendOriginsLimit} 个前端域名。已绑定的域名用户侧不可删除，如需调整请联系管理员处理。
+                    {selectedSite
+                      ? `${selectedSite.name} 已绑定 ${frontendOrigins.length} / ${frontendOriginsLimit} 个前端域名。已绑定的域名用户侧不可删除，如需调整请联系管理员处理。`
+                      : "请先添加并选择一个品牌，再为该品牌绑定前端域名。"}
                   </p>
 
                   {frontendOrigins.length > 0 ? (
@@ -456,15 +510,15 @@ const HomePage = () => {
                         placeholder={frontendOrigins.length > 0 ? "继续绑定前端域名，每次输入一个，如 https://a.com" : "请输入完整域名，每次输入一个，如 https://a.com"}
                         value={frontendOriginInput}
                         onChange={(e) => setFrontendOriginInput(e.target.value)}
-                        disabled={addFrontendOriginMutation.status === "pending"}
+                        disabled={!selectedSiteId || addFrontendOriginMutation.status === "pending"}
                       />
-                      <button className="landing-button-primary shrink-0 rounded-2xl px-5 py-3 text-sm" type="submit" disabled={!frontendOriginInput.trim() || addFrontendOriginMutation.status === "pending"}>
+                      <button className="landing-button-primary shrink-0 rounded-2xl px-5 py-3 text-sm" type="submit" disabled={!selectedSiteId || !frontendOriginInput.trim() || addFrontendOriginMutation.status === "pending"}>
                         {addFrontendOriginMutation.status === "pending" ? "提交中..." : frontendOrigins.length > 0 ? "添加" : "绑定"}
                       </button>
                     </form>
                   ) : (
                     <div className="mt-5 workspace-alert alert border border-pink-200 bg-pink-50 text-pink-700 text-sm py-3">
-                      <span>已达到 {frontendOriginsLimit} 个前端域名上限，如需调整请联系管理员重置。</span>
+                      <span>{selectedSite?.name || "当前品牌"} 已达到 {frontendOriginsLimit} 个前端域名上限，如需调整请联系管理员重置。</span>
                     </div>
                   )}
 
@@ -522,20 +576,31 @@ const HomePage = () => {
                 </div>
                 <div className="flex items-center gap-3">
                   {isTaskInProgress ? <span className="loading loading-spinner loading-md text-[#6d6bf4]" /> : null}
-                  <button className="landing-button-secondary rounded-2xl px-5 py-3 text-sm" onClick={() => navigate("/app/build")}>
-                    前往构建页
+                  <button className="landing-button-secondary rounded-2xl px-5 py-3 text-sm" onClick={() => navigate(currentBuildPage)}>
+                    {currentBuildKind === "client" && currentBuild ? "前往客户端构建" : "前往前端构建"}
                   </button>
                 </div>
               </div>
-              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <div className="mt-5 grid gap-3 sm:grid-cols-3">
                 <div className="workspace-card-soft p-4">
                   <div className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">任务编号</div>
-                  <div className="mt-2 text-xl font-bold text-slate-900">#{jobId ?? derivedActiveJob?.id ?? "..."}</div>
+                  <div className="mt-2 text-xl font-bold text-slate-900">{currentBuild ? `#${currentBuild.id}` : "-"}</div>
+                </div>
+                <div className="workspace-card-soft p-4">
+                  <div className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">构建类型</div>
+                  <div className="mt-2 text-lg font-bold text-slate-900">
+                    {currentBuild ? (currentBuildKind === "client" ? "客户端构建" : "Web 构建") : "-"}
+                  </div>
+                  {currentBuildKind === "client" && currentBuild ? (
+                    <div className="mt-1 text-xs text-slate-500">
+                      {clientPlatformLabel(currentBuild.platform)}{currentBuild.arch ? ` · ${currentBuild.arch}` : ""}
+                    </div>
+                  ) : null}
                 </div>
                 <div className="workspace-card-soft p-4">
                   <div className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">状态</div>
                   <div className="mt-2 text-lg font-bold text-[#6d6bf4]">
-                    {activeJobStatusLabel ?? (derivedActiveJob ? (derivedActiveJob.status === "pending" ? "等待中" : "构建中") : "当前没有进行中的任务")}
+                    {activeJobStatusLabel ?? "当前没有进行中的任务"}
                   </div>
                 </div>
               </div>
@@ -549,11 +614,11 @@ const HomePage = () => {
         <div role="alert" className="alert alert-error shadow-lg">
           <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
           <div className="flex-1">
-            <h3 className="font-bold">构建失败 #{buildFailure.jobId}</h3>
+            <h3 className="font-bold">{buildFailure.buildKind === "client" ? "客户端" : "Web"} 构建失败 #{buildFailure.jobId}</h3>
             <div className="text-xs">{buildFailure.message}</div>
           </div>
           <div className="flex gap-2">
-            <button className="btn btn-sm bg-white/20 border-0 text-white hover:bg-white/30" onClick={() => navigate("/app/build")}>
+            <button className="btn btn-sm bg-white/20 border-0 text-white hover:bg-white/30" onClick={() => navigate(buildFailure.buildKind === "client" ? "/app/client-build" : "/app/build")}>
               重新提交
             </button>
             <button

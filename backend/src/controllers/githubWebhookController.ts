@@ -12,6 +12,12 @@ type GithubWebhookPayload = {
   artifactUrl?: string;
   artifactFilename?: string;
   githubRunId?: number | string;
+  objectKey?: string;
+  size?: number;
+  sha256?: string;
+  platform?: string;
+  arch?: string;
+  version?: string;
 };
 
 const ARTIFACT_HISTORY_LIMIT = 5;
@@ -69,8 +75,9 @@ export const handleGithubBuildWebhook = async (req: Request, res: Response, next
       return res.status(404).json({ error: "Job not found" });
     }
 
+    const isClientBuild = job.buildKind === "client";
     let artifactId: number | undefined;
-    if (status === "success" && artifactUrl) {
+    if (!isClientBuild && status === "success" && artifactUrl) {
       const normalizedArtifactUrl = normalizeArtifactUrl(artifactUrl) ?? artifactUrl;
       const artifact = await prisma.$transaction(async (tx) => {
         const owner = await tx.user.findUnique({
@@ -101,7 +108,7 @@ export const handleGithubBuildWebhook = async (req: Request, res: Response, next
       artifactId = artifact.id;
     }
 
-    if (status === "success" && githubRunId) {
+    if (!isClientBuild && status === "success" && githubRunId) {
       const template = getTemplateEntry(job.filename);
       if (template?.type === "github" && template.repo) {
         try {
@@ -112,12 +119,46 @@ export const handleGithubBuildWebhook = async (req: Request, res: Response, next
       }
     }
 
+    if (isClientBuild && status === "success") {
+      const objectKey = String(payload.objectKey || "");
+      const size = Number(payload.size);
+      const sha256 = String(payload.sha256 || "").toLowerCase();
+      const platform = String(payload.platform || "");
+      const arch = String(payload.arch || "");
+      const version = String(payload.version || "");
+      const expectedPrefix = `client-packages/job-${job.id}/`;
+      if (!objectKey.startsWith(expectedPrefix) || objectKey.includes("..")) return res.status(400).json({ error: "objectKey 不合法" });
+      if (!artifactFilename || artifactFilename.includes("/") || artifactFilename.includes("\\")) return res.status(400).json({ error: "artifactFilename 不合法" });
+      if (!Number.isSafeInteger(size) || size < 1 || size > 2_000_000_000) return res.status(400).json({ error: "size 不合法" });
+      if (!/^[a-f0-9]{64}$/.test(sha256)) return res.status(400).json({ error: "sha256 不合法" });
+      if (platform !== job.platform) return res.status(400).json({ error: "platform 与任务不匹配" });
+      if (!arch || !version) return res.status(400).json({ error: "缺少 arch 或 version" });
+      await prisma.buildJob.update({
+        where: { id: jobId },
+        data: {
+          status,
+          message: message ?? undefined,
+          objectKey,
+          artifactFilename,
+          artifactSize: size,
+          artifactSha256: sha256,
+          platform,
+          arch,
+          version,
+          githubRunId: githubRunId ? String(githubRunId) : undefined,
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        },
+      });
+      return res.json({ ok: true });
+    }
+
     await prisma.buildJob.update({
       where: { id: jobId },
       data: {
         status,
         message: message ?? undefined,
         artifactId,
+        githubRunId: githubRunId ? String(githubRunId) : undefined,
       },
     });
 

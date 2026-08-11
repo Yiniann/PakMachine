@@ -5,6 +5,9 @@ export type BuildJob = {
   id: number;
   status: string;
   message?: string;
+  buildKind?: "web" | "client";
+  platform?: "macos" | "windows" | "android" | null;
+  arch?: string | null;
   artifactId?: number;
   siteId?: number | null;
   siteName?: string | null;
@@ -22,7 +25,7 @@ export const useBuildJob = (jobId?: number): UseQueryResult<BuildJob> =>
     enabled: Boolean(jobId),
     refetchInterval: (query) => {
       const data = query.state.data as BuildJob | undefined;
-      return data && (data.status === "pending" || data.status === "running") ? 2000 : false;
+      return data && (data.status === "pending" || data.status === "queued" || data.status === "running") ? 2000 : false;
     },
   });
 
@@ -35,7 +38,7 @@ export const useBuildJobs = (): UseQueryResult<BuildJob[]> =>
     },
     refetchInterval: (query) => {
       const data = query.state.data as BuildJob[] | undefined;
-      const hasActive = data?.some((j) => j.status === "pending" || j.status === "running");
+      const hasActive = data?.some((j) => j.status === "pending" || j.status === "queued" || j.status === "running");
       return hasActive ? 5000 : false;
     },
   });

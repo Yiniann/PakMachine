@@ -11,24 +11,29 @@ export class UploadError extends Error {
 }
 
 type TemplateType = "upload" | "github";
+export type TemplatePurpose = "web" | "client";
 type TemplateMetaEntry = {
   type?: TemplateType;
+  purpose?: TemplatePurpose;
   description?: string;
   repo?: string;
   branch?: string;
   workdir?: string;
+  workflowFile?: string;
   createdAt?: string;
 };
 type TemplateMeta = Record<string, TemplateMetaEntry>;
 export type TemplateEntry = {
   filename: string;
   type: TemplateType;
+  purpose: TemplatePurpose;
   description?: string;
   size?: number;
   modifiedAt?: Date;
   repo?: string;
   branch?: string;
   workdir?: string;
+  workflowFile?: string;
 };
 
 const metaFilePath = path.join(uploadBaseDir, ".meta.json");
@@ -48,6 +53,8 @@ const readTemplateMeta = (): TemplateMeta => {
 const writeTemplateMeta = (meta: TemplateMeta) => {
   fs.writeFileSync(metaFilePath, JSON.stringify(meta, null, 2), "utf-8");
 };
+
+const normalizePurpose = (value: unknown): TemplatePurpose => value === "client" ? "client" : "web";
 
 const normalizeName = (name: string) => {
   if (!name || name.includes("..") || name.includes("/") || name.includes("\\")) {
@@ -118,9 +125,11 @@ export const listTemplates = () => {
       modifiedAt: stat.mtime,
       description: entry?.description,
       type,
+      purpose: normalizePurpose(entry?.purpose),
       repo: entry?.repo,
       branch: entry?.branch,
       workdir: entry?.workdir,
+      workflowFile: entry?.workflowFile,
     };
   });
 
@@ -131,10 +140,12 @@ export const listTemplates = () => {
     .map(([name, value]) => ({
       filename: name,
       type: "github" as TemplateType,
+      purpose: normalizePurpose(value.purpose),
       description: value.description,
       repo: value.repo,
       branch: value.branch,
       workdir: value.workdir,
+      workflowFile: value.workflowFile,
     }));
 
   return [...uploads, ...githubEntries];
@@ -170,10 +181,12 @@ export const getTemplateEntry = (filename: string): TemplateEntry | null => {
     return {
       filename: name,
       type,
+      purpose: normalizePurpose(metaEntry?.purpose),
       description: metaEntry?.description,
       repo: metaEntry?.repo,
       branch: metaEntry?.branch,
       workdir: metaEntry?.workdir,
+      workflowFile: metaEntry?.workflowFile,
     };
   }
   const full = path.join(uploadBaseDir, name);
@@ -184,21 +197,25 @@ export const getTemplateEntry = (filename: string): TemplateEntry | null => {
   return {
     filename: name,
     type: "upload",
+    purpose: "web",
     description: metaEntry?.description,
     size: stat.size,
     modifiedAt: stat.mtime,
   };
 };
 
-export const listGithubTemplates = () => {
+export const listGithubTemplates = (purpose?: TemplatePurpose) => {
   const meta = readTemplateMeta();
   return Object.entries(meta)
     .filter(([, value]) => (value.type ?? "upload") === "github")
+    .filter(([, value]) => !purpose || normalizePurpose(value.purpose) === purpose)
     .map(([name, value]) => ({
       name,
+      purpose: normalizePurpose(value.purpose),
       repo: value.repo || "",
       branch: value.branch || "main",
       workdir: value.workdir || "",
+      workflowFile: value.workflowFile || (normalizePurpose(value.purpose) === "client" ? "package-client.yml" : "package.yml"),
       description: value.description || "",
       createdAt: value.createdAt || "",
     }))
@@ -209,11 +226,27 @@ export const listGithubTemplates = () => {
     });
 };
 
-export const createGithubTemplate = (input: { name: string; repo: string; branch?: string; workdir?: string; description?: string }) => {
+export const createGithubTemplate = (input: {
+  name: string;
+  purpose?: TemplatePurpose;
+  repo: string;
+  branch?: string;
+  workdir?: string;
+  workflowFile?: string;
+  description?: string;
+}) => {
   const name = normalizeName(input.name.trim());
   const repo = input.repo.trim();
+  if (input.purpose && input.purpose !== "web" && input.purpose !== "client") {
+    throw new UploadError("模板用途必须是 web 或 client", 400);
+  }
+  const purpose = normalizePurpose(input.purpose);
+  const workflowFile = input.workflowFile?.trim() || (purpose === "client" ? "package-client.yml" : "package.yml");
   if (!repo) {
     throw new UploadError("仓库地址不能为空", 400);
+  }
+  if (workflowFile.includes("/") || workflowFile.includes("\\") || !/\.ya?ml$/i.test(workflowFile)) {
+    throw new UploadError("Workflow 文件名必须是 .yml 或 .yaml 文件名", 400);
   }
   const meta = readTemplateMeta();
   if (meta[name]) {
@@ -223,16 +256,27 @@ export const createGithubTemplate = (input: { name: string; repo: string; branch
   if (fileExists) {
     throw new UploadError("已存在同名上传模板，请更换名称", 400);
   }
+  if (Object.values(meta).some((entry) =>
+    (entry.type ?? "upload") === "github" && normalizePurpose(entry.purpose) === purpose)) {
+    throw new UploadError(`${purpose === "client" ? "客户端" : "Web"} 模板已存在，请先删除原模板`, 400);
+  }
   meta[name] = {
     type: "github",
+    purpose,
     repo,
     branch: input.branch?.trim() || "main",
     workdir: input.workdir?.trim() || "",
+    workflowFile,
     description: input.description?.trim() || "",
     createdAt: new Date().toISOString(),
   };
   writeTemplateMeta(meta);
   return true;
+};
+
+export const getClientGithubTemplate = (): TemplateEntry | null => {
+  const clientTemplate = listGithubTemplates("client")[0];
+  return clientTemplate ? getTemplateEntry(clientTemplate.name) : null;
 };
 
 export const deleteGithubTemplate = (name: string) => {

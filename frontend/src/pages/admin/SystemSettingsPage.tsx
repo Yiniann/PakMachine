@@ -9,7 +9,6 @@ const SystemSettingsPage = () => {
   const [allowRegister, setAllowRegister] = useState(true);
   const [actionDispatchToken, setActionDispatchToken] = useState("");
   const [actionWebhookSecret, setActionWebhookSecret] = useState("");
-  const [workflowFile, setWorkflowFile] = useState("package.yml");
   const [message, setMessage] = useState<string | null>(null);
   const [mailerHost, setMailerHost] = useState("");
   const [mailerPort, setMailerPort] = useState("");
@@ -25,7 +24,6 @@ const SystemSettingsPage = () => {
       setAllowRegister(settingsQuery.data.allowRegister ?? true);
       setActionDispatchToken(settingsQuery.data.actionDispatchToken || "");
       setActionWebhookSecret(settingsQuery.data.actionWebhookSecret || "");
-      setWorkflowFile(settingsQuery.data.workflowFile || "package.yml");
       setMailerHost(settingsQuery.data.mailerHost || "");
       setMailerPort(settingsQuery.data.mailerPort ? String(settingsQuery.data.mailerPort) : "");
       setMailerSecure(Boolean(settingsQuery.data.mailerSecure));
@@ -45,7 +43,6 @@ const SystemSettingsPage = () => {
         allowRegister,
         actionDispatchToken,
         actionWebhookSecret,
-        workflowFile,
         mailerHost,
         mailerPort: mailerPort ? Number(mailerPort) : undefined,
         mailerSecure,
@@ -119,16 +116,6 @@ const SystemSettingsPage = () => {
                   placeholder="用于校验回调签名"
                 />
               </label>
-              <label className="form-control">
-                <span className="label-text">Workflow 文件名</span>
-                <input
-                  className="workspace-input input input-bordered"
-                  value={workflowFile}
-                  onChange={(e) => setWorkflowFile(e.target.value || "package.yml")}
-                  placeholder="如 package.yml / build.yml"
-                />
-              </label>
-
               <div className="divider">邮件服务</div>
               <label className="form-control">
                 <span className="label-text">SMTP Host</span>

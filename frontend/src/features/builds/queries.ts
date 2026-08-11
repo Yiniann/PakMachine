@@ -9,9 +9,11 @@ export type TemplateFile = {
 
 export type GithubTemplate = {
   name: string;
+  purpose: "web" | "client";
   repo: string;
   branch?: string;
   workdir?: string;
+  workflowFile?: string;
   description?: string;
   createdAt?: string;
 };

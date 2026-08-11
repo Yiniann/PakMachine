@@ -4,7 +4,15 @@ import api from "../../api/client";
 export const useCreateGithubTemplate = (): UseMutationResult<
   void,
   unknown,
-  { name: string; repo: string; branch?: string; workdir?: string; description?: string },
+  {
+    name: string;
+    purpose: "web" | "client";
+    repo: string;
+    branch?: string;
+    workdir?: string;
+    workflowFile?: string;
+    description?: string;
+  },
   unknown
 > => {
   const queryClient = useQueryClient();

@@ -8,7 +8,6 @@ export type SystemSettings = {
   allowRegister?: boolean;
   actionDispatchToken?: string;
   actionWebhookSecret?: string;
-  workflowFile?: string;
   initialized?: boolean;
   mailerHost?: string;
   mailerPort?: number;
@@ -23,7 +22,10 @@ const settingsPath = path.join(__dirname, "../../config/system-settings.json");
 export const loadSettings = (): SystemSettings => {
   try {
     const raw = fs.readFileSync(settingsPath, "utf8");
-    const parsed = JSON.parse(raw);
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    delete parsed.workflowFile;
+    delete parsed.clientTemplateName;
+    delete parsed.clientWorkflowFile;
     return {
       allowRegister: true,
       ...parsed,

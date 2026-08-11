@@ -75,16 +75,40 @@ export const useUpdateSiteNameLimit = (): UseMutationResult<{ message: string; s
 export const useUpdateFrontendOriginsLimit = (): UseMutationResult<
   { message: string; frontendOriginsLimit: number },
   unknown,
-  { email: string; frontendOriginsLimit: number },
+  { email: string; siteId: number; frontendOriginsLimit: number },
   unknown
 > => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ email, frontendOriginsLimit }) => {
+    mutationFn: async ({ email, siteId, frontendOriginsLimit }) => {
       const res = await api.patch<{ message: string; frontendOriginsLimit: number }>(`/admin/changeFrontendOriginsLimit`, {
         email,
+        siteId,
         frontendOriginsLimit,
       });
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      queryClient.invalidateQueries({ queryKey: ["site-profile"] });
+      queryClient.invalidateQueries({ queryKey: ["user-sites"] });
+    },
+  });
+};
+
+export const useUpdateClientBuildAccess = (): UseMutationResult<
+  { message: string; siteId: number; clientBuildEnabled: boolean },
+  unknown,
+  { email: string; siteId: number; enabled: boolean },
+  unknown
+> => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ email, siteId, enabled }) => {
+      const res = await api.patch<{ message: string; siteId: number; clientBuildEnabled: boolean }>(
+        "/admin/changeClientBuildAccess",
+        { email, siteId, enabled },
+      );
       return res.data;
     },
     onSuccess: () => {
@@ -134,22 +158,22 @@ export const useResetSiteName = (): UseMutationResult<{ message: string }, unkno
   });
 };
 
-export const useResetFrontendOrigins = (): UseMutationResult<{ message: string }, unknown, { email: string }, unknown> => {
+export const useResetFrontendOrigins = (): UseMutationResult<{ message: string }, unknown, { email: string; siteId: number }, unknown> => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ email }) => {
-      const res = await api.patch<{ message: string }>(`/admin/resetFrontendOrigins`, { email });
+    mutationFn: async ({ email, siteId }) => {
+      const res = await api.patch<{ message: string }>(`/admin/resetFrontendOrigins`, { email, siteId });
       return res.data;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
   });
 };
 
-export const useRemoveFrontendOrigin = (): UseMutationResult<{ message: string; frontendOrigins: string[] }, unknown, { email: string; frontendOrigin: string }, unknown> => {
+export const useRemoveFrontendOrigin = (): UseMutationResult<{ message: string; frontendOrigins: string[] }, unknown, { email: string; siteId: number; frontendOrigin: string }, unknown> => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ email, frontendOrigin }) => {
-      const res = await api.patch<{ message: string; frontendOrigins: string[] }>(`/admin/removeFrontendOrigin`, { email, frontendOrigin });
+    mutationFn: async ({ email, siteId, frontendOrigin }) => {
+      const res = await api.patch<{ message: string; frontendOrigins: string[] }>(`/admin/removeFrontendOrigin`, { email, siteId, frontendOrigin });
       return res.data;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),

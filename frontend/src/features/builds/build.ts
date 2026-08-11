@@ -2,7 +2,6 @@ import { useMutation, UseMutationResult, useQueryClient } from "@tanstack/react-
 import api from "../../api/client";
 
 export type BuildRequest = {
-  filename: string;
   siteId?: number | null;
   buildMode?: "legacy" | "bff";
   frontendEnvContent: string;

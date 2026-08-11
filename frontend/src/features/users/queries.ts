@@ -11,9 +11,13 @@ export interface User {
   emailVerified?: boolean;
   siteName?: string | null;
   siteNameLimit?: number;
-  frontendOriginsLimit?: number;
-  sites?: { id: number; name: string }[];
-  frontendOrigins?: string[];
+  sites?: Array<{
+    id: number;
+    name: string;
+    clientBuildEnabled: boolean;
+    frontendOriginsLimit: number;
+    frontendOrigins: string[];
+  }>;
   buildQuotaUsed?: number | null;
   buildQuotaDate?: string | null;
 }

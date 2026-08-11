@@ -138,7 +138,7 @@ const UsersPage = () => {
                         <th>邮箱</th>
                         <th>站点名</th>
                         <th>站点名数</th>
-                        <th>已绑定前端</th>
+                        <th>品牌域名绑定</th>
                         <th>今日剩余构建</th>
                         <th>权限档位</th>
                         <th>创建时间</th>
@@ -152,7 +152,9 @@ const UsersPage = () => {
                           <td>{u.email}</td>
                           <td>{u.siteName ?? "未设置"}</td>
                           <td>{`${u.sites?.length ?? 0} / ${Math.max(Number(u.siteNameLimit ?? 1) || 1, 1)}`}</td>
-                          <td>{u.frontendOrigins?.length ? `${u.frontendOrigins.length} 个` : "未绑定"}</td>
+                          <td>{(u.sites ?? []).reduce((total, site) => total + site.frontendOrigins.length, 0) > 0
+                            ? `${(u.sites ?? []).reduce((total, site) => total + site.frontendOrigins.length, 0)} 个`
+                            : "未绑定"}</td>
                           <td>{getQuotaLabel(u)}</td>
                           <td>
                             <div className={`badge badge-sm whitespace-nowrap ${getUserBadgeClass(u)}`}>{u.role === "admin" ? "管理员" : getUserTypeLabel(u.userType)}</div>
@@ -190,8 +192,10 @@ const UsersPage = () => {
                         <span>{`${u.sites?.length ?? 0} / ${Math.max(Number(u.siteNameLimit ?? 1) || 1, 1)}`}</span>
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-xs text-base-content/60">已绑定前端</span>
-                        <span>{u.frontendOrigins?.length ? `${u.frontendOrigins.length} 个` : "未绑定"}</span>
+                        <span className="text-xs text-base-content/60">品牌域名绑定</span>
+                        <span>{(u.sites ?? []).reduce((total, site) => total + site.frontendOrigins.length, 0) > 0
+                          ? `${(u.sites ?? []).reduce((total, site) => total + site.frontendOrigins.length, 0)} 个`
+                          : "未绑定"}</span>
                       </div>
                       <div className="flex flex-col">
                         <span className="text-xs text-base-content/60">剩余构建</span>

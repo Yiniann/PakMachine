@@ -2,10 +2,12 @@ import { Link, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../components/useAuth";
 import { usePublicSettings } from "../features/settings/publicSettings";
 import BrandMark from "../components/BrandMark";
+import { useSiteProfile } from "../features/builds/siteName";
 
 const navLinks = [
   { to: "/app", label: "主页" },
   { to: "/app/build", label: "前端构建" },
+  { to: "/app/client-build", label: "客户端构建", requiresClientBuild: true },
   { to: "/app/downloads", label: "构建下载" },
   { to: "/app/deploy-guide", label: "部署教程" },
   { to: "/app/tickets", label: "工单支持" },
@@ -16,8 +18,11 @@ const AppLayout = () => {
   const { pathname } = useLocation();
   const { token, role, logout } = useAuth();
   const publicSettings = usePublicSettings();
+  const siteProfile = useSiteProfile();
   const siteTitle = publicSettings.data?.siteName || "PacMachine";
-  const sortedNav = navLinks.slice().sort((a, b) => b.to.length - a.to.length);
+  const hasClientBuildAccess = (siteProfile.data?.sites ?? []).some((site) => site.clientBuildEnabled);
+  const visibleNavLinks = navLinks.filter((link) => !link.requiresClientBuild || hasClientBuildAccess);
+  const sortedNav = visibleNavLinks.slice().sort((a, b) => b.to.length - a.to.length);
   const current = sortedNav.find((link) => pathname === link.to || pathname.startsWith(`${link.to}/`)) || null;
   const activeTo = current?.to;
   const title = current ? current.label : "应用";
@@ -78,7 +83,7 @@ const AppLayout = () => {
           </Link>
 
           <nav className="flex flex-1 flex-col gap-2">
-            {navLinks.map((link) => {
+            {visibleNavLinks.map((link) => {
               const isActive = activeTo ? link.to === activeTo : pathname === link.to;
               return (
                 <Link

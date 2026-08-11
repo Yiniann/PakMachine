@@ -29,6 +29,7 @@ import InitGate from "./components/InitGate";
 import InitPage from "./pages/InitPage";
 import AdminTicketsPage from "./pages/admin/TicketsPage";
 import AdminTicketDetailPage from "./pages/admin/TicketDetailPage";
+import ClientBuildPage from "./pages/app/ClientBuildPage";
 
 const App = () => {
   return (
@@ -52,6 +53,7 @@ const App = () => {
             <Route index element={<HomePage />} />
             <Route path="home" element={<Navigate to="/app" replace />} />
             <Route path="build" element={<TemplateBuildPage />} />
+            <Route path="client-build" element={<ClientBuildPage />} />
             <Route path="downloads" element={<DownloadPages />} />
             <Route path="deploy-guide" element={<DeployGuidePage />} />
             <Route path="deploy-guide/bff" element={<DeployGuideBffPage />} />

@@ -72,17 +72,6 @@ const RUNTIME_TOP_LEVEL_KEYS = new Set([
   "downloadLinks",
 ]);
 const RUNTIME_DOWNLOAD_KEYS = new Set(["ios", "android", "windows", "macos", "harmony"]);
-const parseFrontendOrigins = (value: unknown): string[] => {
-  if (!value || typeof value !== "string") return [];
-  try {
-    const parsed = JSON.parse(value);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
-  } catch {
-    return [];
-  }
-};
-
 const validateEnvContent = (content: string) => {
   const lines = (content || "").split("\n");
   for (const line of lines) {
@@ -296,7 +285,7 @@ const toPrismaJsonValue = (value: unknown): Prisma.InputJsonValue => value as Pr
 
 export const listUploadedTemplates = async (_req: Request, res: Response, next: NextFunction) => {
   try {
-    const templates = listGithubTemplates().map((item) => ({
+    const templates = listGithubTemplates("web").map((item) => ({
       filename: item.name,
       description: item.description,
       modifiedAt: item.createdAt || undefined,
@@ -319,11 +308,11 @@ export const listGithubTemplateEntries = async (_req: Request, res: Response, ne
 
 export const createGithubTemplateEntry = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { name, repo, branch, workdir, description } = req.body ?? {};
+    const { name, purpose, repo, branch, workdir, workflowFile, description } = req.body ?? {};
     if (!name || !repo) {
       return res.status(400).json({ error: "缺少 name 或 repo" });
     }
-    createGithubTemplate({ name, repo, branch, workdir, description });
+    createGithubTemplate({ name, purpose, repo, branch, workdir, workflowFile, description });
     res.json({ success: true });
   } catch (err) {
     next(err);
@@ -345,7 +334,7 @@ export const removeGithubTemplateEntry = async (req: Request, res: Response, nex
 
 export const buildTemplatePackage = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { filename, buildMode: rawBuildMode, frontendEnvContent, envContent, serverEnvContent, runtimeSettings, siteId: rawSiteId } = req.body ?? {};
+    const { buildMode: rawBuildMode, frontendEnvContent, envContent, serverEnvContent, runtimeSettings, siteId: rawSiteId } = req.body ?? {};
     const buildMode = rawBuildMode === "bff" ? "bff" : "legacy";
     const requestedSiteId = parseOptionalSiteId(rawSiteId);
     const finalFrontendEnvContent = typeof frontendEnvContent === "string" && frontendEnvContent.trim()
@@ -354,8 +343,8 @@ export const buildTemplatePackage = async (req: Request, res: Response, next: Ne
         ? envContent
         : "";
 
-    if (!filename || !finalFrontendEnvContent) {
-      return res.status(400).json({ error: "缺少 filename 或 frontendEnvContent" });
+    if (!finalFrontendEnvContent) {
+      return res.status(400).json({ error: "缺少 frontendEnvContent" });
     }
     const envError = validateEnvContent(finalFrontendEnvContent);
     if (envError) {
@@ -374,9 +363,14 @@ export const buildTemplatePackage = async (req: Request, res: Response, next: Ne
       return res.status(400).json({ error: error?.message || "runtimeSettings 校验失败" });
     }
 
+    const configuredTemplate = listGithubTemplates("web")[0];
+    if (!configuredTemplate) {
+      return res.status(503).json({ error: "管理员尚未配置前端构建模板" });
+    }
+    const filename = configuredTemplate.name;
     const template = getTemplateEntry(filename);
     if (!template) {
-      return res.status(404).json({ error: "版本不存在" });
+      return res.status(503).json({ error: "前端构建模板不存在" });
     }
 
     const user = (req as any).user;
@@ -385,20 +379,37 @@ export const buildTemplatePackage = async (req: Request, res: Response, next: Ne
     }
 
     if (template.type !== "github") {
-      return res.status(400).json({ error: "当前版本仅支持 GitHub 构建" });
+      return res.status(400).json({ error: "当前模板仅支持 GitHub 构建" });
+    }
+    if (template.purpose !== "web") {
+      return res.status(400).json({ error: "客户端模板不能用于 Web 构建" });
     }
 
     const dbUser: any = await prisma.user.findUnique({
       where: { id: Number(user.sub) },
       include: {
         sites: requestedSiteId
-          ? { where: { id: requestedSiteId }, select: { id: true, name: true } }
-          : { select: { id: true, name: true }, orderBy: [{ createdAt: "asc" }, { id: "asc" }] },
+          ? {
+              where: { id: requestedSiteId },
+              select: {
+                id: true,
+                name: true,
+                frontendOrigins: { include: { frontendOrigin: { select: { origin: true } } } },
+              },
+            }
+          : {
+              select: {
+                id: true,
+                name: true,
+                frontendOrigins: { include: { frontendOrigin: { select: { origin: true } } } },
+              },
+              orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+            },
       },
     });
-    const frontendOrigins = parseFrontendOrigins(dbUser?.frontendOriginsJson);
     const normalizedUserType = normalizeUserType(dbUser?.userType);
     const selectedSite = dbUser?.sites?.[0] ?? null;
+    const frontendOrigins = (selectedSite?.frontendOrigins ?? []).map((item: any) => item.frontendOrigin.origin);
     const effectiveSiteName = selectedSite?.name ?? dbUser?.siteName ?? null;
     const effectiveSiteId = selectedSite?.id ?? null;
     if (requestedSiteId && !selectedSite) {
@@ -645,6 +656,9 @@ export const buildTemplateJobStatus = async (req: Request, res: Response, next: 
       id: job.id,
       status: job.status,
       message: job.message,
+      buildKind: job.buildKind,
+      platform: job.platform,
+      arch: job.arch,
       artifactId: job.artifactId,
       siteId: (job as any).siteId ?? null,
       siteName: (job as any).siteNameSnapshot ?? null,
@@ -685,7 +699,7 @@ export const listUserBuildJobs = async (req: Request, res: Response, next: NextF
     if (!user?.sub) {
       return res.status(401).json({ error: "Unauthorized" });
     }
-    const limit = Number(req.query.limit) || 10;
+    const limit = Number(req.query.limit) || 20;
     const jobs = await prisma.buildJob.findMany({
       where: { userId: Number(user.sub) },
       orderBy: { id: "desc" },
@@ -697,6 +711,9 @@ export const listUserBuildJobs = async (req: Request, res: Response, next: NextF
         id: j.id,
         status: j.status,
         message: j.message,
+        buildKind: j.buildKind,
+        platform: j.platform,
+        arch: j.arch,
         artifactId: j.artifactId,
         siteId: (j as any).siteId ?? null,
         siteName: (j as any).siteNameSnapshot ?? null,

@@ -2,17 +2,6 @@ import { Request, Response, NextFunction } from "express";
 import prisma from "../lib/prisma";
 import { canBuildSpa, getSiteNameLimit, normalizeUserType } from "../lib/userAccess";
 
-const parseFrontendOrigins = (value: unknown): string[] => {
-  if (!value || typeof value !== "string") return [];
-  try {
-    const parsed = JSON.parse(value);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
-  } catch {
-    return [];
-  }
-};
-
 const normalizeFrontendOrigin = (value: unknown) => {
   if (typeof value !== "string" || !value.trim()) {
     throw Object.assign(new Error("前端域名不能为空"), { statusCode: 400 });
@@ -38,8 +27,8 @@ const normalizeFrontendOrigin = (value: unknown) => {
 const getUserSiteNameLimit = (user: { role?: string | null; userType?: string | null; siteNameLimit?: number | null } | null | undefined) =>
   getSiteNameLimit(user?.role, user?.userType, user?.siteNameLimit);
 
-const getFrontendOriginsLimit = (user: { frontendOriginsLimit?: number | null } | null | undefined) => {
-  const parsed = Number(user?.frontendOriginsLimit);
+const getFrontendOriginsLimit = (site: { frontendOriginsLimit?: number | null } | null | undefined) => {
+  const parsed = Number(site?.frontendOriginsLimit);
   if (!Number.isFinite(parsed)) return 4;
   const normalized = Math.floor(parsed);
   return normalized >= 1 ? normalized : 4;
@@ -51,14 +40,28 @@ export const getSiteName = async (req: Request, res: Response, next: NextFunctio
     if (!user?.sub) return res.status(401).json({ error: "Unauthorized" });
     const dbUser = await prisma.user.findUnique({
       where: { id: Number(user.sub) },
-      include: { sites: { orderBy: [{ createdAt: "asc" }, { id: "asc" }] } },
+      include: {
+        sites: {
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+          include: {
+            frontendOrigins: {
+              orderBy: { createdAt: "asc" },
+              include: { frontendOrigin: { select: { origin: true } } },
+            },
+          },
+        },
+      },
     });
-    const sites = ((dbUser as any)?.sites ?? []).map((site: any) => ({ id: site.id, name: site.name }));
+    const sites = ((dbUser as any)?.sites ?? []).map((site: any) => ({
+      id: site.id,
+      name: site.name,
+      clientBuildEnabled: site.clientBuildEnabled,
+      frontendOriginsLimit: getFrontendOriginsLimit(site),
+      frontendOrigins: site.frontendOrigins.map((item: any) => item.frontendOrigin.origin),
+    }));
     const siteName = sites[0]?.name ?? (dbUser as any)?.siteName ?? null;
-    const frontendOrigins = parseFrontendOrigins((dbUser as any)?.frontendOriginsJson);
     const siteNameLimit = getUserSiteNameLimit(dbUser as any);
-    const frontendOriginsLimit = getFrontendOriginsLimit(dbUser as any);
-    res.json({ siteName, frontendOrigins, sites, siteNameLimit, frontendOriginsLimit });
+    res.json({ siteName, sites, siteNameLimit });
   } catch (err) {
     next(err);
   }
@@ -96,10 +99,8 @@ export const setSiteName = async (req: Request, res: Response, next: NextFunctio
     });
     res.json({
       siteName: (updated as any)?.siteName || siteName.trim(),
-      frontendOrigins: parseFrontendOrigins((updated as any)?.frontendOriginsJson),
       sites: [],
       siteNameLimit: getUserSiteNameLimit(updated as any),
-      frontendOriginsLimit: getFrontendOriginsLimit(updated as any),
     });
   } catch (err) {
     next(err);
@@ -118,7 +119,7 @@ export const listUserSites = async (req: Request, res: Response, next: NextFunct
     const sites = await prisma.userSite.findMany({
       where: { userId: Number(user.sub) },
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-      select: { id: true, name: true, createdAt: true, updatedAt: true },
+      select: { id: true, name: true, frontendOriginsLimit: true, clientBuildEnabled: true, createdAt: true, updatedAt: true },
     });
     res.json(sites);
   } catch (err) {
@@ -155,7 +156,7 @@ export const createUserSite = async (req: Request, res: Response, next: NextFunc
       }
       const site = await tx.userSite.create({
         data: { userId: Number(user.sub), name: name.trim() },
-        select: { id: true, name: true, createdAt: true, updatedAt: true },
+        select: { id: true, name: true, frontendOriginsLimit: true, clientBuildEnabled: true, createdAt: true, updatedAt: true },
       });
       if (currentCount === 0) {
         await tx.user.update({
@@ -165,7 +166,7 @@ export const createUserSite = async (req: Request, res: Response, next: NextFunc
       }
       return site;
     });
-    res.status(201).json(created);
+    res.status(201).json({ ...created, frontendOrigins: [] });
   } catch (err: any) {
     if (err?.code === "P2002") {
       return res.status(409).json({ error: "该站点名称已存在" });
@@ -180,6 +181,10 @@ export const addFrontendOrigin = async (req: Request, res: Response, next: NextF
     if (!user?.sub) return res.status(401).json({ error: "Unauthorized" });
 
     const frontendOrigin = normalizeFrontendOrigin(req.body?.frontendOrigin);
+    const siteId = Number(req.body?.siteId);
+    if (!Number.isInteger(siteId) || siteId < 1) {
+      return res.status(400).json({ error: "请选择要绑定域名的品牌" });
+    }
     const existing = await prisma.user.findUnique({ where: { id: Number(user.sub) } });
     if (!existing) {
       return res.status(404).json({ error: "用户不存在" });
@@ -189,22 +194,43 @@ export const addFrontendOrigin = async (req: Request, res: Response, next: NextF
       return res.status(403).json({ error: "当前账号为待开通状态，暂不支持绑定前端域名" });
     }
 
-    const currentOrigins = parseFrontendOrigins((existing as any)?.frontendOriginsJson);
-    if (currentOrigins.includes(frontendOrigin)) {
-      return res.status(409).json({ error: "该前端域名已绑定" });
-    }
-    const frontendOriginsLimit = getFrontendOriginsLimit(existing as any);
-    if (currentOrigins.length >= frontendOriginsLimit) {
-      return res.status(400).json({ error: `最多只能绑定 ${frontendOriginsLimit} 个前端域名` });
-    }
+    const site = await prisma.userSite.findFirst({
+      where: { id: siteId, userId: existing.id },
+      select: { id: true, frontendOriginsLimit: true },
+    });
+    if (!site) return res.status(404).json({ error: "品牌不存在" });
 
-    const updated = await prisma.user.update({
-      where: { id: Number(user.sub) },
-      data: { frontendOriginsJson: JSON.stringify([...currentOrigins, frontendOrigin]) } as any,
+    await prisma.$transaction(async (tx) => {
+      const currentCount = await tx.siteFrontendOrigin.count({ where: { siteId: site.id } });
+      const frontendOriginsLimit = getFrontendOriginsLimit(site);
+      if (currentCount >= frontendOriginsLimit) {
+        throw Object.assign(new Error(`该品牌最多只能绑定 ${frontendOriginsLimit} 个前端域名`), { statusCode: 400 });
+      }
+
+      const ownedOrigin = await tx.frontendOrigin.upsert({
+        where: { userId_origin: { userId: existing.id, origin: frontendOrigin } },
+        update: {},
+        create: { userId: existing.id, origin: frontendOrigin },
+        select: { id: true },
+      });
+      const duplicate = await tx.siteFrontendOrigin.findUnique({
+        where: { siteId_originId: { siteId: site.id, originId: ownedOrigin.id } },
+      });
+      if (duplicate) {
+        throw Object.assign(new Error("该前端域名已绑定到这个品牌"), { statusCode: 409 });
+      }
+      await tx.siteFrontendOrigin.create({ data: { siteId: site.id, originId: ownedOrigin.id } });
+    });
+
+    const updatedOrigins = await prisma.siteFrontendOrigin.findMany({
+      where: { siteId: site.id },
+      orderBy: { createdAt: "asc" },
+      include: { frontendOrigin: { select: { origin: true } } },
     });
 
     res.json({
-      frontendOrigins: parseFrontendOrigins((updated as any)?.frontendOriginsJson),
+      siteId: site.id,
+      frontendOrigins: updatedOrigins.map((item) => item.frontendOrigin.origin),
     });
   } catch (err) {
     if ((err as any)?.statusCode) {

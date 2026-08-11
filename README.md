@@ -46,6 +46,10 @@ Actions 里需要配置的 Secrets/Variables：
 ### Secrets（GitHub → Settings → Secrets and variables → Actions）
 - `ACTION_WEBHOOK_SECRET`：后端校验 webhook 签名的密钥  
 - `CF_R2_ACCESS_KEY_ID` / `CF_R2_SECRET_ACCESS_KEY` / `CF_R2_ACCOUNT_ID` / `CF_R2_BUCKET` / `CF_R2_PUBLIC_BASE`：构建产物上传到 Cloudflare R2 的凭据与公开基址（不使用 R2 可不填，会自动跳过上传）
+- `CLIENT_R2_ACCESS_KEY_ID` / `CLIENT_R2_SECRET_ACCESS_KEY` / `CLIENT_R2_ACCOUNT_ID` / `CLIENT_R2_BUCKET`：白标客户端上传到独立私有 R2 Bucket 的凭据。客户端工作流不使用公开地址。
+- macOS 正式签名可配置 `MACOS_CSC_LINK`、`MACOS_CSC_KEY_PASSWORD`、`MACOS_APPLE_ID`、`MACOS_APP_SPECIFIC_PASSWORD`、`MACOS_TEAM_ID`。
+- Windows 正式签名可配置 `WINDOWS_CSC_LINK`、`WINDOWS_CSC_KEY_PASSWORD`。
+- Android 正式签名必须配置 `ANDROID_KEYSTORE_BASE64`、`ANDROID_KEYSTORE_PASSWORD`、`ANDROID_KEY_ALIAS`、`ANDROID_KEY_PASSWORD`。
 
 ### Variables（Actions Variables）
 - `BACKEND_WEBHOOK_URL`：后端 webhook 接口地址，必须指向 `https://你的域名/webhooks/github`，已在 Nginx 配置中反代到后端
@@ -62,6 +66,12 @@ Actions 里需要配置的 Secrets/Variables：
 3) 后端使用 `ACTION_WEBHOOK_SECRET` 验证签名；`BACKEND_WEBHOOK_URL` 必须与后端 webhook 路由 `/webhooks/github` 完全一致。  
 4) 构建产物上传依赖 CF_R2_* 变量，确保桶名称和公开地址正确。  
 5) 在 Actions 里查看运行日志确认成功；若有 403/签名错误，检查 `ACTION_WEBHOOK_SECRET` 与后端保持一致。
+
+### 客户端白标构建
+
+客户端构建使用独立的 `package-client.yml`，不会修改或复用 Web 构建的 `workflowFile`。PakMachine 后端需要配置同一私有 Bucket 的 `CLIENT_R2_*` 环境变量，以便为产物签发 10 分钟下载地址。客户端产物不经过 PakMachine 中转，不返回永久公开 URL，并按 R2 生命周期与数据库中的 30 天有效期共同失效。
+
+客户端应用名称强制跟随用户已有品牌。PakMachine 会为每个品牌首次生成并持久化稳定的应用 ID，内部配置标识直接使用同一 ID；品牌改名不会改变应用 ID。客户端版本读取 Shuttle Client 仓库版本，构建号由 GitHub Actions 自动递增，这些字段均不由客户填写。
 
 默认 workflow 文件名为 `.github/workflows/build.yml`。如果后台“系统设置”里仍保存着旧值 `package.yml`，请改回 `build.yml`，否则 dispatch 会因为输入参数不匹配而返回 422。
 

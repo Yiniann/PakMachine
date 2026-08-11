@@ -8,6 +8,7 @@ import {
   useResetFrontendOrigins,
   useResetSiteName,
   useUpdateFrontendOriginsLimit,
+  useUpdateClientBuildAccess,
   useUpdatePassword,
   useUpdateRole,
   useUpdateSiteNameLimit,
@@ -30,6 +31,7 @@ const UserDetailPage = () => {
   const removeSiteName = useRemoveSiteName();
   const updateSiteNameLimit = useUpdateSiteNameLimit();
   const updateFrontendOriginsLimit = useUpdateFrontendOriginsLimit();
+  const updateClientBuildAccess = useUpdateClientBuildAccess();
   const resetSiteName = useResetSiteName();
   const removeFrontendOrigin = useRemoveFrontendOrigin();
   const resetFrontendOrigins = useResetFrontendOrigins();
@@ -41,7 +43,7 @@ const UserDetailPage = () => {
   const [roleValue, setRoleValue] = useState("user");
   const [userTypeValue, setUserTypeValue] = useState("pending");
   const [siteNameLimitValue, setSiteNameLimitValue] = useState("1");
-  const [frontendOriginsLimitValue, setFrontendOriginsLimitValue] = useState("4");
+  const [frontendOriginsLimitValues, setFrontendOriginsLimitValues] = useState<Record<number, string>>({});
   const [newPassword, setNewPassword] = useState("");
 
   useEffect(() => {
@@ -49,7 +51,11 @@ const UserDetailPage = () => {
     setRoleValue(user.role);
     setUserTypeValue(normalizeUserType(user.userType));
     setSiteNameLimitValue(String(Math.max(Number(user.siteNameLimit ?? 1) || 1, 1)));
-    setFrontendOriginsLimitValue(String(Math.max(Number(user.frontendOriginsLimit ?? 4) || 4, 1)));
+    setFrontendOriginsLimitValues(
+      Object.fromEntries(
+        (user.sites ?? []).map((site) => [site.id, String(Math.max(Number(site.frontendOriginsLimit) || 4, 1))]),
+      ),
+    );
     setNewPassword("");
   }, [user]);
 
@@ -126,7 +132,6 @@ const UserDetailPage = () => {
   const onRoleSubmit = () => updateRole.mutate({ email: user.email, role: roleValue });
   const onUserTypeSubmit = () => updateUserType.mutate({ email: user.email, userType: userTypeValue });
 
-  const frontendOriginCount = user.frontendOrigins?.length ?? 0;
   const canEditSiteNameLimit = user.role === "admin" || normalizeUserType(user.userType) === "priority";
 
   return (
@@ -167,6 +172,20 @@ const UserDetailPage = () => {
                   <div key={site.id} className="flex items-center gap-3 border-b border-base-200 py-2 last:border-b-0">
                     <div className="min-w-0 flex-1 truncate font-medium">{site.name}</div>
                     <span className="text-xs text-base-content/50">ID {site.id}</span>
+                    <label className="flex shrink-0 items-center gap-2 text-xs text-slate-600">
+                      <span>{site.clientBuildEnabled ? "客户端已开通" : "客户端未开通"}</span>
+                      <input
+                        type="checkbox"
+                        className="toggle toggle-primary toggle-sm"
+                        checked={site.clientBuildEnabled}
+                        disabled={updateClientBuildAccess.status === "pending"}
+                        onChange={(event) => updateClientBuildAccess.mutate({
+                          email: user.email,
+                          siteId: site.id,
+                          enabled: event.target.checked,
+                        })}
+                      />
+                    </label>
                     <button
                       type="button"
                       className="text-xs font-medium text-rose-600"
@@ -224,67 +243,79 @@ const UserDetailPage = () => {
             <div className="flex items-end justify-between gap-3">
               <div>
                 <h3 className="text-lg font-semibold text-slate-900">前端域名</h3>
-                <p className="mt-1 text-sm text-slate-500">
-                  {frontendOriginCount ? `${frontendOriginCount} 个绑定` : "未绑定"} / 上限 {user.frontendOriginsLimit ?? 4}
-                </p>
+                <p className="mt-1 text-sm text-slate-500">每个品牌独立维护域名和数量上限</p>
               </div>
-              <span className="text-xs text-base-content/60">可单独配置</span>
+              <span className="text-xs text-base-content/60">{user.sites?.length ?? 0} 个品牌</span>
             </div>
-            <div className="mt-3 space-y-2">
-              {user.frontendOrigins?.length ? (
-                user.frontendOrigins.map((origin) => (
-                  <div key={origin} className="flex items-center gap-3 border-b border-base-200 py-2 last:border-b-0">
-                    <div className="min-w-0 flex-1 truncate">{origin}</div>
+            <div className="mt-4 space-y-4">
+              {user.sites?.length ? user.sites.map((site) => (
+                <div key={site.id} className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <h4 className="font-semibold text-slate-900">{site.name}</h4>
+                      <p className="mt-1 text-xs text-slate-500">已绑定 {site.frontendOrigins.length} / {site.frontendOriginsLimit}</p>
+                    </div>
+                    <span className="text-xs text-slate-400">品牌 ID {site.id}</span>
+                  </div>
+
+                  <div className="mt-3 space-y-2">
+                    {site.frontendOrigins.length ? site.frontendOrigins.map((origin) => (
+                      <div key={origin} className="flex items-center gap-3 border-b border-slate-200 py-2 last:border-b-0">
+                        <div className="min-w-0 flex-1 truncate text-sm">{origin}</div>
+                        <button
+                          type="button"
+                          className="text-xs font-medium text-rose-600"
+                          disabled={removeFrontendOrigin.status === "pending"}
+                          onClick={() => {
+                            if (!window.confirm(`确定从品牌 ${site.name} 删除前端域名 ${origin} 吗？`)) return;
+                            removeFrontendOrigin.mutate({ email: user.email, siteId: site.id, frontendOrigin: origin });
+                          }}
+                        >
+                          删除
+                        </button>
+                      </div>
+                    )) : <div className="py-2 text-sm text-slate-500">暂未绑定域名</div>}
+                  </div>
+
+                  <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <input
+                      type="number"
+                      min={1}
+                      className="workspace-input input input-bordered h-11 w-full rounded-2xl"
+                      value={frontendOriginsLimitValues[site.id] ?? String(site.frontendOriginsLimit)}
+                      onChange={(event) => setFrontendOriginsLimitValues((current) => ({ ...current, [site.id]: event.target.value }))}
+                    />
                     <button
                       type="button"
-                      className="text-xs font-medium text-rose-600"
-                      disabled={removeFrontendOrigin.status === "pending"}
+                      className="landing-button-primary inline-flex h-11 min-h-0 items-center justify-center rounded-2xl px-4 py-0 text-xs whitespace-nowrap leading-none sm:w-24 sm:text-sm"
+                      disabled={updateFrontendOriginsLimit.status === "pending"}
                       onClick={() => {
-                        if (!window.confirm(`确定删除 ${user.email} 的前端域名 ${origin} 吗？`)) return;
-                        removeFrontendOrigin.mutate({ email: user.email, frontendOrigin: origin });
+                        const parsed = Number(frontendOriginsLimitValues[site.id]);
+                        if (!Number.isFinite(parsed) || parsed < 1) return;
+                        updateFrontendOriginsLimit.mutate({ email: user.email, siteId: site.id, frontendOriginsLimit: Math.floor(parsed) });
                       }}
                     >
-                      删除
+                      {updateFrontendOriginsLimit.status === "pending" ? "保存中..." : "保存上限"}
                     </button>
                   </div>
-                ))
-              ) : (
-                <div className="py-2 text-sm text-base-content/60">-</div>
+
+                  {site.frontendOrigins.length ? (
+                    <button
+                      type="button"
+                      className="mt-3 text-sm font-medium text-rose-600"
+                      disabled={resetFrontendOrigins.status === "pending"}
+                      onClick={() => {
+                        if (!window.confirm(`确定清空品牌 ${site.name} 的全部前端域名吗？`)) return;
+                        resetFrontendOrigins.mutate({ email: user.email, siteId: site.id });
+                      }}
+                    >
+                      {resetFrontendOrigins.status === "pending" ? "清空中..." : "清空该品牌域名"}
+                    </button>
+                  ) : null}
+                </div>
+              )) : (
+                <div className="rounded-2xl border border-dashed border-slate-300 px-4 py-5 text-sm text-slate-500">该用户还没有品牌。</div>
               )}
-            </div>
-            {user.frontendOrigins?.length ? (
-              <button
-                type="button"
-                className="mt-3 text-sm font-medium text-rose-600"
-                disabled={resetFrontendOrigins.status === "pending"}
-                onClick={() => {
-                  if (!window.confirm(`确定要清空 ${user.email} 的全部前端绑定吗？`)) return;
-                  resetFrontendOrigins.mutate({ email: user.email });
-                }}
-              >
-                {resetFrontendOrigins.status === "pending" ? "清空中..." : "清空全部绑定"}
-              </button>
-            ) : null}
-            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-              <input
-                type="number"
-                min={1}
-                className="workspace-input input input-bordered h-11 w-full rounded-2xl"
-                value={frontendOriginsLimitValue}
-                onChange={(e) => setFrontendOriginsLimitValue(e.target.value)}
-              />
-              <button
-                type="button"
-                className="landing-button-primary inline-flex h-11 min-h-0 items-center justify-center rounded-2xl px-4 py-0 text-xs whitespace-nowrap leading-none sm:w-24 sm:text-sm"
-                disabled={updateFrontendOriginsLimit.status === "pending"}
-                onClick={() => {
-                  const parsed = Number(frontendOriginsLimitValue);
-                  if (!Number.isFinite(parsed) || parsed < 1) return;
-                  updateFrontendOriginsLimit.mutate({ email: user.email, frontendOriginsLimit: Math.floor(parsed) });
-                }}
-              >
-                {updateFrontendOriginsLimit.status === "pending" ? "保存中..." : "保存"}
-              </button>
             </div>
           </section>
 
@@ -428,6 +459,7 @@ const UserDetailPage = () => {
         mutationError(updateUserType.error) ||
         mutationError(removeSiteName.error) ||
         mutationError(updateSiteNameLimit.error) ||
+        mutationError(updateClientBuildAccess.error) ||
         mutationError(resetSiteName.error) ||
         mutationError(removeFrontendOrigin.error) ||
         mutationError(resetFrontendOrigins.error) ||
@@ -439,6 +471,7 @@ const UserDetailPage = () => {
           {mutationError(updateUserType.error) && <p>类型修改失败: {mutationError(updateUserType.error)}</p>}
           {mutationError(removeSiteName.error) && <p>站点删除失败: {mutationError(removeSiteName.error)}</p>}
           {mutationError(updateSiteNameLimit.error) && <p>站点上限修改失败: {mutationError(updateSiteNameLimit.error)}</p>}
+          {mutationError(updateClientBuildAccess.error) && <p>客户端权限修改失败: {mutationError(updateClientBuildAccess.error)}</p>}
           {mutationError(resetSiteName.error) && <p>站点重置失败: {mutationError(resetSiteName.error)}</p>}
           {mutationError(removeFrontendOrigin.error) && <p>前端域名删除失败: {mutationError(removeFrontendOrigin.error)}</p>}
           {mutationError(resetFrontendOrigins.error) && <p>前端绑定重置失败: {mutationError(resetFrontendOrigins.error)}</p>}

@@ -7,6 +7,7 @@ import {
   adminResetBuildQuota,
   adminResetSiteName,
   adminUpdateFrontendOriginsLimit,
+  adminUpdateClientBuildAccess,
   adminUpdatePassword,
   adminUpdateRole,
   adminRemoveSiteName,
@@ -37,6 +38,7 @@ router.patch("/changeRole", adminUpdateRole);
 router.patch("/changeUserType", adminUpdateUserType);
 router.patch("/changeSiteNameLimit", adminUpdateSiteNameLimit);
 router.patch("/changeFrontendOriginsLimit", adminUpdateFrontendOriginsLimit);
+router.patch("/changeClientBuildAccess", adminUpdateClientBuildAccess);
 router.patch("/removeSiteName", adminRemoveSiteName);
 router.patch("/resetSiteName", adminResetSiteName);
 router.patch("/resetFrontendOrigins", adminResetFrontendOrigins);

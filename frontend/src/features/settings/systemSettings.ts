@@ -6,7 +6,6 @@ export type SystemSettings = {
   allowRegister?: boolean;
   actionDispatchToken?: string;
   actionWebhookSecret?: string;
-  workflowFile?: string;
   mailerHost?: string;
   mailerPort?: number;
   mailerSecure?: boolean;

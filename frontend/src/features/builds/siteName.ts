@@ -4,10 +4,14 @@ import { useAuth } from "../../components/useAuth";
 
 export type SiteProfile = {
   siteName: string | null;
-  frontendOrigins: string[];
-  sites?: { id: number; name: string }[];
+  sites?: Array<{
+    id: number;
+    name: string;
+    clientBuildEnabled: boolean;
+    frontendOrigins: string[];
+    frontendOriginsLimit: number;
+  }>;
   siteNameLimit?: number;
-  frontendOriginsLimit?: number;
 };
 
 export const useSiteProfile = (): UseQueryResult<SiteProfile> => {
@@ -30,10 +34,10 @@ export const useSetSiteName = (): UseMutationResult<SiteProfile, unknown, { site
     },
   });
 
-export const useAddFrontendOrigin = (): UseMutationResult<{ frontendOrigins: string[] }, unknown, { frontendOrigin: string }, unknown> =>
+export const useAddFrontendOrigin = (): UseMutationResult<{ siteId: number; frontendOrigins: string[] }, unknown, { siteId: number; frontendOrigin: string }, unknown> =>
   useMutation({
-    mutationFn: async ({ frontendOrigin }) => {
-      const res = await api.post<{ frontendOrigins: string[] }>("/build/frontend-origins", { frontendOrigin });
+    mutationFn: async ({ siteId, frontendOrigin }) => {
+      const res = await api.post<{ siteId: number; frontendOrigins: string[] }>("/build/frontend-origins", { siteId, frontendOrigin });
       return res.data;
     },
   });
@@ -41,6 +45,9 @@ export const useAddFrontendOrigin = (): UseMutationResult<{ frontendOrigins: str
 export type UserSite = {
   id: number;
   name: string;
+  clientBuildEnabled?: boolean;
+  frontendOrigins?: string[];
+  frontendOriginsLimit?: number;
   createdAt?: string;
   updatedAt?: string;
 };

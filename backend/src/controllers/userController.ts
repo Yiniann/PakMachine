@@ -19,37 +19,45 @@ const isValidEmail = (email: string) =>
 const isValidPassword = (pwd: string) => typeof pwd === "string" && pwd.length >= 8;
 const hashCode = (code: string) => crypto.createHash("sha256").update(code).digest("hex");
 const generateRegisterCode = () => Math.floor(100000 + Math.random() * 900000).toString();
-const parseFrontendOrigins = (value: unknown): string[] => {
-  if (!value || typeof value !== "string") return [];
-  try {
-    const parsed = JSON.parse(value);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
-  } catch {
-    return [];
-  }
-};
-
-const getUserFrontendOriginsLimit = (user: { frontendOriginsLimit?: number | null } | null | undefined) =>
-  Math.max(Number(user?.frontendOriginsLimit) || 4, 1);
-
-
 export const listUsers = async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const users = await prisma.user.findMany({
       orderBy: { id: "asc" },
       include: {
-        sites: { orderBy: [{ createdAt: "asc" }, { id: "asc" }], select: { id: true, name: true } },
+        sites: {
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+          include: {
+            frontendOrigins: {
+              orderBy: { createdAt: "asc" },
+              include: { frontendOrigin: { select: { origin: true } } },
+            },
+          },
+        },
       },
     });
-    const safe = users.map(({ password: _pw, resetToken, resetTokenExpires, frontendOriginsJson, sites, ...rest }: typeof users[number] & { sites?: { id: number; name: string }[] }) => ({
-      ...rest,
-      userType: normalizeUserType(rest.userType),
-      siteNameLimit: getSiteNameLimit(rest.role, rest.userType, (rest as any).siteNameLimit),
-      frontendOriginsLimit: getUserFrontendOriginsLimit(rest as any),
-      sites: sites ?? [],
-      frontendOrigins: parseFrontendOrigins(frontendOriginsJson),
-    }));
+    const safe = users.map((user: any) => {
+      const {
+        password: _pw,
+        resetToken: _resetToken,
+        resetTokenExpires: _resetTokenExpires,
+        frontendOriginsJson: _legacyOrigins,
+        frontendOriginsLimit: _legacyLimit,
+        sites,
+        ...rest
+      } = user;
+      return {
+        ...rest,
+        userType: normalizeUserType(rest.userType),
+        siteNameLimit: getSiteNameLimit(rest.role, rest.userType, rest.siteNameLimit),
+        sites: (sites ?? []).map((site: any) => ({
+          id: site.id,
+          name: site.name,
+          clientBuildEnabled: Boolean(site.clientBuildEnabled),
+          frontendOriginsLimit: Math.max(Number(site.frontendOriginsLimit) || 4, 1),
+          frontendOrigins: site.frontendOrigins.map((item: any) => item.frontendOrigin.origin),
+        })),
+      };
+    });
     res.json(safe);
   } catch (error) {
     next(error);
@@ -85,7 +93,6 @@ export const adminCreateUser = async (req: Request, res: Response, next: NextFun
     const safe = {
       ...rest,
       userType: normalizeUserType(rest.userType),
-      frontendOriginsLimit: getUserFrontendOriginsLimit(rest as any),
     };
     res.status(201).json(safe);
   } catch (error) {
@@ -211,21 +218,58 @@ export const adminUpdateSiteNameLimit = async (req: Request, res: Response, next
 
 export const adminUpdateFrontendOriginsLimit = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { email, frontendOriginsLimit } = req.body ?? {};
+    const { email, siteId, frontendOriginsLimit } = req.body ?? {};
     if (!email) {
       return res.status(400).json({ error: "Email is required" });
+    }
+    const parsedSiteId = Number(siteId);
+    if (!Number.isInteger(parsedSiteId) || parsedSiteId < 1) {
+      return res.status(400).json({ error: "siteId is required" });
     }
     const parsed = Number(frontendOriginsLimit);
     if (!Number.isFinite(parsed) || parsed < 1) {
       return res.status(400).json({ error: "前端域名数量必须大于等于 1" });
     }
 
-    const updated = await prisma.user.update({
-      where: { email },
+    const user = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+    if (!user) return res.status(404).json({ error: "User not found" });
+    const site = await prisma.userSite.findFirst({ where: { id: parsedSiteId, userId: user.id }, select: { id: true } });
+    if (!site) return res.status(404).json({ error: "Brand not found" });
+
+    const updated = await prisma.userSite.update({
+      where: { id: site.id },
       data: { frontendOriginsLimit: Math.floor(parsed) },
       select: { frontendOriginsLimit: true },
     });
     res.json({ message: "Frontend origins limit updated", frontendOriginsLimit: updated.frontendOriginsLimit });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const adminUpdateClientBuildAccess = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { email, siteId, enabled } = req.body ?? {};
+    if (!email) return res.status(400).json({ error: "Email is required" });
+    const parsedSiteId = Number(siteId);
+    if (!Number.isInteger(parsedSiteId) || parsedSiteId < 1) {
+      return res.status(400).json({ error: "siteId is required" });
+    }
+    if (typeof enabled !== "boolean") {
+      return res.status(400).json({ error: "enabled must be boolean" });
+    }
+
+    const user = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+    if (!user) return res.status(404).json({ error: "User not found" });
+    const site = await prisma.userSite.findFirst({ where: { id: parsedSiteId, userId: user.id }, select: { id: true } });
+    if (!site) return res.status(404).json({ error: "Brand not found" });
+
+    const updated = await prisma.userSite.update({
+      where: { id: site.id },
+      data: { clientBuildEnabled: enabled },
+      select: { id: true, clientBuildEnabled: true },
+    });
+    res.json({ message: "Client build access updated", siteId: updated.id, clientBuildEnabled: updated.clientBuildEnabled });
   } catch (error) {
     next(error);
   }
@@ -315,18 +359,24 @@ export const adminResetSiteName = async (req: Request, res: Response, next: Next
 
 export const adminResetFrontendOrigins = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { email } = req.body ?? {};
+    const { email, siteId } = req.body ?? {};
     if (!email) {
       return res.status(400).json({ error: "Email is required" });
     }
+    const parsedSiteId = Number(siteId);
+    if (!Number.isInteger(parsedSiteId) || parsedSiteId < 1) {
+      return res.status(400).json({ error: "siteId is required" });
+    }
 
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findUnique({ where: { email }, select: { id: true } });
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
+    const site = await prisma.userSite.findFirst({ where: { id: parsedSiteId, userId: user.id }, select: { id: true } });
+    if (!site) return res.status(404).json({ error: "Brand not found" });
 
-    await prisma.user.update({ where: { email }, data: { frontendOriginsJson: null } as any });
-    res.json({ message: "已绑定前端已重置，用户下次登录后可重新绑定" });
+    await prisma.siteFrontendOrigin.deleteMany({ where: { siteId: site.id } });
+    res.json({ message: "该品牌的前端域名已清空" });
   } catch (error) {
     next(error);
   }
@@ -334,30 +384,47 @@ export const adminResetFrontendOrigins = async (req: Request, res: Response, nex
 
 export const adminRemoveFrontendOrigin = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { email, frontendOrigin } = req.body ?? {};
+    const { email, siteId, frontendOrigin } = req.body ?? {};
     if (!email) {
       return res.status(400).json({ error: "Email is required" });
     }
     if (!frontendOrigin || typeof frontendOrigin !== "string") {
       return res.status(400).json({ error: "frontendOrigin is required" });
     }
+    const parsedSiteId = Number(siteId);
+    if (!Number.isInteger(parsedSiteId) || parsedSiteId < 1) {
+      return res.status(400).json({ error: "siteId is required" });
+    }
 
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findUnique({ where: { email }, select: { id: true } });
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
 
-    const currentOrigins = parseFrontendOrigins((user as any).frontendOriginsJson);
-    if (!currentOrigins.includes(frontendOrigin)) {
-      return res.status(404).json({ error: "前端域名不存在" });
-    }
-
-    const nextOrigins = currentOrigins.filter((item) => item !== frontendOrigin);
-    await prisma.user.update({
-      where: { email },
-      data: { frontendOriginsJson: nextOrigins.length ? JSON.stringify(nextOrigins) : null } as any,
+    const site = await prisma.userSite.findFirst({
+      where: { id: parsedSiteId, userId: user.id },
+      select: { id: true },
     });
-    res.json({ message: "前端域名已删除", frontendOrigins: nextOrigins });
+    if (!site) return res.status(404).json({ error: "Brand not found" });
+    const association = await prisma.siteFrontendOrigin.findFirst({
+      where: { siteId: site.id, frontendOrigin: { userId: user.id, origin: frontendOrigin } },
+      select: { originId: true },
+    });
+    if (!association) return res.status(404).json({ error: "前端域名不存在" });
+
+    await prisma.$transaction(async (tx) => {
+      await tx.siteFrontendOrigin.delete({
+        where: { siteId_originId: { siteId: site.id, originId: association.originId } },
+      });
+      const remainingLinks = await tx.siteFrontendOrigin.count({ where: { originId: association.originId } });
+      if (remainingLinks === 0) await tx.frontendOrigin.delete({ where: { id: association.originId } });
+    });
+    const nextOrigins = await prisma.siteFrontendOrigin.findMany({
+      where: { siteId: site.id },
+      orderBy: { createdAt: "asc" },
+      include: { frontendOrigin: { select: { origin: true } } },
+    });
+    res.json({ message: "前端域名已删除", frontendOrigins: nextOrigins.map((item) => item.frontendOrigin.origin) });
   } catch (error) {
     next(error);
   }
