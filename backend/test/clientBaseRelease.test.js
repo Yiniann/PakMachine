@@ -8,10 +8,13 @@ const express = require("express");
 
 const { registerClientBaseArtifact } = require("../src/controllers/clientControlController");
 const { authenticateClientBaseRelease } = require("../src/middleware/clientBaseReleaseAuth");
+const { rotateClientBaseReleaseToken } = require("../src/services/clientBaseStorageConfigService");
 
 const releaseToken = "test-release-token-that-is-at-least-32-bytes-long";
 const temporaryDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "pakmachine-client-base-"));
 const catalogPath = path.join(temporaryDirectory, "client-base-artifacts.json");
+const storageConfigPath = path.join(temporaryDirectory, "client-base-storage.json");
+const storageKeyPath = path.join(temporaryDirectory, "client-base-storage.key");
 let server;
 let baseUrl;
 
@@ -40,6 +43,8 @@ async function publish(body, token = releaseToken) {
 
 before(async () => {
   process.env.CLIENT_BASE_ARTIFACTS_PATH = catalogPath;
+  process.env.CLIENT_BASE_STORAGE_CONFIG_PATH = storageConfigPath;
+  process.env.CLIENT_BASE_STORAGE_KEY_PATH = storageKeyPath;
   process.env.CLIENT_BASE_RELEASE_TOKEN = releaseToken;
   const app = express();
   app.use(express.json());
@@ -61,6 +66,8 @@ after(async () => {
   await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   fs.rmSync(temporaryDirectory, { recursive: true, force: true });
   delete process.env.CLIENT_BASE_ARTIFACTS_PATH;
+  delete process.env.CLIENT_BASE_STORAGE_CONFIG_PATH;
+  delete process.env.CLIENT_BASE_STORAGE_KEY_PATH;
   delete process.env.CLIENT_BASE_RELEASE_TOKEN;
 });
 
@@ -99,4 +106,14 @@ test("基础包发布接口拒绝越权的 R2 对象路径", async () => {
   }));
   assert.equal(result.response.status, 400);
   assert.equal(result.payload.error, "基础包对象路径不合法");
+});
+
+test("基础包发布接口接受后台生成的发布密钥并停止使用环境变量密钥", async () => {
+  const generated = rotateClientBaseReleaseToken();
+  const accepted = await publish(artifact({ buildNumber: 201 }), generated.token);
+  assert.equal(accepted.response.status, 201);
+
+  const oldEnvironmentToken = await publish(artifact({ buildNumber: 202 }), releaseToken);
+  assert.equal(oldEnvironmentToken.response.status, 401);
+  assert.equal(oldEnvironmentToken.payload.error, "基础包发布凭证无效");
 });

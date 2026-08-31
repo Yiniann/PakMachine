@@ -46,8 +46,8 @@ Actions 里需要配置的 Secrets/Variables：
 ### Secrets（GitHub → Settings → Secrets and variables → Actions）
 - `ACTION_WEBHOOK_SECRET`：后端校验 webhook 签名的密钥  
 - `CF_R2_ACCESS_KEY_ID` / `CF_R2_SECRET_ACCESS_KEY` / `CF_R2_ACCOUNT_ID` / `CF_R2_BUCKET` / `CF_R2_PUBLIC_BASE`：构建产物上传到 Cloudflare R2 的凭据与公开基址（不使用 R2 可不填，会自动跳过上传）
-- `CLIENT_R2_ACCESS_KEY_ID` / `CLIENT_R2_SECRET_ACCESS_KEY` / `CLIENT_R2_ACCOUNT_ID` / `CLIENT_R2_BUCKET`：通用客户端基础包所在私有 R2 Bucket 的凭据，用于登记后签发短期下载地址。
-- `CLIENT_BASE_RELEASE_TOKEN`：只供 Shuttle Client 私有仓库发布通用基础包时调用 ShuttleITS，至少 32 字节，并与该仓库的 `SHUTTLEITS_BASE_RELEASE_TOKEN` Secret 保持一致。
+- 客户端基础包 R2 凭证应在“系统设置 → 客户端基础包存储”中配置并测试。后台会加密保存凭证；`CLIENT_R2_*` 环境变量仅作为紧急回退。
+- 基础包发布密钥应在同一区域生成或轮换，生成后只显示一次。将它保存为 Shuttle Client 私有仓库的 `SHUTTLEITS_BASE_RELEASE_TOKEN` Secret；`CLIENT_BASE_RELEASE_TOKEN` 环境变量仅作为尚未生成后台密钥时的紧急回退。
 - macOS 正式签名可配置 `MACOS_CSC_LINK`、`MACOS_CSC_KEY_PASSWORD`、`MACOS_APPLE_ID`、`MACOS_APP_SPECIFIC_PASSWORD`、`MACOS_TEAM_ID`。
 - Windows 正式签名可配置 `WINDOWS_CSC_LINK`、`WINDOWS_CSC_KEY_PASSWORD`。
 - Android 正式签名必须配置 `ANDROID_KEYSTORE_BASE64`、`ANDROID_KEYSTORE_PASSWORD`、`ANDROID_KEY_ALIAS`、`ANDROID_KEY_PASSWORD`。
@@ -72,7 +72,9 @@ Actions 里需要配置的 Secrets/Variables：
 
 Shuttle Client 私有仓库使用 `publish-client-base.yml` 构建由平台方维护的通用基础包，直接上传到独立私有 R2 Bucket，再通过受保护接口把对象路径和校验信息登记到 ShuttleITS。基础包不使用 GitHub Artifact，也没有永久公开 URL。
 
-客户发起构建时，BFF 从 ShuttleITS 获取签名构建清单及 10 分钟有效的基础包下载地址，并提交给客户服务器上的 Builder。Builder 校验清单、文件大小和 SHA-256 后在本地注入品牌配置；客户生产包不在 GitHub Actions 上编译。PakMachine 后端需要配置同一组 `CLIENT_R2_*` 环境变量以签发临时下载地址。
+客户发起构建时，BFF 从 ShuttleITS 获取签名构建清单及 10 分钟有效的基础包下载地址，并提交给客户服务器上的 Builder。Builder 校验清单、文件大小和 SHA-256 后在本地注入品牌配置；客户生产包不在 GitHub Actions 上编译。PakMachine 后端使用系统设置中保存的只读 R2 凭证签发临时下载地址。
+
+后台 R2 凭证使用自动生成的 AES-256-GCM 主密钥加密，配置和主密钥分别保存在 `backend/config/client-base-storage.json` 与 `backend/config/client-base-storage.key`。两个文件均由现有 `backend/config` 持久化卷保存，备份和迁移时必须一起处理；发布密钥只保存 SHA-256 哈希。
 
 客户端应用名称强制跟随用户已有品牌。PakMachine 会为每个品牌首次生成并持久化稳定的应用 ID，内部配置标识直接使用同一 ID；品牌改名不会改变应用 ID。客户端版本读取 Shuttle Client 仓库版本，构建号由 GitHub Actions 自动递增，这些字段均不由客户填写。
 

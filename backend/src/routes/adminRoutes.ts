@@ -31,6 +31,12 @@ import {
   getClientSigningConfig,
   initializeClientSigningConfig,
 } from "../controllers/clientSigningController";
+import {
+  getClientBaseStorageConfig,
+  rotateClientBaseRelease,
+  testClientBaseStorage,
+  updateClientBaseStorageConfig,
+} from "../controllers/clientBaseStorageController";
 
 const router = Router();
 
@@ -56,6 +62,10 @@ router.put("/settings", updateSystemSettings);
 router.get("/client-signing", getClientSigningConfig);
 router.post("/client-signing/initialize", initializeClientSigningConfig);
 router.get("/client-signing/bff-environment", getClientBffBuildEnvironment);
+router.get("/client-base-storage", getClientBaseStorageConfig);
+router.put("/client-base-storage", updateClientBaseStorageConfig);
+router.post("/client-base-storage/test", testClientBaseStorage);
+router.post("/client-base-storage/release-token", rotateClientBaseRelease);
 router.get("/tickets", listAdminTickets);
 router.get("/tickets/:id", getAdminTicket);
 router.post("/tickets/:id/messages", addAdminTicketMessage);

@@ -1,8 +1,12 @@
 import { FormEvent, useEffect, useState } from "react";
 import {
+  useClientBaseStorageConfig,
   useClientSigningConfig,
   useInitializeClientSigning,
+  useRotateClientBaseReleaseToken,
+  useSaveClientBaseStorage,
   useSystemSettings,
+  useTestClientBaseStorage,
   useUpdateSystemSettings,
 } from "../../features/settings/systemSettings";
 
@@ -11,6 +15,10 @@ const SystemSettingsPage = () => {
   const updateSettings = useUpdateSystemSettings();
   const clientSigningQuery = useClientSigningConfig();
   const initializeClientSigning = useInitializeClientSigning();
+  const clientBaseStorageQuery = useClientBaseStorageConfig();
+  const saveClientBaseStorage = useSaveClientBaseStorage();
+  const testClientBaseStorage = useTestClientBaseStorage();
+  const rotateClientBaseReleaseToken = useRotateClientBaseReleaseToken();
 
   const [siteName, setSiteName] = useState("");
   const [allowRegister, setAllowRegister] = useState(true);
@@ -27,6 +35,14 @@ const SystemSettingsPage = () => {
   const [clientControlBaseUrl, setClientControlBaseUrl] = useState("");
   const [clientSigningMessage, setClientSigningMessage] = useState<string | null>(null);
   const [clientConfigCopied, setClientConfigCopied] = useState(false);
+  const [clientR2AccountId, setClientR2AccountId] = useState("");
+  const [clientR2Bucket, setClientR2Bucket] = useState("");
+  const [clientR2AccessKeyId, setClientR2AccessKeyId] = useState("");
+  const [clientR2SecretAccessKey, setClientR2SecretAccessKey] = useState("");
+  const [clientStorageMessage, setClientStorageMessage] = useState<string | null>(null);
+  const [generatedReleaseToken, setGeneratedReleaseToken] = useState("");
+  const [releaseTokenCopied, setReleaseTokenCopied] = useState(false);
+  const [releaseRotationArmed, setReleaseRotationArmed] = useState(false);
 
   useEffect(() => {
     if (settingsQuery.data) {
@@ -49,6 +65,13 @@ const SystemSettingsPage = () => {
       setClientControlBaseUrl(clientSigningQuery.data.controlBaseUrl);
     }
   }, [clientSigningQuery.data?.controlBaseUrl]);
+
+  useEffect(() => {
+    if (clientBaseStorageQuery.data) {
+      setClientR2AccountId(clientBaseStorageQuery.data.accountId || "");
+      setClientR2Bucket(clientBaseStorageQuery.data.bucket || "");
+    }
+  }, [clientBaseStorageQuery.data]);
 
   const initializeSigning = () => {
     setClientSigningMessage(null);
@@ -80,6 +103,64 @@ const SystemSettingsPage = () => {
       setClientSigningMessage(null);
     } catch {
       setClientSigningMessage("浏览器无法写入剪贴板，请手动复制验签公钥");
+    }
+  };
+
+  const saveBaseStorage = (event: FormEvent) => {
+    event.preventDefault();
+    setClientStorageMessage(null);
+    saveClientBaseStorage.mutate(
+      {
+        accountId: clientR2AccountId.trim(),
+        bucket: clientR2Bucket.trim(),
+        accessKeyId: clientR2AccessKeyId.trim() || undefined,
+        secretAccessKey: clientR2SecretAccessKey.trim() || undefined,
+      },
+      {
+        onSuccess: () => {
+          setClientR2AccessKeyId("");
+          setClientR2SecretAccessKey("");
+          setClientStorageMessage("R2 配置已加密保存");
+        },
+        onError: (error) => setClientStorageMessage(apiErrorMessage(error, "R2 配置保存失败")),
+      },
+    );
+  };
+
+  const testBaseStorage = () => {
+    setClientStorageMessage(null);
+    testClientBaseStorage.mutate(undefined, {
+      onSuccess: () => setClientStorageMessage("R2 存储桶连接正常"),
+      onError: (error) => setClientStorageMessage(apiErrorMessage(error, "R2 连接测试失败")),
+    });
+  };
+
+  const rotateReleaseToken = () => {
+    if (clientBaseStorageQuery.data?.releaseTokenConfigured && !releaseRotationArmed) {
+      setReleaseRotationArmed(true);
+      setClientStorageMessage("轮换后 GitHub 中的旧发布密钥会立即失效，请再次点击确认轮换");
+      return;
+    }
+    setClientStorageMessage(null);
+    setGeneratedReleaseToken("");
+    setReleaseTokenCopied(false);
+    rotateClientBaseReleaseToken.mutate(undefined, {
+      onSuccess: (result) => {
+        setGeneratedReleaseToken(result.releaseToken);
+        setReleaseRotationArmed(false);
+        setClientStorageMessage("发布密钥已生成，只会显示这一次");
+      },
+      onError: (error) => setClientStorageMessage(apiErrorMessage(error, "发布密钥生成失败")),
+    });
+  };
+
+  const copyReleaseToken = async () => {
+    if (!generatedReleaseToken) return;
+    try {
+      await navigator.clipboard.writeText(generatedReleaseToken);
+      setReleaseTokenCopied(true);
+    } catch {
+      setClientStorageMessage("浏览器无法写入剪贴板，请手动复制发布密钥");
     }
   };
 
@@ -186,6 +267,165 @@ const SystemSettingsPage = () => {
                 </button>
               )}
               {clientSigningMessage && <span className="text-sm text-base-content/70">{clientSigningMessage}</span>}
+            </div>
+          </div>
+        )}
+      </section>
+
+      <section className="workspace-card p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="workspace-kicker">Client Base Storage</p>
+            <h3 className="mt-2 text-xl font-bold text-slate-900">客户端基础包存储</h3>
+            <p className="mt-1 text-sm leading-6 text-slate-500">
+              配置 ShuttleITS 读取私有 R2 基础包所需的凭证，并管理 Client 仓库使用的发布密钥。
+            </p>
+          </div>
+          <span className={`badge badge-lg ${clientBaseStorageQuery.data?.configured ? "badge-success" : "badge-ghost"}`}>
+            {clientBaseStorageQuery.data?.configured
+              ? clientBaseStorageQuery.data.source === "settings" ? "后台已配置" : "环境变量已配置"
+              : "未配置"}
+          </span>
+        </div>
+
+        {clientBaseStorageQuery.isLoading ? (
+          <div className="mt-6 flex justify-center"><span className="loading loading-spinner" /></div>
+        ) : clientBaseStorageQuery.error ? (
+          <div role="alert" className="workspace-alert mt-6 border border-rose-200 bg-rose-50 px-4 py-3 text-rose-700">
+            加载客户端基础包存储配置失败
+          </div>
+        ) : (
+          <div className="mt-6 space-y-6">
+            <form className="space-y-5" onSubmit={saveBaseStorage}>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <label className="form-control">
+                  <span className="label-text">Cloudflare Account ID</span>
+                  <input
+                    className="workspace-input input input-bordered font-mono"
+                    value={clientR2AccountId}
+                    onChange={(event) => setClientR2AccountId(event.target.value)}
+                    placeholder="32 位 Account ID"
+                    autoComplete="off"
+                  />
+                </label>
+                <label className="form-control">
+                  <span className="label-text">R2 存储桶</span>
+                  <input
+                    className="workspace-input input input-bordered"
+                    value={clientR2Bucket}
+                    onChange={(event) => setClientR2Bucket(event.target.value)}
+                    placeholder="shuttle-client-base"
+                    autoComplete="off"
+                  />
+                </label>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <label className="form-control">
+                  <span className="label-text">R2 Access Key ID</span>
+                  <input
+                    type="password"
+                    className="workspace-input input input-bordered font-mono"
+                    value={clientR2AccessKeyId}
+                    onChange={(event) => setClientR2AccessKeyId(event.target.value)}
+                    placeholder={clientBaseStorageQuery.data?.source === "settings" ? "已配置，留空保持不变" : "填写只读 Access Key ID"}
+                    autoComplete="new-password"
+                  />
+                </label>
+                <label className="form-control">
+                  <span className="label-text">R2 Secret Access Key</span>
+                  <input
+                    type="password"
+                    className="workspace-input input input-bordered font-mono"
+                    value={clientR2SecretAccessKey}
+                    onChange={(event) => setClientR2SecretAccessKey(event.target.value)}
+                    placeholder={clientBaseStorageQuery.data?.source === "settings" ? "已配置，留空保持不变" : "填写只读 Secret Access Key"}
+                    autoComplete="new-password"
+                  />
+                </label>
+              </div>
+
+              <p className="text-sm leading-6 text-slate-500">
+                凭证会加密保存在服务器，不会通过管理接口返回。建议使用仅允许读取
+                <code className="mx-1 rounded bg-slate-100 px-1.5 py-0.5 text-slate-700">{clientR2Bucket || "指定存储桶"}</code>
+                的独立 Account API 令牌。
+              </p>
+
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  className="landing-button-primary rounded-2xl px-5 py-3 text-sm"
+                  type="submit"
+                  disabled={saveClientBaseStorage.isPending
+                    || !clientR2AccountId.trim()
+                    || !clientR2Bucket.trim()
+                    || (clientBaseStorageQuery.data?.source !== "settings"
+                      && (!clientR2AccessKeyId.trim() || !clientR2SecretAccessKey.trim()))}
+                >
+                  {saveClientBaseStorage.isPending ? "保存中..." : "保存 R2 配置"}
+                </button>
+                <button
+                  className="btn btn-outline btn-sm"
+                  type="button"
+                  disabled={!clientBaseStorageQuery.data?.configured || testClientBaseStorage.isPending}
+                  onClick={testBaseStorage}
+                >
+                  {testClientBaseStorage.isPending ? "测试中..." : "测试连接"}
+                </button>
+              </div>
+            </form>
+
+            <div className="border-t border-slate-200 pt-5">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <h4 className="font-semibold text-slate-900">基础包发布密钥</h4>
+                  <p className="mt-1 text-sm leading-6 text-slate-500">
+                    复制到 Shuttle Client 仓库的
+                    <code className="mx-1 rounded bg-slate-100 px-1.5 py-0.5 text-slate-700">SHUTTLEITS_BASE_RELEASE_TOKEN</code>
+                    Secret。服务器只保存哈希。
+                  </p>
+                </div>
+                <span className={`badge ${clientBaseStorageQuery.data?.releaseTokenConfigured ? "badge-success" : "badge-ghost"}`}>
+                  {clientBaseStorageQuery.data?.releaseTokenConfigured
+                    ? clientBaseStorageQuery.data.releaseTokenSource === "settings" ? "已生成" : "来自环境变量"
+                    : "未生成"}
+                </span>
+              </div>
+
+              {clientBaseStorageQuery.data?.releaseTokenCreatedAt && (
+                <p className="mt-3 text-xs text-slate-500">
+                  最近生成：{new Date(clientBaseStorageQuery.data.releaseTokenCreatedAt).toLocaleString("zh-CN", { hour12: false })}
+                </p>
+              )}
+
+              {generatedReleaseToken && (
+                <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                  <input
+                    className="workspace-input input input-bordered min-w-0 flex-1 font-mono text-sm"
+                    value={generatedReleaseToken}
+                    readOnly
+                    aria-label="新生成的基础包发布密钥"
+                  />
+                  <button className="btn btn-outline" type="button" onClick={copyReleaseToken}>
+                    {releaseTokenCopied ? "已复制" : "复制密钥"}
+                  </button>
+                </div>
+              )}
+
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                <button
+                  className={releaseRotationArmed ? "btn btn-error btn-sm" : "btn btn-outline btn-sm"}
+                  type="button"
+                  disabled={rotateClientBaseReleaseToken.isPending}
+                  onClick={rotateReleaseToken}
+                >
+                  {rotateClientBaseReleaseToken.isPending
+                    ? "生成中..."
+                    : releaseRotationArmed
+                      ? "确认轮换"
+                      : clientBaseStorageQuery.data?.releaseTokenConfigured ? "轮换发布密钥" : "生成发布密钥"}
+                </button>
+                {clientStorageMessage && <span className="text-sm text-base-content/70">{clientStorageMessage}</span>}
+              </div>
             </div>
           </div>
         )}
@@ -330,3 +570,8 @@ const SystemSettingsPage = () => {
 };
 
 export default SystemSettingsPage;
+
+function apiErrorMessage(error: unknown, fallback: string) {
+  const responseError = error as { response?: { data?: { error?: string } } };
+  return responseError.response?.data?.error || fallback;
+}

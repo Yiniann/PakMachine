@@ -6,7 +6,7 @@ import {
   normalizeClientBaseArtifactPlatform,
   publishClientBaseArtifact,
 } from "../services/clientBaseArtifactService";
-import { createClientArtifactDownloadUrl } from "../services/clientR2Service";
+import { createClientBaseArtifactDownloadUrl } from "../services/clientR2Service";
 import {
   ClientManifestPlatform,
   createSignedClientManifest,
@@ -213,7 +213,7 @@ export const issueClientBuildManifest = async (req: Request, res: Response, next
       identity.iconUrl ? fetchHttpsSha256(identity.iconUrl) : Promise.resolve(null),
       Promise.resolve(getClientBaseArtifact(platform)),
     ]);
-    const artifactDownload = await createClientArtifactDownloadUrl(artifact.objectKey, artifact.filename);
+    const artifactDownload = await createClientBaseArtifactDownloadUrl(artifact.objectKey, artifact.filename);
     const issuedAt = Date.now();
     const expiresAt = issuedAt + 10 * 60 * 1000;
     const buildId = randomUUID();

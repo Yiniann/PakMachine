@@ -24,6 +24,31 @@ export type ClientSigningConfig = {
   createdAt: string | null;
 };
 
+export type ClientBaseStorageConfig = {
+  configured: boolean;
+  source: "settings" | "environment" | "none";
+  accountId: string | null;
+  bucket: string | null;
+  credentialsConfigured: boolean;
+  releaseTokenConfigured: boolean;
+  releaseTokenSource: "settings" | "environment" | "none";
+  releaseTokenCreatedAt: string | null;
+  updatedAt: string | null;
+};
+
+export type ClientBaseStorageInput = {
+  accountId: string;
+  bucket: string;
+  accessKeyId?: string;
+  secretAccessKey?: string;
+};
+
+export type ClientBaseReleaseTokenResult = {
+  releaseToken: string;
+  createdAt: string;
+  config: ClientBaseStorageConfig;
+};
+
 export const useSystemSettings = (): UseQueryResult<SystemSettings> =>
   useQuery({
     queryKey: ["system-settings"],
@@ -67,5 +92,44 @@ export const useInitializeClientSigning = (): UseMutationResult<ClientSigningCon
       queryClient.invalidateQueries({ queryKey: ["client-signing-config"] });
       queryClient.invalidateQueries({ queryKey: ["system-settings"] });
     },
+  });
+};
+
+export const useClientBaseStorageConfig = (): UseQueryResult<ClientBaseStorageConfig> =>
+  useQuery({
+    queryKey: ["client-base-storage"],
+    queryFn: async () => {
+      const res = await api.get("/admin/client-base-storage");
+      return res.data as ClientBaseStorageConfig;
+    },
+  });
+
+export const useSaveClientBaseStorage = (): UseMutationResult<ClientBaseStorageConfig, unknown, ClientBaseStorageInput, unknown> => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload) => {
+      const res = await api.put("/admin/client-base-storage", payload);
+      return res.data as ClientBaseStorageConfig;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["client-base-storage"] }),
+  });
+};
+
+export const useTestClientBaseStorage = (): UseMutationResult<{ ok: true; checkedAt: string }, unknown, void, unknown> =>
+  useMutation({
+    mutationFn: async () => {
+      const res = await api.post("/admin/client-base-storage/test");
+      return res.data as { ok: true; checkedAt: string };
+    },
+  });
+
+export const useRotateClientBaseReleaseToken = (): UseMutationResult<ClientBaseReleaseTokenResult, unknown, void, unknown> => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const res = await api.post("/admin/client-base-storage/release-token");
+      return res.data as ClientBaseReleaseTokenResult;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["client-base-storage"] }),
   });
 };
