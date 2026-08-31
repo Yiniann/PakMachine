@@ -46,7 +46,8 @@ Actions 里需要配置的 Secrets/Variables：
 ### Secrets（GitHub → Settings → Secrets and variables → Actions）
 - `ACTION_WEBHOOK_SECRET`：后端校验 webhook 签名的密钥  
 - `CF_R2_ACCESS_KEY_ID` / `CF_R2_SECRET_ACCESS_KEY` / `CF_R2_ACCOUNT_ID` / `CF_R2_BUCKET` / `CF_R2_PUBLIC_BASE`：构建产物上传到 Cloudflare R2 的凭据与公开基址（不使用 R2 可不填，会自动跳过上传）
-- `CLIENT_R2_ACCESS_KEY_ID` / `CLIENT_R2_SECRET_ACCESS_KEY` / `CLIENT_R2_ACCOUNT_ID` / `CLIENT_R2_BUCKET`：白标客户端上传到独立私有 R2 Bucket 的凭据。客户端工作流不使用公开地址。
+- `CLIENT_R2_ACCESS_KEY_ID` / `CLIENT_R2_SECRET_ACCESS_KEY` / `CLIENT_R2_ACCOUNT_ID` / `CLIENT_R2_BUCKET`：通用客户端基础包所在私有 R2 Bucket 的凭据，用于登记后签发短期下载地址。
+- `CLIENT_BASE_RELEASE_TOKEN`：只供 Shuttle Client 私有仓库发布通用基础包时调用 ShuttleITS，至少 32 字节，并与该仓库的 `SHUTTLEITS_BASE_RELEASE_TOKEN` Secret 保持一致。
 - macOS 正式签名可配置 `MACOS_CSC_LINK`、`MACOS_CSC_KEY_PASSWORD`、`MACOS_APPLE_ID`、`MACOS_APP_SPECIFIC_PASSWORD`、`MACOS_TEAM_ID`。
 - Windows 正式签名可配置 `WINDOWS_CSC_LINK`、`WINDOWS_CSC_KEY_PASSWORD`。
 - Android 正式签名必须配置 `ANDROID_KEYSTORE_BASE64`、`ANDROID_KEYSTORE_PASSWORD`、`ANDROID_KEY_ALIAS`、`ANDROID_KEY_PASSWORD`。
@@ -69,11 +70,13 @@ Actions 里需要配置的 Secrets/Variables：
 
 ### 客户端白标构建
 
-客户端构建使用独立的 `package-client.yml`，不会修改或复用 Web 构建的 `workflowFile`。PakMachine 后端需要配置同一私有 Bucket 的 `CLIENT_R2_*` 环境变量，以便为产物签发 10 分钟下载地址。客户端产物不经过 PakMachine 中转，不返回永久公开 URL，并按 R2 生命周期与数据库中的 30 天有效期共同失效。
+Shuttle Client 私有仓库使用 `publish-client-base.yml` 构建由平台方维护的通用基础包，直接上传到独立私有 R2 Bucket，再通过受保护接口把对象路径和校验信息登记到 ShuttleITS。基础包不使用 GitHub Artifact，也没有永久公开 URL。
+
+客户发起构建时，BFF 从 ShuttleITS 获取签名构建清单及 10 分钟有效的基础包下载地址，并提交给客户服务器上的 Builder。Builder 校验清单、文件大小和 SHA-256 后在本地注入品牌配置；客户生产包不在 GitHub Actions 上编译。PakMachine 后端需要配置同一组 `CLIENT_R2_*` 环境变量以签发临时下载地址。
 
 客户端应用名称强制跟随用户已有品牌。PakMachine 会为每个品牌首次生成并持久化稳定的应用 ID，内部配置标识直接使用同一 ID；品牌改名不会改变应用 ID。客户端版本读取 Shuttle Client 仓库版本，构建号由 GitHub Actions 自动递增，这些字段均不由客户填写。
 
-默认 workflow 文件名为 `.github/workflows/build.yml`。如果后台“系统设置”里仍保存着旧值 `package.yml`，请改回 `build.yml`，否则 dispatch 会因为输入参数不匹配而返回 422。
+原有 Web 前端构建仍使用既有工作流与模板，不受客户端基础包发布链路影响。
 
 ## 打包机自身的 CI/CD
 如果希望这个仓库本身在推送后自动部署，可以直接使用仓库内置的 GitHub Actions：

@@ -2,6 +2,12 @@ import crypto, { randomUUID } from "crypto";
 import { NextFunction, Request, Response } from "express";
 import prisma from "../lib/prisma";
 import {
+  getClientBaseArtifact,
+  normalizeClientBaseArtifactPlatform,
+  publishClientBaseArtifact,
+} from "../services/clientBaseArtifactService";
+import { createClientArtifactDownloadUrl } from "../services/clientR2Service";
+import {
   ClientManifestPlatform,
   createSignedClientManifest,
   fetchHttpsSha256,
@@ -9,19 +15,18 @@ import {
   normalizeBootstrapPublicProfile,
   normalizeGatewayBaseUrls,
   normalizeManifestPublicKey,
-  resolveClientBaseArtifact,
 } from "../services/clientManifestService";
 
 const PLATFORMS = new Set<ClientManifestPlatform>(["macos", "windows", "android"]);
 
-const loadClientBrands = async (userId: number) => {
+const loadClientBrands = async (userId: number, readyOnly = false) => {
   const sites = await prisma.userSite.findMany({
     where: { userId, clientBuildEnabled: true },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   });
   const identities = await prisma.clientAppConfig.findMany({ where: { userId } });
   const bySite = new Map(identities.filter((entry) => entry.siteId).map((entry) => [entry.siteId, entry]));
-  return sites.map((site) => {
+  const brands = sites.map((site) => {
     const identity = bySite.get(site.id);
     return {
       id: site.id,
@@ -32,6 +37,7 @@ const loadClientBrands = async (userId: number) => {
       ready: Boolean(identity?.appId),
     };
   });
+  return readyOnly ? brands.filter((brand) => brand.ready) : brands;
 };
 
 export const createClientBffActivation = async (req: Request, res: Response, next: NextFunction) => {
@@ -97,7 +103,7 @@ export const listClientBffBrands = async (req: Request, res: Response, next: Nex
     const instance = (req as any).clientBffInstance;
     return res.json({
       instanceId: instance.id,
-      brands: await loadClientBrands(instance.userId),
+      brands: await loadClientBrands(instance.userId, true),
     });
   } catch (error) {
     next(error);
@@ -169,6 +175,19 @@ export const saveClientBrandIdentity = async (req: Request, res: Response, next:
   }
 };
 
+export const registerClientBaseArtifact = (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const platform = normalizeClientBaseArtifactPlatform(req.params.platform);
+    const artifact = publishClientBaseArtifact(platform, req.body);
+    res.setHeader("Cache-Control", "no-store");
+    return res.status(201).json({ artifact });
+  } catch (error) {
+    const status = Number((error as Error & { status?: number })?.status || 0);
+    if (status >= 400 && status <= 599) return res.status(status).json({ error: (error as Error).message });
+    next(error);
+  }
+};
+
 export const issueClientBuildManifest = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const instance = (req as any).clientBffInstance;
@@ -192,8 +211,9 @@ export const issueClientBuildManifest = async (req: Request, res: Response, next
 
     const [icon, artifact] = await Promise.all([
       identity.iconUrl ? fetchHttpsSha256(identity.iconUrl) : Promise.resolve(null),
-      Promise.resolve(resolveClientBaseArtifact(platform)),
+      Promise.resolve(getClientBaseArtifact(platform)),
     ]);
+    const artifactDownload = await createClientArtifactDownloadUrl(artifact.objectKey, artifact.filename);
     const issuedAt = Date.now();
     const expiresAt = issuedAt + 10 * 60 * 1000;
     const buildId = randomUUID();
@@ -231,7 +251,7 @@ export const issueClientBuildManifest = async (req: Request, res: Response, next
       buildId,
       manifestHash: signed.manifestHash,
       envelope: signed.envelope,
-      baseArtifactUrl: signed.baseArtifactUrl,
+      baseArtifactUrl: artifactDownload.url,
       expiresAt: new Date(expiresAt).toISOString(),
     });
   } catch (error) {

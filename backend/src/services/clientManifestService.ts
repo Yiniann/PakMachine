@@ -1,15 +1,8 @@
 import crypto from "crypto";
+import { ClientBaseArtifact } from "./clientBaseArtifactService";
 import { requireClientManifestPrivateKey } from "./clientSigningIdentityService";
 
 export type ClientManifestPlatform = "macos" | "windows" | "android";
-
-type BaseArtifact = {
-  version: string;
-  buildNumber: number;
-  url: string;
-  sha256: string;
-  size: number;
-};
 
 const ARCHITECTURES: Record<ClientManifestPlatform, string> = {
   macos: "arm64",
@@ -23,32 +16,6 @@ export const normalizeGatewayBaseUrls = (input: unknown) => {
   const unique = values.filter((value, index) => values.indexOf(value) === index);
   if (unique.length < 1 || unique.length > 16) throw new Error("请填写 1 到 16 个不重复的客户端连接地址");
   return unique;
-};
-
-export const resolveClientBaseArtifact = (platform: ClientManifestPlatform): BaseArtifact => {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(process.env.CLIENT_BASE_ARTIFACTS_JSON || "{}");
-  } catch {
-    throw serviceUnavailable("CLIENT_BASE_ARTIFACTS_JSON 不是有效 JSON");
-  }
-  const source = parsed && typeof parsed === "object" && !Array.isArray(parsed)
-    ? (parsed as Record<string, unknown>)[platform]
-    : null;
-  if (!source || typeof source !== "object" || Array.isArray(source)) {
-    throw serviceUnavailable(`尚未配置 ${platform} 客户端基础包`);
-  }
-  const value = source as Record<string, unknown>;
-  const version = String(value.version || "");
-  const buildNumber = Number(value.buildNumber);
-  const url = normalizeHttpsUrl(value.url, "客户端基础包地址");
-  const sha256 = String(value.sha256 || "");
-  const size = Number(value.size);
-  if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(version)) throw serviceUnavailable(`${platform} 基础包版本不合法`);
-  if (!Number.isSafeInteger(buildNumber) || buildNumber < 1) throw serviceUnavailable(`${platform} 基础包构建号不合法`);
-  if (!/^[0-9a-f]{64}$/.test(sha256)) throw serviceUnavailable(`${platform} 基础包 SHA-256 不合法`);
-  if (!Number.isSafeInteger(size) || size < 1) throw serviceUnavailable(`${platform} 基础包大小不合法`);
-  return { version, buildNumber, url, sha256, size };
 };
 
 export const createSignedClientManifest = (input: {
@@ -65,7 +32,7 @@ export const createSignedClientManifest = (input: {
   gatewayBaseUrls: string[];
   bootstrapPublicProfileBase64: string;
   features?: string[];
-  artifact: BaseArtifact;
+  artifact: ClientBaseArtifact;
   issuedAt: number;
   expiresAt: number;
 }) => {
@@ -107,7 +74,6 @@ export const createSignedClientManifest = (input: {
   return {
     envelope,
     manifestHash: crypto.createHash("sha256").update(canonicalJson(envelope)).digest("hex"),
-    baseArtifactUrl: input.artifact.url,
   };
 };
 
@@ -193,10 +159,4 @@ function canonicalJson(value: unknown): string {
     return `{${Object.keys(record).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key])}`).join(",")}}`;
   }
   throw new Error("Manifest 包含不可签名的数据");
-}
-
-function serviceUnavailable(message: string) {
-  const error = new Error(message) as Error & { status?: number };
-  error.status = 503;
-  return error;
 }
