@@ -2,6 +2,12 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import BuildProgressModal, { BuildProgressStatus } from "../../components/BuildProgressModal";
 import {
+  ClientBffActivation,
+  useClientControlBrands,
+  useCreateClientBffActivation,
+  useSaveClientBrandIdentity,
+} from "../../features/builds/clientControl";
+import {
   ClientPlatform,
   useClientBuildJobs,
   useCreateClientBuild,
@@ -13,6 +19,8 @@ type ClientForm = {
   iconUrl: string;
 };
 
+type PageMessage = { tone: "success" | "error"; text: string } | null;
+
 const initialForm: ClientForm = {
   platform: "macos",
   iconUrl: "",
@@ -21,13 +29,20 @@ const initialForm: ClientForm = {
 const envValue = (value: string) => JSON.stringify(value.trim());
 
 const buildClientEnvironment = (form: ClientForm) =>
-  [
-    `VITE_SHUTTLE_APP_ICON=${envValue(form.iconUrl)}`,
-  ].join("\n");
+  [`VITE_SHUTTLE_APP_ICON=${envValue(form.iconUrl)}`].join("\n");
+
+const requestError = (error: unknown, fallback: string) =>
+  (error as any)?.response?.data?.error || fallback;
 
 const ClientBuildPage = () => {
   const [form, setForm] = useState(initialForm);
   const [selectedSiteId, setSelectedSiteId] = useState<number | null>(null);
+  const [publisher, setPublisher] = useState("");
+  const [brandIconUrl, setBrandIconUrl] = useState("");
+  const [activation, setActivation] = useState<ClientBffActivation | null>(null);
+  const [activationMessage, setActivationMessage] = useState<PageMessage>(null);
+  const [identityMessage, setIdentityMessage] = useState<PageMessage>(null);
+  const [activationCopied, setActivationCopied] = useState(false);
   const [buildProgress, setBuildProgress] = useState<{
     jobId: number | null;
     status: BuildProgressStatus;
@@ -35,6 +50,9 @@ const ClientBuildPage = () => {
   } | null>(null);
   const navigate = useNavigate();
   const siteProfile = useSiteProfile();
+  const clientBrands = useClientControlBrands();
+  const createActivation = useCreateClientBffActivation();
+  const saveBrandIdentity = useSaveClientBrandIdentity();
   const jobs = useClientBuildJobs();
   const createBuild = useCreateClientBuild();
   const architecture = useMemo(
@@ -43,6 +61,7 @@ const ClientBuildPage = () => {
   );
   const sites = (siteProfile.data?.sites ?? []).filter((site) => site.clientBuildEnabled);
   const selectedSite = sites.find((site) => site.id === selectedSiteId) ?? null;
+  const selectedControlBrand = (clientBrands.data ?? []).find((brand) => brand.id === selectedSiteId) ?? null;
   const brandName = selectedSite?.name || siteProfile.data?.siteName || "";
   const gatewayOrigins = (selectedSite?.frontendOrigins ?? []).filter((origin) => origin.startsWith("https://"));
 
@@ -54,6 +73,13 @@ const ClientBuildPage = () => {
     if (selectedSiteId && sites.some((site) => site.id === selectedSiteId)) return;
     setSelectedSiteId(sites[0].id);
   }, [selectedSiteId, sites]);
+
+  useEffect(() => {
+    setPublisher(selectedControlBrand?.publisher || selectedSite?.name || "");
+    setBrandIconUrl(selectedControlBrand?.iconUrl || "");
+    setForm((current) => ({ ...current, iconUrl: selectedControlBrand?.iconUrl || "" }));
+    setIdentityMessage(null);
+  }, [selectedControlBrand?.appId, selectedControlBrand?.publisher, selectedControlBrand?.iconUrl, selectedSite?.name]);
 
   const activeJob = buildProgress?.jobId
     ? jobs.data?.find((job) => job.id === buildProgress.jobId)
@@ -85,6 +111,50 @@ const ClientBuildPage = () => {
   const update = <K extends keyof ClientForm>(key: K, value: ClientForm[K]) =>
     setForm((current) => ({ ...current, [key]: value }));
 
+  const onCreateActivation = () => {
+    setActivationMessage(null);
+    setActivationCopied(false);
+    createActivation.mutate(undefined, {
+      onSuccess: (result) => {
+        setActivation(result);
+        setActivationMessage({ tone: "success", text: "一次性激活凭证已生成" });
+      },
+      onError: (error) => setActivationMessage({
+        tone: "error",
+        text: requestError(error, "激活凭证生成失败"),
+      }),
+    });
+  };
+
+  const onCopyActivation = async () => {
+    if (!activation) return;
+    try {
+      await navigator.clipboard.writeText(activation.activationToken);
+      setActivationCopied(true);
+    } catch {
+      setActivationMessage({ tone: "error", text: "复制失败，请手动选择凭证" });
+    }
+  };
+
+  const onSaveBrandIdentity = (event: FormEvent) => {
+    event.preventDefault();
+    if (!selectedSiteId) return;
+    setIdentityMessage(null);
+    saveBrandIdentity.mutate(
+      { siteId: selectedSiteId, publisher: publisher.trim(), iconUrl: brandIconUrl.trim() },
+      {
+        onSuccess: (result) => {
+          setForm((current) => ({ ...current, iconUrl: result.iconUrl || "" }));
+          setIdentityMessage({ tone: "success", text: "品牌客户端资料已保存" });
+        },
+        onError: (error) => setIdentityMessage({
+          tone: "error",
+          text: requestError(error, "品牌客户端资料保存失败"),
+        }),
+      },
+    );
+  };
+
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
     setBuildProgress({ jobId: null, status: "submitting" });
@@ -97,10 +167,10 @@ const ClientBuildPage = () => {
       },
       {
         onSuccess: (data) => setBuildProgress({ jobId: data.jobId, status: "pending" }),
-        onError: (error: any) => setBuildProgress({
+        onError: (error) => setBuildProgress({
           jobId: null,
           status: "failed",
-          message: error?.response?.data?.error || "客户端构建提交失败",
+          message: requestError(error, "客户端构建提交失败"),
         }),
       },
     );
@@ -109,9 +179,9 @@ const ClientBuildPage = () => {
   return (
     <div className="space-y-6">
       <div>
-        <p className="workspace-kicker">Client Packaging</p>
+        <p className="workspace-kicker">Client Control</p>
         <h2 className="mt-3 text-4xl font-bold tracking-[-0.05em] text-slate-900">客户端构建</h2>
-        <p className="mt-2 text-lg leading-8 text-slate-500">按品牌配置生成 macOS、Windows 和 Android 客户端。</p>
+        <p className="mt-2 text-lg leading-8 text-slate-500">管理客户中台授权、品牌资料与客户端构建。</p>
       </div>
 
       {siteProfile.isLoading ? (
@@ -121,65 +191,194 @@ const ClientBuildPage = () => {
           当前没有已开通客户端构建权限的品牌，请联系管理员开通。
         </div>
       ) : (
-      <form className="workspace-card" onSubmit={onSubmit}>
-        <div className="card-body gap-5">
-          <div className="grid gap-4 md:grid-cols-2">
-            <label className="form-control">
-              <span className="label-text">目标平台</span>
-              <select className="workspace-input select select-bordered" value={form.platform} onChange={(event) => update("platform", event.target.value as ClientPlatform)}>
-                <option value="macos">macOS</option>
-                <option value="windows">Windows</option>
-                <option value="android">Android</option>
-              </select>
-            </label>
-            <label className="form-control">
-              <span className="label-text">架构</span>
-              <input
-                className="workspace-input input input-bordered"
-                value={form.platform === "macos" ? "Apple Silicon" : architecture}
-                disabled
-              />
-            </label>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <label className="form-control">
-              <span className="label-text">品牌名字</span>
-              {sites.length > 1 ? (
-                <select
-                  required
-                  className="workspace-input select select-bordered"
-                  value={selectedSiteId ?? ""}
-                  onChange={(event) => setSelectedSiteId(Number(event.target.value))}
+        <>
+          <section className="workspace-card">
+            <div className="card-body gap-5">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="workspace-kicker">BFF Activation</p>
+                  <h3 className="mt-2 text-xl font-bold text-slate-900">连接客户中台</h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-500">凭证仅用于首次连接，生成后 30 分钟内有效。</p>
+                </div>
+                <button
+                  className="landing-button-primary shrink-0 rounded-2xl px-5 py-3 text-sm"
+                  type="button"
+                  onClick={onCreateActivation}
+                  disabled={createActivation.isPending}
                 >
-                  {sites.map((site) => <option key={site.id} value={site.id}>{site.name}</option>)}
-                </select>
+                  {createActivation.isPending ? "生成中..." : activation ? "重新生成" : "生成激活凭证"}
+                </button>
+              </div>
+
+              {activation ? (
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-slate-500">一次性激活凭证</p>
+                      <code className="mt-2 block select-all break-all text-sm text-slate-800">{activation.activationToken}</code>
+                      <p className="mt-2 text-xs text-slate-500">有效期至 {new Date(activation.expiresAt).toLocaleString("zh-CN", { hour12: false })}</p>
+                    </div>
+                    <button className="landing-button-secondary shrink-0 rounded-2xl px-4 py-2 text-sm" type="button" onClick={onCopyActivation}>
+                      {activationCopied ? "已复制" : "复制"}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+
+              {activationMessage ? (
+                <p className={`text-sm ${activationMessage.tone === "success" ? "text-emerald-700" : "text-rose-600"}`}>
+                  {activationMessage.text}
+                </p>
+              ) : null}
+            </div>
+          </section>
+
+          <form className="workspace-card" onSubmit={onSaveBrandIdentity}>
+            <div className="card-body gap-5">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="workspace-kicker">Brand Identity</p>
+                  <h3 className="mt-2 text-xl font-bold text-slate-900">品牌客户端资料</h3>
+                </div>
+                <span className={`w-fit rounded-full px-3 py-1 text-xs font-semibold ${
+                  selectedControlBrand?.ready ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
+                }`}>
+                  {selectedControlBrand?.ready ? "已完成" : "待配置"}
+                </span>
+              </div>
+
+              {clientBrands.isLoading ? (
+                <div className="flex justify-center py-8"><span className="loading loading-spinner" /></div>
+              ) : clientBrands.isError ? (
+                <div className="workspace-alert border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                  {requestError(clientBrands.error, "品牌客户端资料加载失败")}
+                </div>
               ) : (
-                <input required className="workspace-input input input-bordered" value={brandName} disabled />
+                <div className="grid gap-4 md:grid-cols-2">
+                  <label className="form-control">
+                    <span className="label-text">品牌名字</span>
+                    <select
+                      required
+                      className="workspace-input select select-bordered"
+                      value={selectedSiteId ?? ""}
+                      onChange={(event) => setSelectedSiteId(Number(event.target.value))}
+                    >
+                      {sites.map((site) => <option key={site.id} value={site.id}>{site.name}</option>)}
+                    </select>
+                  </label>
+                  <label className="form-control">
+                    <span className="label-text">应用 ID</span>
+                    <input
+                      className="workspace-input input input-bordered"
+                      value={selectedControlBrand?.appId || "保存后自动生成"}
+                      disabled
+                    />
+                  </label>
+                  <label className="form-control">
+                    <span className="label-text">发布者</span>
+                    <input
+                      required
+                      className="workspace-input input input-bordered"
+                      value={publisher}
+                      maxLength={80}
+                      onChange={(event) => setPublisher(event.target.value)}
+                    />
+                  </label>
+                  <label className="form-control">
+                    <span className="label-text">应用图标 URL</span>
+                    <input
+                      required
+                      type="url"
+                      className="workspace-input input input-bordered"
+                      value={brandIconUrl}
+                      onChange={(event) => setBrandIconUrl(event.target.value)}
+                      placeholder="https://cdn.example.com/app-icon.png"
+                    />
+                  </label>
+                </div>
               )}
-            </label>
-            <label className="form-control">
-              <span className="label-text">应用图标 URL</span>
-              <input required type="url" className="workspace-input input input-bordered" value={form.iconUrl} onChange={(event) => update("iconUrl", event.target.value)} placeholder="https://cdn.example.com/app-icon.png" />
-            </label>
-            <div className="form-control md:col-span-2">
-              <span className="label-text">Gateway 域名</span>
-              <div className="mt-2 flex min-h-12 flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
-                {gatewayOrigins.map((origin) => (
-                  <span key={origin} className="rounded-full border border-sky-200 bg-white px-3 py-1 text-xs font-medium text-sky-700">{origin}</span>
-                ))}
-                {!gatewayOrigins.length ? <span className="text-sm text-rose-600">当前品牌没有可用的 HTTPS 前端域名</span> : null}
+
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  className="landing-button-primary rounded-2xl px-5 py-3 text-sm"
+                  type="submit"
+                  disabled={saveBrandIdentity.isPending || clientBrands.isLoading || !selectedSiteId}
+                >
+                  {saveBrandIdentity.isPending ? "保存中..." : "保存品牌资料"}
+                </button>
+                {identityMessage ? (
+                  <span className={`text-sm ${identityMessage.tone === "success" ? "text-emerald-700" : "text-rose-600"}`}>
+                    {identityMessage.text}
+                  </span>
+                ) : null}
               </div>
             </div>
-          </div>
+          </form>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <button className="landing-button-primary rounded-2xl px-5 py-3 text-sm" type="submit" disabled={createBuild.isPending || Boolean(buildProgress && buildProgress.status !== "failed") || siteProfile.isLoading || !brandName || gatewayOrigins.length === 0}>
-              {createBuild.isPending || (buildProgress && buildProgress.status !== "failed") ? "构建中..." : "开始构建"}
-            </button>
-          </div>
-        </div>
-      </form>
+          <details className="workspace-card overflow-hidden">
+            <summary className="cursor-pointer list-none px-6 py-5">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="workspace-kicker">Legacy Build</p>
+                  <h3 className="mt-2 text-lg font-bold text-slate-900">旧版云端客户端构建</h3>
+                </div>
+                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">过渡保留</span>
+              </div>
+            </summary>
+            <form className="border-t border-slate-200" onSubmit={onSubmit}>
+              <div className="card-body gap-5">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <label className="form-control">
+                    <span className="label-text">目标平台</span>
+                    <select className="workspace-input select select-bordered" value={form.platform} onChange={(event) => update("platform", event.target.value as ClientPlatform)}>
+                      <option value="macos">macOS</option>
+                      <option value="windows">Windows</option>
+                      <option value="android">Android</option>
+                    </select>
+                  </label>
+                  <label className="form-control">
+                    <span className="label-text">架构</span>
+                    <input
+                      className="workspace-input input input-bordered"
+                      value={form.platform === "macos" ? "Apple Silicon" : architecture}
+                      disabled
+                    />
+                  </label>
+                  <label className="form-control">
+                    <span className="label-text">品牌名字</span>
+                    <select
+                      required
+                      className="workspace-input select select-bordered"
+                      value={selectedSiteId ?? ""}
+                      onChange={(event) => setSelectedSiteId(Number(event.target.value))}
+                    >
+                      {sites.map((site) => <option key={site.id} value={site.id}>{site.name}</option>)}
+                    </select>
+                  </label>
+                  <label className="form-control">
+                    <span className="label-text">应用图标 URL</span>
+                    <input required type="url" className="workspace-input input input-bordered" value={form.iconUrl} onChange={(event) => update("iconUrl", event.target.value)} placeholder="https://cdn.example.com/app-icon.png" />
+                  </label>
+                  <div className="form-control md:col-span-2">
+                    <span className="label-text">Gateway 域名</span>
+                    <div className="mt-2 flex min-h-12 flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                      {gatewayOrigins.map((origin) => (
+                        <span key={origin} className="rounded-full border border-sky-200 bg-white px-3 py-1 text-xs font-medium text-sky-700">{origin}</span>
+                      ))}
+                      {!gatewayOrigins.length ? <span className="text-sm text-rose-600">当前品牌没有可用的 HTTPS 前端域名</span> : null}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3">
+                  <button className="landing-button-primary rounded-2xl px-5 py-3 text-sm" type="submit" disabled={createBuild.isPending || Boolean(buildProgress && buildProgress.status !== "failed") || siteProfile.isLoading || !brandName || gatewayOrigins.length === 0}>
+                    {createBuild.isPending || (buildProgress && buildProgress.status !== "failed") ? "构建中..." : "开始旧版构建"}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </details>
+        </>
       )}
 
       <BuildProgressModal
@@ -190,7 +389,6 @@ const ClientBuildPage = () => {
         message={buildProgress?.message}
         onClose={() => setBuildProgress(null)}
       />
-
     </div>
   );
 };

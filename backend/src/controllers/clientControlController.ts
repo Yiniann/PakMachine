@@ -14,6 +14,26 @@ import {
 
 const PLATFORMS = new Set<ClientManifestPlatform>(["macos", "windows", "android"]);
 
+const loadClientBrands = async (userId: number) => {
+  const sites = await prisma.userSite.findMany({
+    where: { userId, clientBuildEnabled: true },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+  });
+  const identities = await prisma.clientAppConfig.findMany({ where: { userId } });
+  const bySite = new Map(identities.filter((entry) => entry.siteId).map((entry) => [entry.siteId, entry]));
+  return sites.map((site) => {
+    const identity = bySite.get(site.id);
+    return {
+      id: site.id,
+      name: site.name,
+      appId: identity?.appId || null,
+      publisher: identity?.publisher || site.name,
+      iconUrl: identity?.iconUrl || null,
+      ready: Boolean(identity?.appId && identity?.iconUrl),
+    };
+  });
+};
+
 export const createClientBffActivation = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = Number((req as any).user?.sub);
@@ -75,26 +95,20 @@ export const enrollClientBff = async (req: Request, res: Response, next: NextFun
 export const listClientBffBrands = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const instance = (req as any).clientBffInstance;
-    const sites = await prisma.userSite.findMany({
-      where: { userId: instance.userId, clientBuildEnabled: true },
-      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-    });
-    const identities = await prisma.clientAppConfig.findMany({ where: { userId: instance.userId } });
-    const bySite = new Map(identities.filter((entry) => entry.siteId).map((entry) => [entry.siteId, entry]));
     return res.json({
       instanceId: instance.id,
-      brands: sites.map((site) => {
-        const identity = bySite.get(site.id);
-        return {
-          id: site.id,
-          name: site.name,
-          appId: identity?.appId || null,
-          publisher: identity?.publisher || site.name,
-          iconUrl: identity?.iconUrl || null,
-          ready: Boolean(identity?.appId && identity?.iconUrl),
-        };
-      }),
+      brands: await loadClientBrands(instance.userId),
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const listClientBrands = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = Number((req as any).user?.sub);
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+    return res.json({ brands: await loadClientBrands(userId) });
   } catch (error) {
     next(error);
   }
