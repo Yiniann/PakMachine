@@ -50,6 +50,8 @@ const ClientBuildPage = () => {
   const [runtimeArchitecture, setRuntimeArchitecture] = useState<ClientRuntimeArchitecture>("amd64");
   const [adminPathPrefix, setAdminPathPrefix] = useState("/admin");
   const [runtimeMessage, setRuntimeMessage] = useState<PageMessage>(null);
+  const [runtimeInstallCommand, setRuntimeInstallCommand] = useState("");
+  const [runtimeCommandCopied, setRuntimeCommandCopied] = useState(false);
   const [buildProgress, setBuildProgress] = useState<{
     jobId: number | null;
     status: BuildProgressStatus;
@@ -136,21 +138,23 @@ const ClientBuildPage = () => {
 
   const onCreateRuntimePackage = () => {
     setRuntimeMessage(null);
+    setRuntimeInstallCommand("");
+    setRuntimeCommandCopied(false);
     createRuntimePackage.mutate(
       { architecture: runtimeArchitecture, adminPathPrefix: adminPathPrefix.trim() },
       {
         onSuccess: (result) => {
-          const url = URL.createObjectURL(result.blob);
           const anchor = document.createElement("a");
-          anchor.href = url;
+          anchor.href = result.downloadUrl;
           anchor.download = result.filename;
+          anchor.rel = "noopener";
           document.body.appendChild(anchor);
           anchor.click();
           anchor.remove();
-          URL.revokeObjectURL(url);
+          setRuntimeInstallCommand(result.installCommand);
           setRuntimeMessage({
             tone: "success",
-            text: "部署包已生成，请在 10 分钟内上传到服务器并运行安装脚本。",
+            text: "完整部署包已开始下载，下载完成后的文件不会过期。",
           });
         },
         onError: (error) => setRuntimeMessage({
@@ -159,6 +163,16 @@ const ClientBuildPage = () => {
         }),
       },
     );
+  };
+
+  const onCopyRuntimeCommand = async () => {
+    if (!runtimeInstallCommand) return;
+    try {
+      await navigator.clipboard.writeText(runtimeInstallCommand);
+      setRuntimeCommandCopied(true);
+    } catch {
+      setRuntimeMessage({ tone: "error", text: "复制失败，请手动选择安装命令" });
+    }
   };
 
   const onCopyActivation = async () => {
@@ -264,7 +278,7 @@ const ClientBuildPage = () => {
               </div>
 
               <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-600">
-                服务器需要已安装 Docker Engine 与 Docker Compose v2。部署包不包含源码和长期存储凭证；其中的运行包下载地址仅短时有效。
+                完整部署包内已经包含 BFF、Builder、Compose 和安装脚本，不含源码或长期存储凭证。服务器需要安装 Docker Engine 与 Docker Compose v2。
               </div>
 
               <div className="flex flex-wrap items-center gap-3">
@@ -274,7 +288,7 @@ const ClientBuildPage = () => {
                   onClick={onCreateRuntimePackage}
                   disabled={createRuntimePackage.isPending || !adminPathPrefix.trim()}
                 >
-                  {createRuntimePackage.isPending ? "生成中..." : "生成部署包"}
+                  {createRuntimePackage.isPending ? "获取中..." : "下载完整部署包"}
                 </button>
                 {runtimeMessage ? (
                   <span className={`text-sm ${runtimeMessage.tone === "success" ? "text-emerald-700" : "text-rose-600"}`}>
@@ -282,6 +296,20 @@ const ClientBuildPage = () => {
                   </span>
                 ) : null}
               </div>
+
+              {runtimeInstallCommand ? (
+                <div className="rounded-lg border border-slate-200 bg-slate-950 p-4 text-slate-100">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-slate-400">服务器安装命令</p>
+                      <code className="mt-2 block select-all overflow-x-auto whitespace-nowrap text-sm">{runtimeInstallCommand}</code>
+                    </div>
+                    <button className="landing-button-secondary shrink-0 rounded-2xl px-4 py-2 text-sm" type="button" onClick={onCopyRuntimeCommand}>
+                      {runtimeCommandCopied ? "已复制" : "复制"}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
             </div>
           </section>
 

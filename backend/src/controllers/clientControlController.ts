@@ -215,6 +215,17 @@ export const registerClientRuntimeArtifact = (req: Request, res: Response, next:
   }
 };
 
+export const getClientRuntimeConfig = (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    res.setHeader("Cache-Control", "no-store");
+    return res.json(clientBffBuildEnvironment(loadSettings().clientControlBaseUrl));
+  } catch (error) {
+    const status = Number((error as Error & { status?: number })?.status || 0);
+    if (status >= 400 && status <= 599) return res.status(status).json({ error: (error as Error).message });
+    next(error);
+  }
+};
+
 export const createClientRuntimePackage = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = Number((req as any).user?.sub);
@@ -232,22 +243,15 @@ export const createClientRuntimePackage = async (req: Request, res: Response, ne
     const adminPathPrefix = normalizeAdminPathPrefix(req.body?.adminPathPrefix);
     const artifact = getClientRuntimeArtifact(architecture);
     const runtimeDownload = await createClientRuntimeArtifactDownloadUrl(artifact.objectKey, artifact.filename);
-    const buildEnvironment = clientBffBuildEnvironment(loadSettings().clientControlBaseUrl);
     const deployment = createClientRuntimeDeploymentPackage({
       artifact,
       runtimeDownloadUrl: runtimeDownload.url,
       runtimeDownloadExpiresAt: runtimeDownload.expiresAt,
-      controlBaseUrl: buildEnvironment.SHUTTLEITS_CONTROL_BASE_URL,
-      manifestPublicKeyBase64: buildEnvironment.SHUTTLEITS_MANIFEST_PUBLIC_KEY_BASE64,
       adminPathPrefix,
     });
 
     res.setHeader("Cache-Control", "no-store");
-    res.setHeader("Content-Type", "application/zip");
-    res.setHeader("Content-Disposition", `attachment; filename="${deployment.filename}"`);
-    res.setHeader("Content-Length", String(deployment.buffer.length));
-    res.setHeader("X-Runtime-Download-Expires-At", deployment.downloadExpiresAt.toISOString());
-    return res.status(200).send(deployment.buffer);
+    return res.status(200).json(deployment);
   } catch (error) {
     const status = Number((error as Error & { status?: number })?.status || 0);
     if (status >= 400 && status <= 599) return res.status(status).json({ error: (error as Error).message });
