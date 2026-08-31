@@ -36,7 +36,7 @@ export const useSaveClientBrandIdentity = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (input: { siteId: number; publisher: string; iconUrl: string }) => {
-      const response = await api.put<ClientControlBrand & { siteId: number; iconSha256: string }>(
+      const response = await api.put<ClientControlBrand & { siteId: number; iconSha256: string | null }>(
         `/client-control/brands/${input.siteId}`,
         { publisher: input.publisher, iconUrl: input.iconUrl },
       );

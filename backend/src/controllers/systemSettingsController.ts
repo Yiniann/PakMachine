@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { Request, Response, NextFunction } from "express";
 import prisma from "../lib/prisma";
+import { normalizeClientControlBaseUrl } from "../services/clientSigningIdentityService";
 
 export type SystemSettings = {
   siteName?: string;
@@ -16,6 +17,7 @@ export type SystemSettings = {
   mailerPass?: string;
   mailerFrom?: string;
   passwordResetBaseUrl?: string;
+  clientControlBaseUrl?: string;
 };
 
 const settingsPath = path.join(__dirname, "../../config/system-settings.json");
@@ -97,6 +99,11 @@ export const updateSystemSettings = (req: Request, res: Response, next: NextFunc
     }
     if (payload.mailerSecure !== undefined) {
       merged.mailerSecure = Boolean(payload.mailerSecure);
+    }
+    if (payload.clientControlBaseUrl !== undefined) {
+      merged.clientControlBaseUrl = payload.clientControlBaseUrl
+        ? normalizeClientControlBaseUrl(payload.clientControlBaseUrl)
+        : undefined;
     }
     saveSettings(merged);
     res.json(merged);

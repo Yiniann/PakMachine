@@ -13,6 +13,15 @@ export type SystemSettings = {
   mailerPass?: string;
   mailerFrom?: string;
   passwordResetBaseUrl?: string;
+  clientControlBaseUrl?: string;
+};
+
+export type ClientSigningConfig = {
+  configured: boolean;
+  controlBaseUrl: string | null;
+  keyId: string | null;
+  publicKeyBase64: string | null;
+  createdAt: string | null;
 };
 
 export const useSystemSettings = (): UseQueryResult<SystemSettings> =>
@@ -34,6 +43,29 @@ export const useUpdateSystemSettings = (): UseMutationResult<SystemSettings, unk
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["system-settings"] });
       queryClient.invalidateQueries({ queryKey: ["public-settings"] });
+    },
+  });
+};
+
+export const useClientSigningConfig = (): UseQueryResult<ClientSigningConfig> =>
+  useQuery({
+    queryKey: ["client-signing-config"],
+    queryFn: async () => {
+      const res = await api.get("/admin/client-signing");
+      return res.data as ClientSigningConfig;
+    },
+  });
+
+export const useInitializeClientSigning = (): UseMutationResult<ClientSigningConfig, unknown, { controlBaseUrl: string }, unknown> => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload) => {
+      const res = await api.post("/admin/client-signing/initialize", payload);
+      return res.data as ClientSigningConfig;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["client-signing-config"] });
+      queryClient.invalidateQueries({ queryKey: ["system-settings"] });
     },
   });
 };

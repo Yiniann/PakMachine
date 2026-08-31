@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { requireClientManifestPrivateKey } from "./clientSigningIdentityService";
 
 export type ClientManifestPlatform = "macos" | "windows" | "android";
 
@@ -59,8 +60,8 @@ export const createSignedClientManifest = (input: {
   appName: string;
   appId: string;
   publisher: string;
-  iconUrl: string;
-  iconSha256: string;
+  iconUrl: string | null;
+  iconSha256: string | null;
   gatewayBaseUrls: string[];
   bootstrapPublicProfileBase64: string;
   features?: string[];
@@ -68,7 +69,7 @@ export const createSignedClientManifest = (input: {
   issuedAt: number;
   expiresAt: number;
 }) => {
-  const privateKey = manifestPrivateKey();
+  const privateKey = requireClientManifestPrivateKey();
   const publicKey = crypto.createPublicKey(privateKey);
   const keyId = publicKeyId(publicKey);
   const manifest = {
@@ -159,18 +160,6 @@ export const normalizeBootstrapPublicProfile = (value: unknown) => {
 };
 
 export const hashSecret = (value: string) => crypto.createHash("sha256").update(value, "utf8").digest("hex");
-
-function manifestPrivateKey() {
-  const encoded = process.env.CLIENT_MANIFEST_PRIVATE_KEY_BASE64 || "";
-  if (!/^[A-Za-z0-9_-]+$/.test(encoded)) throw serviceUnavailable("缺少 CLIENT_MANIFEST_PRIVATE_KEY_BASE64");
-  try {
-    const key = crypto.createPrivateKey({ key: Buffer.from(encoded, "base64url"), format: "der", type: "pkcs8" });
-    if (key.asymmetricKeyType !== "ed25519") throw new Error();
-    return key;
-  } catch {
-    throw serviceUnavailable("CLIENT_MANIFEST_PRIVATE_KEY_BASE64 不是有效的 Ed25519 私钥");
-  }
-}
 
 function publicKeyId(publicKey: crypto.KeyObject) {
   const der = publicKey.export({ format: "der", type: "spki" });

@@ -285,15 +285,15 @@ const ClientBuildPage = () => {
                     />
                   </label>
                   <label className="form-control">
-                    <span className="label-text">应用图标 URL</span>
+                    <span className="label-text">应用图标 URL（可选）</span>
                     <input
-                      required
                       type="url"
                       className="workspace-input input input-bordered"
                       value={brandIconUrl}
                       onChange={(event) => setBrandIconUrl(event.target.value)}
-                      placeholder="https://cdn.example.com/app-icon.png"
+                      placeholder="留空使用客户端默认图标"
                     />
+                    <span className="label-text-alt mt-1 text-slate-500">填写后会在保存时下载并校验图标。</span>
                   </label>
                 </div>
               )}

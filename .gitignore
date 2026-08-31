@@ -19,6 +19,7 @@ build/
 # Uploads
 /uploads/
 backend/config/system-settings.json
+backend/config/client-signing-identity.json
 backend/.env
 
 .DS_Store

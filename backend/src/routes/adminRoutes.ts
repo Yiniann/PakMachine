@@ -26,6 +26,11 @@ import {
 import { addAdminTicketMessage, getAdminTicket, listAdminTickets, updateAdminTicket } from "../controllers/ticketController";
 import { authenticate, requireAdmin } from "../middleware/auth";
 import { UploadError } from "../services/uploadService";
+import {
+  getClientBffBuildEnvironment,
+  getClientSigningConfig,
+  initializeClientSigningConfig,
+} from "../controllers/clientSigningController";
 
 const router = Router();
 
@@ -48,6 +53,9 @@ router.get("/stats", getAdminStats);
 router.get("/build-jobs", listAllBuildJobs);
 router.get("/settings", getSystemSettings);
 router.put("/settings", updateSystemSettings);
+router.get("/client-signing", getClientSigningConfig);
+router.post("/client-signing/initialize", initializeClientSigningConfig);
+router.get("/client-signing/bff-environment", getClientBffBuildEnvironment);
 router.get("/tickets", listAdminTickets);
 router.get("/tickets/:id", getAdminTicket);
 router.post("/tickets/:id/messages", addAdminTicketMessage);

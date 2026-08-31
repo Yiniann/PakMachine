@@ -29,7 +29,7 @@ const loadClientBrands = async (userId: number) => {
       appId: identity?.appId || null,
       publisher: identity?.publisher || site.name,
       iconUrl: identity?.iconUrl || null,
-      ready: Boolean(identity?.appId && identity?.iconUrl),
+      ready: Boolean(identity?.appId),
     };
   });
 };
@@ -127,18 +127,24 @@ export const saveClientBrandIdentity = async (req: Request, res: Response, next:
     if (!publisher || publisher.length > 80 || /[\u0000-\u001f]/.test(publisher)) {
       return res.status(400).json({ error: "发布者需要填写 1 到 80 个可打印字符" });
     }
-    let icon: Awaited<ReturnType<typeof fetchHttpsSha256>>;
-    try {
-      icon = await fetchHttpsSha256(req.body?.iconUrl);
-    } catch (error) {
-      return res.status(400).json({ error: (error as Error).message });
+    if (req.body?.iconUrl !== undefined && req.body?.iconUrl !== null && typeof req.body.iconUrl !== "string") {
+      return res.status(400).json({ error: "应用图标 URL 格式不正确" });
+    }
+    const requestedIconUrl = typeof req.body?.iconUrl === "string" ? req.body.iconUrl.trim() : "";
+    let icon: Awaited<ReturnType<typeof fetchHttpsSha256>> | null = null;
+    if (requestedIconUrl) {
+      try {
+        icon = await fetchHttpsSha256(requestedIconUrl);
+      } catch (error) {
+        return res.status(400).json({ error: (error as Error).message });
+      }
     }
     const brandKey = `site:${site.id}`;
     const existing = await prisma.clientAppConfig.findUnique({ where: { userId_brandKey: { userId, brandKey } } });
     const identity = existing
       ? await prisma.clientAppConfig.update({
           where: { id: existing.id },
-          data: { siteId: site.id, brandNameSnapshot: site.name, publisher, iconUrl: icon.url },
+          data: { siteId: site.id, brandNameSnapshot: site.name, publisher, iconUrl: icon?.url || null },
         })
       : await prisma.clientAppConfig.create({
           data: {
@@ -148,7 +154,7 @@ export const saveClientBrandIdentity = async (req: Request, res: Response, next:
             brandNameSnapshot: site.name,
             appId: `com.shuttle.client.c${randomUUID().replace(/-/g, "")}`,
             publisher,
-            iconUrl: icon.url,
+            iconUrl: icon?.url || null,
           },
         });
     return res.json({
@@ -156,7 +162,7 @@ export const saveClientBrandIdentity = async (req: Request, res: Response, next:
       appId: identity.appId,
       publisher: identity.publisher,
       iconUrl: identity.iconUrl,
-      iconSha256: icon.sha256,
+      iconSha256: icon?.sha256 || null,
     });
   } catch (error) {
     next(error);
@@ -182,10 +188,10 @@ export const issueClientBuildManifest = async (req: Request, res: Response, next
     const identity = await prisma.clientAppConfig.findUnique({
       where: { userId_brandKey: { userId: instance.userId, brandKey: `site:${site.id}` } },
     });
-    if (!identity?.iconUrl) return res.status(409).json({ error: "请先在 ShuttleITS 完善该品牌的应用图标和发布者" });
+    if (!identity) return res.status(409).json({ error: "请先在 ShuttleITS 完善该品牌的客户端资料" });
 
     const [icon, artifact] = await Promise.all([
-      fetchHttpsSha256(identity.iconUrl),
+      identity.iconUrl ? fetchHttpsSha256(identity.iconUrl) : Promise.resolve(null),
       Promise.resolve(resolveClientBaseArtifact(platform)),
     ]);
     const issuedAt = Date.now();
@@ -200,8 +206,8 @@ export const issueClientBuildManifest = async (req: Request, res: Response, next
       appName: site.name,
       appId: identity.appId,
       publisher: identity.publisher || site.name,
-      iconUrl: icon.url,
-      iconSha256: icon.sha256,
+      iconUrl: icon?.url || null,
+      iconSha256: icon?.sha256 || null,
       gatewayBaseUrls,
       bootstrapPublicProfileBase64: instance.bootstrapPublicProfileBase64,
       artifact,
