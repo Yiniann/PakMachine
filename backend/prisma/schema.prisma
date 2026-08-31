@@ -32,6 +32,9 @@ model User {
   buildProfile           BuildProfile?
   buildArtifacts         BuildArtifact[]
   clientAppConfigs       ClientAppConfig[]
+  clientBffActivations   ClientBffActivation[]
+  clientBffInstances     ClientBffInstance[]
+  clientBuildManifests   ClientBuildManifest[]
   sites                  UserSite[]
   frontendOrigins        FrontendOrigin[]
   supportTickets         SupportTicket[]
@@ -111,6 +114,8 @@ model ClientAppConfig {
   brandKey          String
   brandNameSnapshot String
   appId             String   @unique
+  publisher         String?
+  iconUrl           String?  @db.Text
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -119,6 +124,63 @@ model ClientAppConfig {
 
   @@unique([userId, brandKey])
   @@index([siteId])
+}
+
+/// 一次性 BFF 注册凭证。明文仅在创建时返回，数据库只保存 SHA-256。
+model ClientBffActivation {
+  id         String    @id @db.VarChar(36)
+  userId     Int
+  tokenHash  String    @unique @db.Char(64)
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([expiresAt])
+}
+
+/// 客户服务器上的 Client BFF 实例。访问令牌只以哈希形式保存。
+model ClientBffInstance {
+  id                           String   @id @db.VarChar(36)
+  userId                       Int
+  name                         String?
+  publicKey                    String   @db.Text
+  bootstrapPublicProfileBase64 String   @db.LongText
+  accessTokenHash              String   @unique @db.Char(64)
+  status                       String   @default("active")
+  lastSeenAt                   DateTime?
+  createdAt                    DateTime @default(now())
+  updatedAt                    DateTime @updatedAt
+
+  user           User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  buildManifests ClientBuildManifest[]
+
+  @@index([userId, createdAt])
+  @@index([status])
+}
+
+/// ShuttleITS 签发给客户 Builder 的不可变构建清单。
+model ClientBuildManifest {
+  id           String   @id @db.VarChar(36)
+  userId       Int
+  siteId       Int
+  instanceId   String   @db.VarChar(36)
+  platform     String
+  manifestHash String   @db.Char(64)
+  envelopeJson String   @db.LongText
+  status       String   @default("issued")
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  instance ClientBffInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([siteId, createdAt])
+  @@index([instanceId, createdAt])
+  @@index([expiresAt])
 }
 
 /// 构建产物元数据，用于绑定下载权限

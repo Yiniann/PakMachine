@@ -6,6 +6,7 @@ import ticketRoutes from "./ticketRoutes";
 import { getPublicSystemSettings } from "../controllers/systemSettingsController";
 import initRoutes from "./initRoutes";
 import clientBuildRoutes from "./clientBuildRoutes";
+import clientControlRoutes from "./clientControlRoutes";
 
 const router = Router();
 
@@ -13,6 +14,7 @@ router.use("/auth", authRoutes);
 router.use("/admin", adminRoutes);
 router.use("/build", buildRoutes);
 router.use("/client-build", clientBuildRoutes);
+router.use("/client-control", clientControlRoutes);
 router.use("/tickets", ticketRoutes);
 router.use("/init", initRoutes);
 router.get("/comm/config", getPublicSystemSettings);
