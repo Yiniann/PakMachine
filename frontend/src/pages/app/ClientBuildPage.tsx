@@ -2,9 +2,11 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import BuildProgressModal, { BuildProgressStatus } from "../../components/BuildProgressModal";
 import {
+  ClientRuntimeArchitecture,
   ClientBffActivation,
   useClientControlBrands,
   useCreateClientBffActivation,
+  useCreateClientRuntimePackage,
   useSaveClientBrandIdentity,
 } from "../../features/builds/clientControl";
 import {
@@ -31,8 +33,10 @@ const envValue = (value: string) => JSON.stringify(value.trim());
 const buildClientEnvironment = (form: ClientForm) =>
   [`VITE_SHUTTLE_APP_ICON=${envValue(form.iconUrl)}`].join("\n");
 
-const requestError = (error: unknown, fallback: string) =>
-  (error as any)?.response?.data?.error || fallback;
+const requestError = (error: unknown, fallback: string) => {
+  const message = (error as any)?.response?.data?.error;
+  return typeof message === "string" && message ? message : fallback;
+};
 
 const ClientBuildPage = () => {
   const [form, setForm] = useState(initialForm);
@@ -43,6 +47,9 @@ const ClientBuildPage = () => {
   const [activationMessage, setActivationMessage] = useState<PageMessage>(null);
   const [identityMessage, setIdentityMessage] = useState<PageMessage>(null);
   const [activationCopied, setActivationCopied] = useState(false);
+  const [runtimeArchitecture, setRuntimeArchitecture] = useState<ClientRuntimeArchitecture>("amd64");
+  const [adminPathPrefix, setAdminPathPrefix] = useState("/admin");
+  const [runtimeMessage, setRuntimeMessage] = useState<PageMessage>(null);
   const [buildProgress, setBuildProgress] = useState<{
     jobId: number | null;
     status: BuildProgressStatus;
@@ -52,6 +59,7 @@ const ClientBuildPage = () => {
   const siteProfile = useSiteProfile();
   const clientBrands = useClientControlBrands();
   const createActivation = useCreateClientBffActivation();
+  const createRuntimePackage = useCreateClientRuntimePackage();
   const saveBrandIdentity = useSaveClientBrandIdentity();
   const jobs = useClientBuildJobs();
   const createBuild = useCreateClientBuild();
@@ -126,6 +134,33 @@ const ClientBuildPage = () => {
     });
   };
 
+  const onCreateRuntimePackage = () => {
+    setRuntimeMessage(null);
+    createRuntimePackage.mutate(
+      { architecture: runtimeArchitecture, adminPathPrefix: adminPathPrefix.trim() },
+      {
+        onSuccess: (result) => {
+          const url = URL.createObjectURL(result.blob);
+          const anchor = document.createElement("a");
+          anchor.href = url;
+          anchor.download = result.filename;
+          document.body.appendChild(anchor);
+          anchor.click();
+          anchor.remove();
+          URL.revokeObjectURL(url);
+          setRuntimeMessage({
+            tone: "success",
+            text: "部署包已生成，请在 10 分钟内上传到服务器并运行安装脚本。",
+          });
+        },
+        onError: (error) => setRuntimeMessage({
+          tone: "error",
+          text: requestError(error, "部署包生成失败"),
+        }),
+      },
+    );
+  };
+
   const onCopyActivation = async () => {
     if (!activation) return;
     try {
@@ -192,6 +227,64 @@ const ClientBuildPage = () => {
         </div>
       ) : (
         <>
+          <section className="workspace-card">
+            <div className="card-body gap-5">
+              <div>
+                <p className="workspace-kicker">Server Deployment</p>
+                <h3 className="mt-2 text-xl font-bold text-slate-900">部署客户中台</h3>
+                <p className="mt-2 text-sm leading-6 text-slate-500">
+                  生成适用于客户 Linux 服务器的部署包。安装完成后，再使用下方凭证连接当前账号。
+                </p>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className="form-control">
+                  <span className="label-text">服务器架构</span>
+                  <select
+                    className="workspace-input select select-bordered"
+                    value={runtimeArchitecture}
+                    onChange={(event) => setRuntimeArchitecture(event.target.value as ClientRuntimeArchitecture)}
+                  >
+                    <option value="amd64">Linux x64（Intel / AMD）</option>
+                    <option value="arm64">Linux ARM64</option>
+                  </select>
+                </label>
+                <label className="form-control">
+                  <span className="label-text">管理路径</span>
+                  <input
+                    required
+                    className="workspace-input input input-bordered"
+                    value={adminPathPrefix}
+                    maxLength={49}
+                    pattern="/[A-Za-z0-9][A-Za-z0-9_-]{2,47}"
+                    onChange={(event) => setAdminPathPrefix(event.target.value)}
+                    placeholder="/admin"
+                  />
+                </label>
+              </div>
+
+              <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-600">
+                服务器需要已安装 Docker Engine 与 Docker Compose v2。部署包不包含源码和长期存储凭证；其中的运行包下载地址仅短时有效。
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  className="landing-button-primary rounded-2xl px-5 py-3 text-sm"
+                  type="button"
+                  onClick={onCreateRuntimePackage}
+                  disabled={createRuntimePackage.isPending || !adminPathPrefix.trim()}
+                >
+                  {createRuntimePackage.isPending ? "生成中..." : "生成部署包"}
+                </button>
+                {runtimeMessage ? (
+                  <span className={`text-sm ${runtimeMessage.tone === "success" ? "text-emerald-700" : "text-rose-600"}`}>
+                    {runtimeMessage.text}
+                  </span>
+                ) : null}
+              </div>
+            </div>
+          </section>
+
           <section className="workspace-card">
             <div className="card-body gap-5">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">

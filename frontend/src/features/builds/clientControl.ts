@@ -15,6 +15,14 @@ export type ClientBffActivation = {
   expiresAt: string;
 };
 
+export type ClientRuntimeArchitecture = "amd64" | "arm64";
+
+export type ClientRuntimePackage = {
+  blob: Blob;
+  filename: string;
+  runtimeDownloadExpiresAt: string | null;
+};
+
 export const useClientControlBrands = () =>
   useQuery<ClientControlBrand[]>({
     queryKey: ["client-control-brands"],
@@ -29,6 +37,31 @@ export const useCreateClientBffActivation = () =>
     mutationFn: async () => {
       const response = await api.post<ClientBffActivation>("/client-control/activation", {});
       return response.data;
+    },
+  });
+
+export const useCreateClientRuntimePackage = () =>
+  useMutation({
+    mutationFn: async (input: { architecture: ClientRuntimeArchitecture; adminPathPrefix: string }) => {
+      try {
+        const response = await api.post<Blob>("/client-control/runtime-package", input, { responseType: "blob" });
+        const disposition = String(response.headers["content-disposition"] || "");
+        const filename = /filename="([^"]+)"/.exec(disposition)?.[1]
+          || `shuttle-client-server-${input.architecture}.zip`;
+        return {
+          blob: response.data,
+          filename,
+          runtimeDownloadExpiresAt: response.headers["x-runtime-download-expires-at"] || null,
+        } satisfies ClientRuntimePackage;
+      } catch (error) {
+        const data = (error as any)?.response?.data;
+        if (data instanceof Blob) {
+          try {
+            (error as any).response.data = JSON.parse(await data.text());
+          } catch {}
+        }
+        throw error;
+      }
     },
   });
 

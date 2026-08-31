@@ -6,7 +6,21 @@ import {
   normalizeClientBaseArtifactPlatform,
   publishClientBaseArtifact,
 } from "../services/clientBaseArtifactService";
-import { createClientBaseArtifactDownloadUrl } from "../services/clientR2Service";
+import { loadSettings } from "./systemSettingsController";
+import {
+  createClientBaseArtifactDownloadUrl,
+  createClientRuntimeArtifactDownloadUrl,
+} from "../services/clientR2Service";
+import {
+  getClientRuntimeArtifact,
+  normalizeClientRuntimeArchitecture,
+  publishClientRuntimeArtifact,
+} from "../services/clientRuntimeArtifactService";
+import {
+  createClientRuntimeDeploymentPackage,
+  normalizeAdminPathPrefix,
+} from "../services/clientRuntimePackageService";
+import { clientBffBuildEnvironment } from "../services/clientSigningIdentityService";
 import {
   ClientManifestPlatform,
   createSignedClientManifest,
@@ -181,6 +195,59 @@ export const registerClientBaseArtifact = (req: Request, res: Response, next: Ne
     const artifact = publishClientBaseArtifact(platform, req.body);
     res.setHeader("Cache-Control", "no-store");
     return res.status(201).json({ artifact });
+  } catch (error) {
+    const status = Number((error as Error & { status?: number })?.status || 0);
+    if (status >= 400 && status <= 599) return res.status(status).json({ error: (error as Error).message });
+    next(error);
+  }
+};
+
+export const registerClientRuntimeArtifact = (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const architecture = normalizeClientRuntimeArchitecture(req.params.architecture);
+    const artifact = publishClientRuntimeArtifact(architecture, req.body);
+    res.setHeader("Cache-Control", "no-store");
+    return res.status(201).json({ artifact });
+  } catch (error) {
+    const status = Number((error as Error & { status?: number })?.status || 0);
+    if (status >= 400 && status <= 599) return res.status(status).json({ error: (error as Error).message });
+    next(error);
+  }
+};
+
+export const createClientRuntimePackage = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = Number((req as any).user?.sub);
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+    const keys = req.body && typeof req.body === "object" && !Array.isArray(req.body)
+      ? Object.keys(req.body)
+      : [];
+    if (keys.some((key) => !["adminPathPrefix", "architecture"].includes(key))) {
+      return res.status(400).json({ error: "部署包配置包含不支持的字段" });
+    }
+    const enabledSites = await prisma.userSite.count({ where: { userId, clientBuildEnabled: true } });
+    if (enabledSites < 1) return res.status(403).json({ error: "当前没有已开通客户端构建权限的品牌" });
+
+    const architecture = normalizeClientRuntimeArchitecture(req.body?.architecture);
+    const adminPathPrefix = normalizeAdminPathPrefix(req.body?.adminPathPrefix);
+    const artifact = getClientRuntimeArtifact(architecture);
+    const runtimeDownload = await createClientRuntimeArtifactDownloadUrl(artifact.objectKey, artifact.filename);
+    const buildEnvironment = clientBffBuildEnvironment(loadSettings().clientControlBaseUrl);
+    const deployment = createClientRuntimeDeploymentPackage({
+      artifact,
+      runtimeDownloadUrl: runtimeDownload.url,
+      runtimeDownloadExpiresAt: runtimeDownload.expiresAt,
+      controlBaseUrl: buildEnvironment.SHUTTLEITS_CONTROL_BASE_URL,
+      manifestPublicKeyBase64: buildEnvironment.SHUTTLEITS_MANIFEST_PUBLIC_KEY_BASE64,
+      adminPathPrefix,
+    });
+
+    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("Content-Type", "application/zip");
+    res.setHeader("Content-Disposition", `attachment; filename="${deployment.filename}"`);
+    res.setHeader("Content-Length", String(deployment.buffer.length));
+    res.setHeader("X-Runtime-Download-Expires-At", deployment.downloadExpiresAt.toISOString());
+    return res.status(200).send(deployment.buffer);
   } catch (error) {
     const status = Number((error as Error & { status?: number })?.status || 0);
     if (status >= 400 && status <= 599) return res.status(status).json({ error: (error as Error).message });

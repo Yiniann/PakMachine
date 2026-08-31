@@ -13,6 +13,8 @@ export const createClientBaseArtifactDownloadUrl = async (objectKey: string, fil
   return createSignedDownloadUrl(client, credentials.bucket, objectKey, filename);
 };
 
+export const createClientRuntimeArtifactDownloadUrl = createClientBaseArtifactDownloadUrl;
+
 export const createClientArtifactDownloadUrl = async (objectKey: string, filename: string) => {
   const accountId = requiredEnvironment("CLIENT_R2_ACCOUNT_ID");
   const accessKeyId = requiredEnvironment("CLIENT_R2_ACCESS_KEY_ID");

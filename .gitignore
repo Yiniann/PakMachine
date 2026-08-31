@@ -22,6 +22,7 @@ backend/config/system-settings.json
 backend/config/client-signing-identity.json
 backend/config/client-base-storage.json
 backend/config/client-base-storage.key
+backend/config/client-runtime-artifacts.json
 backend/.env
 
 .DS_Store
