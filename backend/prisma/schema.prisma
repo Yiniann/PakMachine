@@ -163,16 +163,24 @@ model ClientBffInstance {
 
 /// ShuttleITS 签发给客户 Builder 的不可变构建清单。
 model ClientBuildManifest {
-  id           String   @id @db.VarChar(36)
-  userId       Int
-  siteId       Int
-  instanceId   String   @db.VarChar(36)
-  platform     String
-  manifestHash String   @db.Char(64)
-  envelopeJson String   @db.LongText
-  status       String   @default("issued")
-  expiresAt    DateTime
-  createdAt    DateTime @default(now())
+  id               String    @id @db.VarChar(36)
+  userId           Int
+  siteId           Int
+  instanceId       String    @db.VarChar(36)
+  platform         String
+  manifestHash     String    @db.Char(64)
+  envelopeJson     String    @db.LongText
+  status           String    @default("issued")
+  progress         Int       @default(0)
+  message          String?   @db.VarChar(500)
+  artifactFilename String?   @db.VarChar(255)
+  artifactSize     BigInt?
+  artifactSha256   String?   @db.Char(64)
+  startedAt        DateTime?
+  completedAt      DateTime?
+  expiresAt        DateTime
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   instance ClientBffInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
@@ -180,6 +188,7 @@ model ClientBuildManifest {
   @@index([userId, createdAt])
   @@index([siteId, createdAt])
   @@index([instanceId, createdAt])
+  @@index([status, updatedAt])
   @@index([expiresAt])
 }
 

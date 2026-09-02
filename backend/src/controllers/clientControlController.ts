@@ -30,6 +30,10 @@ import {
   normalizeGatewayBaseUrls,
   normalizeManifestPublicKey,
 } from "../services/clientManifestService";
+import {
+  assertClientBuildTransition,
+  normalizeClientBuildReport,
+} from "../services/clientBuildReportService";
 
 const PLATFORMS = new Set<ClientManifestPlatform>(["macos", "windows", "android"]);
 
@@ -331,3 +335,82 @@ export const issueClientBuildManifest = async (req: Request, res: Response, next
     next(error);
   }
 };
+
+export const listActiveClientBuilds = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const instance = (req as any).clientBffInstance;
+    const builds = await prisma.clientBuildManifest.findMany({
+      where: {
+        instanceId: instance.id,
+        status: { in: ["issued", "pending", "running"] },
+      },
+      select: { id: true },
+      orderBy: { createdAt: "asc" },
+      take: 100,
+    });
+    res.setHeader("Cache-Control", "no-store");
+    return res.json({ buildIds: builds.map((build) => build.id) });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const reportClientBuildStatus = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const instance = (req as any).clientBffInstance;
+    const buildId = String(req.params.buildId || "");
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(buildId)) {
+      return res.status(400).json({ error: "构建任务编号不合法" });
+    }
+    const build = await prisma.clientBuildManifest.findFirst({
+      where: { id: buildId, instanceId: instance.id },
+    });
+    if (!build) return res.status(404).json({ error: "构建任务不存在" });
+
+    let report;
+    try {
+      report = normalizeClientBuildReport(req.body);
+      assertClientBuildTransition(build.status, build.progress, report);
+    } catch (error) {
+      const status = /不能再次修改|不能回退/.test((error as Error).message) ? 409 : 400;
+      return res.status(status).json({ error: (error as Error).message });
+    }
+
+    res.setHeader("Cache-Control", "no-store");
+    if (["success", "failed"].includes(build.status)) {
+      return res.json({ build: serializeClientBuildManifest(build) });
+    }
+    const now = new Date();
+    const updated = await prisma.clientBuildManifest.update({
+      where: { id: build.id },
+      data: {
+        status: report.status,
+        progress: report.progress,
+        message: report.message,
+        artifactFilename: report.artifact?.filename || null,
+        artifactSize: report.artifact ? BigInt(report.artifact.size) : null,
+        artifactSha256: report.artifact?.sha256 || null,
+        startedAt: build.startedAt || (report.status === "pending" ? null : now),
+        completedAt: ["success", "failed"].includes(report.status) ? now : null,
+      },
+    });
+    return res.json({ build: serializeClientBuildManifest(updated) });
+  } catch (error) {
+    next(error);
+  }
+};
+
+function serializeClientBuildManifest(build: any) {
+  return {
+    id: build.id,
+    status: build.status,
+    progress: build.progress,
+    message: build.message,
+    artifactFilename: build.artifactFilename,
+    artifactSize: build.artifactSize === null ? null : Number(build.artifactSize),
+    artifactSha256: build.artifactSha256,
+    startedAt: build.startedAt,
+    completedAt: build.completedAt,
+    updatedAt: build.updatedAt,
+  };
+}

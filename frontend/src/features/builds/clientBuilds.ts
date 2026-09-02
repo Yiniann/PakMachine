@@ -4,8 +4,10 @@ import api from "../../api/client";
 export type ClientPlatform = "macos" | "windows" | "android";
 
 export type ClientBuildJob = {
-  id: number;
+  id: number | string;
+  source: "legacy" | "customer-builder";
   status: string;
+  progress?: number | null;
   message?: string | null;
   platform: ClientPlatform;
   arch?: string | null;
@@ -15,6 +17,9 @@ export type ClientBuildJob = {
   size?: number | null;
   sha256?: string | null;
   createdAt: string;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  durationMs?: number | null;
   expiresAt?: string | null;
   downloadable: boolean;
 };

@@ -5,10 +5,12 @@ import {
   enrollClientBff,
   getClientRuntimeConfig,
   issueClientBuildManifest,
+  listActiveClientBuilds,
   listClientBffBrands,
   listClientBrands,
   registerClientBaseArtifact,
   registerClientRuntimeArtifact,
+  reportClientBuildStatus,
   saveClientBrandIdentity,
 } from "../controllers/clientControlController";
 import { authenticate } from "../middleware/auth";
@@ -27,5 +29,7 @@ router.get("/internal/runtime-config", authenticateClientBaseRelease, getClientR
 router.post("/v1/enroll", enrollClientBff);
 router.get("/v1/brands", authenticateClientBff, listClientBffBrands);
 router.post("/v1/build-manifests", authenticateClientBff, issueClientBuildManifest);
+router.get("/v1/builds/active", authenticateClientBff, listActiveClientBuilds);
+router.put("/v1/builds/:buildId/status", authenticateClientBff, reportClientBuildStatus);
 
 export default router;

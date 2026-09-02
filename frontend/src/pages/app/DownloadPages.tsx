@@ -27,13 +27,22 @@ const formatSize = (size?: number | null) => {
   return `${(size / 1024 / 1024).toFixed(1)} MB`;
 };
 
+const formatDuration = (durationMs?: number | null) => {
+  if (durationMs === null || durationMs === undefined) return null;
+  const seconds = Math.max(0, Math.round(durationMs / 1000));
+  if (seconds < 60) return `${seconds} 秒`;
+  const minutes = Math.floor(seconds / 60);
+  const remainder = seconds % 60;
+  return remainder ? `${minutes} 分 ${remainder} 秒` : `${minutes} 分钟`;
+};
+
 const DownloadPages = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const category: DownloadCategory = searchParams.get("category") === "client" ? "client" : "web";
   const artifacts = useArtifacts(5);
   const clientJobs = useClientBuildJobs();
   const [downloadingWebId, setDownloadingWebId] = useState<number | null>(null);
-  const [downloadingClientId, setDownloadingClientId] = useState<number | null>(null);
+  const [downloadingClientId, setDownloadingClientId] = useState<number | string | null>(null);
   const [clientDownloadError, setClientDownloadError] = useState<string | null>(null);
 
   const onDownloadWeb = async (item: Artifact) => {
@@ -64,6 +73,7 @@ const DownloadPages = () => {
   };
 
   const onDownloadClient = async (job: ClientBuildJob) => {
+    if (typeof job.id !== "number" || !job.downloadable) return;
     try {
       setClientDownloadError(null);
       setDownloadingClientId(job.id);
@@ -181,7 +191,7 @@ const DownloadPages = () => {
             <div className="flex items-center justify-between gap-4">
               <div>
                 <h3 className="text-xl font-bold tracking-[-0.03em] text-slate-900">客户端构建记录</h3>
-                <p className="mt-1 text-sm text-slate-500">构建产物保留 30 天，过期后需要重新构建。</p>
+                <p className="mt-1 text-sm text-slate-500">集中查看云端构建与客户中台构建记录。</p>
               </div>
               <button type="button" className="landing-button-secondary rounded-lg px-4 py-2 text-sm" onClick={() => clientJobs.refetch()} disabled={clientJobs.isFetching}>
                 刷新
@@ -212,7 +222,10 @@ const DownloadPages = () => {
                       <tr key={job.id}>
                         <td>
                           <div className="font-semibold text-slate-800">{job.appName}</div>
-                          <div className="text-xs text-slate-400">#{job.id}</div>
+                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-400">
+                            <span>#{job.id}</span>
+                            {job.source === "customer-builder" ? <span className="badge badge-ghost badge-xs">客户中台</span> : null}
+                          </div>
                         </td>
                         <td>{platformLabel(job.platform)} {job.arch ? `· ${job.arch}` : ""}</td>
                         <td>{job.version || "-"}</td>
@@ -221,18 +234,28 @@ const DownloadPages = () => {
                           <span className={`badge ${job.status === "success" ? "badge-success" : job.status === "failed" ? "badge-error" : "badge-ghost"}`}>
                             {statusLabel(job.status)}
                           </span>
+                          {job.source === "customer-builder" && job.status === "running" && typeof job.progress === "number" ? (
+                            <div className="mt-1 text-xs text-slate-500">{job.progress}%</div>
+                          ) : null}
                           {job.status === "failed" && job.message ? <div className="mt-1 max-w-xs text-xs text-rose-600">{job.message}</div> : null}
                         </td>
-                        <td className="whitespace-nowrap text-sm text-slate-500">{new Date(job.createdAt).toLocaleString()}</td>
+                        <td className="whitespace-nowrap text-sm text-slate-500">
+                          <div>{new Date(job.createdAt).toLocaleString()}</div>
+                          {formatDuration(job.durationMs) ? <div className="mt-1 text-xs text-slate-400">耗时 {formatDuration(job.durationMs)}</div> : null}
+                        </td>
                         <td className="text-right">
-                          <button
-                            type="button"
-                            className="landing-button-primary rounded-lg px-4 py-2 text-sm"
-                            disabled={!job.downloadable || downloadingClientId === job.id}
-                            onClick={() => onDownloadClient(job)}
-                          >
-                            {downloadingClientId === job.id ? "处理中..." : "下载"}
-                          </button>
+                          {job.source === "customer-builder" ? (
+                            <span className="text-sm text-slate-400">在客户中台下载</span>
+                          ) : (
+                            <button
+                              type="button"
+                              className="landing-button-primary rounded-lg px-4 py-2 text-sm"
+                              disabled={!job.downloadable || downloadingClientId === job.id}
+                              onClick={() => onDownloadClient(job)}
+                            >
+                              {downloadingClientId === job.id ? "处理中..." : "下载"}
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}

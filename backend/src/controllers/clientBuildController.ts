@@ -286,14 +286,25 @@ export const listClientBuilds = async (req: Request, res: Response, next: NextFu
   try {
     const userId = Number((req as any).user?.sub);
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
-    const jobs = await prisma.buildJob.findMany({
-      where: { userId, buildKind: "client" },
-      orderBy: { id: "desc" },
-      take: 20,
-    });
-    res.json(jobs.map((job) => ({
+    const [jobs, manifests, sites] = await Promise.all([
+      prisma.buildJob.findMany({
+        where: { userId, buildKind: "client" },
+        orderBy: { id: "desc" },
+        take: 20,
+      }),
+      prisma.clientBuildManifest.findMany({
+        where: { userId },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+      }),
+      prisma.userSite.findMany({ where: { userId }, select: { id: true, name: true } }),
+    ]);
+    const siteNames = new Map(sites.map((site) => [site.id, site.name]));
+    const legacyRecords = jobs.map((job) => ({
       id: job.id,
+      source: "legacy" as const,
       status: job.status,
+      progress: ["success", "failed"].includes(job.status) ? 100 : null,
       message: job.message,
       platform: job.platform,
       arch: job.arch,
@@ -303,13 +314,57 @@ export const listClientBuilds = async (req: Request, res: Response, next: NextFu
       size: job.artifactSize,
       sha256: job.artifactSha256,
       createdAt: job.createdAt,
+      startedAt: null,
+      completedAt: null,
+      durationMs: null,
       expiresAt: job.expiresAt,
       downloadable: job.status === "success" && Boolean(job.objectKey) && (!job.expiresAt || job.expiresAt > new Date()),
-    })));
+    }));
+    const managedRecords = manifests.map((build) => {
+      const manifest = parseIssuedClientManifest(build.envelopeJson);
+      return {
+        id: build.id,
+        source: "customer-builder" as const,
+        status: build.status === "issued" ? "queued" : build.status,
+        progress: build.progress,
+        message: build.message || (build.status === "issued" ? "等待客户中台开始构建" : null),
+        platform: build.platform,
+        arch: manifest.architecture,
+        version: manifest.clientVersion,
+        appName: manifest.appName || siteNames.get(build.siteId) || "客户端",
+        artifactFilename: build.artifactFilename,
+        size: build.artifactSize === null ? null : Number(build.artifactSize),
+        sha256: build.artifactSha256,
+        createdAt: build.createdAt,
+        startedAt: build.startedAt,
+        completedAt: build.completedAt,
+        durationMs: build.startedAt && build.completedAt
+          ? Math.max(0, build.completedAt.getTime() - build.startedAt.getTime())
+          : null,
+        expiresAt: null,
+        downloadable: false,
+      };
+    });
+    return res.json([...legacyRecords, ...managedRecords]
+      .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
+      .slice(0, 20));
   } catch (error) {
     next(error);
   }
 };
+
+function parseIssuedClientManifest(envelopeJson: string) {
+  try {
+    const manifest = JSON.parse(envelopeJson)?.manifest;
+    return {
+      architecture: typeof manifest?.architecture === "string" ? manifest.architecture : null,
+      clientVersion: typeof manifest?.clientVersion === "string" ? manifest.clientVersion : null,
+      appName: typeof manifest?.app?.name === "string" ? manifest.app.name : null,
+    };
+  } catch {
+    return { architecture: null, clientVersion: null, appName: null };
+  }
+}
 
 export const createClientDownload = async (req: Request, res: Response, next: NextFunction) => {
   try {
