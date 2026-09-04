@@ -34,9 +34,9 @@ import {
 
 const PLATFORMS = new Set<ClientManifestPlatform>(["macos", "windows", "android"]);
 
-const loadClientBrands = async (userId: number, readyOnly = false, siteId?: number) => {
+const loadClientBrands = async (userId: number, readyOnly = false) => {
   const sites = await prisma.userSite.findMany({
-    where: { userId, clientBuildEnabled: true, ...(siteId ? { id: siteId } : {}) },
+    where: { userId, clientBuildEnabled: true },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   });
   const identities = await prisma.clientAppConfig.findMany({ where: { userId } });
@@ -59,17 +59,18 @@ export const createClientBffActivation = async (req: Request, res: Response, nex
   try {
     const userId = Number((req as any).user?.sub);
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
-    const siteId = Number(req.body?.siteId);
-    if (!Number.isSafeInteger(siteId) || siteId < 1) return res.status(400).json({ error: "请选择需要连接的品牌" });
-    const site = await prisma.userSite.findFirst({ where: { id: siteId, userId, clientBuildEnabled: true } });
-    if (!site) return res.status(403).json({ error: "该品牌尚未开通客户端构建权限" });
+    const eligibleSite = await prisma.userSite.findFirst({
+      where: { userId, clientBuildEnabled: true },
+      select: { id: true },
+    });
+    if (!eligibleSite) return res.status(403).json({ error: "当前账号尚未开通客户端构建权限" });
     const token = crypto.randomBytes(32).toString("base64url");
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
     await prisma.clientBffActivation.create({
-      data: { id: randomUUID(), userId, siteId: site.id, tokenHash: hashSecret(token), expiresAt },
+      data: { id: randomUUID(), userId, tokenHash: hashSecret(token), expiresAt },
     });
     res.setHeader("Cache-Control", "no-store");
-    return res.status(201).json({ activationToken: token, expiresAt: expiresAt.toISOString(), siteId: site.id, siteName: site.name });
+    return res.status(201).json({ activationToken: token, expiresAt: expiresAt.toISOString() });
   } catch (error) {
     next(error);
   }
@@ -88,7 +89,7 @@ export const enrollClientBff = async (req: Request, res: Response, next: NextFun
       return res.status(400).json({ error: (error as Error).message });
     }
     const activation = await prisma.clientBffActivation.findUnique({ where: { tokenHash: hashSecret(activationToken) } });
-    if (!activation || !activation.siteId || activation.consumedAt || activation.expiresAt <= new Date()) {
+    if (!activation || activation.consumedAt || activation.expiresAt <= new Date()) {
       return res.status(401).json({ error: "激活凭证无效、已使用或已过期" });
     }
     const accessToken = crypto.randomBytes(48).toString("base64url");
@@ -121,7 +122,7 @@ export const listClientBffBrands = async (req: Request, res: Response, next: Nex
     const instance = (req as any).clientBffInstance;
     return res.json({
       instanceId: instance.id,
-      brands: await loadClientBrands(instance.userId, true, instance.siteId),
+      brands: await loadClientBrands(instance.userId, true),
     });
   } catch (error) {
     next(error);
@@ -301,7 +302,6 @@ export const issueClientBuildManifest = async (req: Request, res: Response, next
     }
     const site = await prisma.userSite.findFirst({ where: { id: siteId, userId: instance.userId } });
     if (!site) return res.status(404).json({ error: "品牌不存在" });
-    if (instance.siteId !== site.id) return res.status(403).json({ error: "当前中台未绑定该品牌" });
     if (!site.clientBuildEnabled) return res.status(403).json({ error: "该品牌尚未开通客户端构建权限" });
     const identity = await prisma.clientAppConfig.findUnique({
       where: { userId_brandKey: { userId: instance.userId, brandKey: `site:${site.id}` } },

@@ -13,8 +13,6 @@ export type ClientControlBrand = {
 export type ClientBffActivation = {
   activationToken: string;
   expiresAt: string;
-  siteId: number;
-  siteName: string;
 };
 
 export type ClientRuntimeArchitecture = "amd64" | "arm64";
@@ -42,8 +40,8 @@ export const useClientControlBrands = () =>
 
 export const useCreateClientBffActivation = () =>
   useMutation({
-    mutationFn: async (siteId: number) => {
-      const response = await api.post<ClientBffActivation>("/client-control/activation", { siteId });
+    mutationFn: async () => {
+      const response = await api.post<ClientBffActivation>("/client-control/activation", {});
       return response.data;
     },
   });
