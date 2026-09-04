@@ -384,54 +384,51 @@ const ClientBuildPage = () => {
                 ) : null}
               </div>
 
-            </div>
-          </form>
-
-          <section className="workspace-card order-2">
-            <div className="card-body gap-5">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <p className="workspace-kicker">BFF Activation</p>
-                  <h3 className="mt-2 text-xl font-bold text-slate-900">授权品牌到客户中台</h3>
-                  <p className="mt-2 text-sm leading-6 text-slate-500">
-                    为当前选择的品牌生成一次性凭证，然后在客户中台的“客户端构建”页面输入。首次凭证用于连接中台，其他品牌凭证用于追加品牌。
-                  </p>
+              <div className="border-t border-slate-200 pt-5">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">连接客户中台</p>
+                    <p className="mt-1 text-sm leading-6 text-slate-500">
+                      为当前品牌生成一次性激活凭证。首次连接和后续追加品牌，都必须使用对应品牌自己的凭证。
+                    </p>
+                  </div>
+                  <button
+                    className="landing-button-secondary shrink-0 rounded-lg px-4 py-2.5 text-sm"
+                    type="button"
+                    onClick={onCreateActivation}
+                    disabled={createActivation.isPending || !selectedControlBrand?.ready}
+                  >
+                    {createActivation.isPending ? "生成中..." : activation ? "重新生成" : "生成激活凭证"}
+                  </button>
                 </div>
-                <button
-                  className="landing-button-primary shrink-0 rounded-2xl px-5 py-3 text-sm"
-                  type="button"
-                  onClick={onCreateActivation}
-                  disabled={createActivation.isPending || !selectedControlBrand?.ready}
-                >
-                  {createActivation.isPending ? "生成中..." : activation ? "重新生成" : "生成激活凭证"}
-                </button>
+
+                {activation ? (
+                  <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-xs font-semibold text-slate-500">一次性激活凭证</p>
+                          <span className="badge badge-ghost badge-sm">{activation.siteName}</span>
+                        </div>
+                        <code className="mt-2 block select-all break-all text-sm text-slate-800">{activation.activationToken}</code>
+                        <p className="mt-2 text-xs text-slate-500">有效期至 {new Date(activation.expiresAt).toLocaleString("zh-CN", { hour12: false })}</p>
+                      </div>
+                      <button className="landing-button-secondary shrink-0 rounded-lg px-4 py-2 text-sm" type="button" onClick={onCopyActivation}>
+                        {activationCopied ? "已复制" : "复制"}
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+
+                {activationMessage ? (
+                  <p className={`mt-3 text-sm ${activationMessage.tone === "success" ? "text-emerald-700" : "text-rose-600"}`}>
+                    {activationMessage.text}
+                  </p>
+                ) : null}
               </div>
 
-              {activation ? (
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-xs font-semibold text-slate-500">一次性激活凭证</p>
-                        <span className="badge badge-ghost badge-sm">{activation.siteName}</span>
-                      </div>
-                      <code className="mt-2 block select-all break-all text-sm text-slate-800">{activation.activationToken}</code>
-                      <p className="mt-2 text-xs text-slate-500">有效期至 {new Date(activation.expiresAt).toLocaleString("zh-CN", { hour12: false })}</p>
-                    </div>
-                    <button className="landing-button-secondary shrink-0 rounded-2xl px-4 py-2 text-sm" type="button" onClick={onCopyActivation}>
-                      {activationCopied ? "已复制" : "复制"}
-                    </button>
-                  </div>
-                </div>
-              ) : null}
-
-              {activationMessage ? (
-                <p className={`text-sm ${activationMessage.tone === "success" ? "text-emerald-700" : "text-rose-600"}`}>
-                  {activationMessage.text}
-                </p>
-              ) : null}
             </div>
-          </section>
+          </form>
 
           <details className="workspace-card order-4 overflow-hidden">
             <summary className="cursor-pointer list-none px-6 py-5">

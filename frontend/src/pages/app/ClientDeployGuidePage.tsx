@@ -127,7 +127,7 @@ const ClientDeployGuidePage = () => {
             description="首次凭证用于连接客户中台；每个追加品牌都使用自己的凭证授权。"
           >
             <ol className="list-decimal space-y-3 pl-5 text-sm leading-7 text-slate-700">
-              <li>在“连接客户中台”区域点击“生成激活凭证”。凭证 30 分钟内有效，请在准备部署时再生成。</li>
+              <li>在当前品牌的“品牌客户端资料”卡片中点击“生成激活凭证”。凭证 30 分钟内有效，请在准备部署时再生成。</li>
               <li>复制并临时保存凭证。每张凭证只能使用一次，不要发给无关人员。</li>
               <li>在“部署客户中台”中选择服务器架构：普通 Intel/AMD 服务器选 Linux x64，ARM 服务器选 Linux ARM64。</li>
               <li>点击“生成客户端”，完成后前往“构建下载”的“客户端构建”分类下载部署包。</li>
