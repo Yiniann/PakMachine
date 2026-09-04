@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
   createClientBffActivation,
   createClientRuntimePackage,
+  activateClientBffBrand,
   enrollClientBff,
   getClientRuntimeConfig,
   issueClientBuildManifest,
@@ -27,6 +28,7 @@ router.put("/internal/base-artifacts/:platform", authenticateClientBaseRelease, 
 router.put("/internal/runtime-artifacts/:architecture", authenticateClientBaseRelease, registerClientRuntimeArtifact);
 router.get("/internal/runtime-config", authenticateClientBaseRelease, getClientRuntimeConfig);
 router.post("/v1/enroll", enrollClientBff);
+router.post("/v1/brands/activate", authenticateClientBff, activateClientBffBrand);
 router.get("/v1/brands", authenticateClientBff, listClientBffBrands);
 router.post("/v1/build-manifests", authenticateClientBff, issueClientBuildManifest);
 router.get("/v1/builds/active", authenticateClientBff, listActiveClientBuilds);

@@ -88,6 +88,8 @@ const ClientBuildPage = () => {
     setBrandIconUrl(selectedControlBrand?.iconUrl || "");
     setForm((current) => ({ ...current, iconUrl: selectedControlBrand?.iconUrl || "" }));
     setIdentityMessage(null);
+    setActivation(null);
+    setActivationMessage(null);
   }, [selectedControlBrand?.appId, selectedControlBrand?.publisher, selectedControlBrand?.iconUrl, selectedSite?.name]);
 
   const activeJob = buildProgress?.jobId
@@ -121,9 +123,10 @@ const ClientBuildPage = () => {
     setForm((current) => ({ ...current, [key]: value }));
 
   const onCreateActivation = () => {
+    if (!selectedSiteId) return;
     setActivationMessage(null);
     setActivationCopied(false);
-    createActivation.mutate(undefined, {
+    createActivation.mutate(selectedSiteId, {
       onSuccess: (result) => {
         setActivation(result);
         setActivationMessage({ tone: "success", text: "一次性激活凭证已生成" });
@@ -247,7 +250,7 @@ const ClientBuildPage = () => {
                 <p className="workspace-kicker">Server Deployment</p>
                 <h3 className="mt-2 text-xl font-bold text-slate-900">部署客户中台</h3>
                 <p className="mt-2 text-sm leading-6 text-slate-500">
-                  生成适用于客户 Linux 服务器的部署包。安装完成后，使用上方账号级激活凭证连接 ShuttleITS。
+                  生成适用于客户 Linux 服务器的部署包。安装完成后，使用上方任一品牌的激活凭证完成首次连接。
                 </p>
               </div>
 
@@ -389,16 +392,16 @@ const ClientBuildPage = () => {
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <p className="workspace-kicker">BFF Activation</p>
-                  <h3 className="mt-2 text-xl font-bold text-slate-900">连接客户中台</h3>
+                  <h3 className="mt-2 text-xl font-bold text-slate-900">授权品牌到客户中台</h3>
                   <p className="mt-2 text-sm leading-6 text-slate-500">
-                    一套客户中台只需连接一次，连接后可在中台内选择并构建当前账号下的所有已开通品牌。凭证只能使用一次，生成后 30 分钟内有效。
+                    为当前选择的品牌生成一次性凭证，然后在客户中台的“客户端构建”页面输入。首次凭证用于连接中台，其他品牌凭证用于追加品牌。
                   </p>
                 </div>
                 <button
                   className="landing-button-primary shrink-0 rounded-2xl px-5 py-3 text-sm"
                   type="button"
                   onClick={onCreateActivation}
-                  disabled={createActivation.isPending}
+                  disabled={createActivation.isPending || !selectedControlBrand?.ready}
                 >
                   {createActivation.isPending ? "生成中..." : activation ? "重新生成" : "生成激活凭证"}
                 </button>
@@ -408,7 +411,10 @@ const ClientBuildPage = () => {
                 <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="min-w-0">
-                      <p className="text-xs font-semibold text-slate-500">一次性激活凭证</p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-xs font-semibold text-slate-500">一次性激活凭证</p>
+                        <span className="badge badge-ghost badge-sm">{activation.siteName}</span>
+                      </div>
                       <code className="mt-2 block select-all break-all text-sm text-slate-800">{activation.activationToken}</code>
                       <p className="mt-2 text-xs text-slate-500">有效期至 {new Date(activation.expiresAt).toLocaleString("zh-CN", { hour12: false })}</p>
                     </div>

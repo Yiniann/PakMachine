@@ -124,13 +124,14 @@ const ClientDeployGuidePage = () => {
             id="package"
             step={3}
             title="生成激活凭证和部署包"
-            description="激活凭证用于把客户中台绑定到当前账号和当前品牌。"
+            description="首次凭证用于连接客户中台；每个追加品牌都使用自己的凭证授权。"
           >
             <ol className="list-decimal space-y-3 pl-5 text-sm leading-7 text-slate-700">
               <li>在“连接客户中台”区域点击“生成激活凭证”。凭证 30 分钟内有效，请在准备部署时再生成。</li>
-              <li>复制并临时保存凭证。凭证只用于首次绑定，不要发给无关人员。</li>
+              <li>复制并临时保存凭证。每张凭证只能使用一次，不要发给无关人员。</li>
               <li>在“部署客户中台”中选择服务器架构：普通 Intel/AMD 服务器选 Linux x64，ARM 服务器选 Linux ARM64。</li>
               <li>点击“生成客户端”，完成后前往“构建下载”的“客户端构建”分类下载部署包。</li>
+              <li>同一账号只需部署一套客户中台。后续添加其他品牌时，只需切换品牌并生成新的激活凭证，不需要重新下载或安装部署包。</li>
             </ol>
             <div className="flex flex-wrap gap-3">
               <Link to="/app/client-build" className="landing-button-primary rounded-lg px-5 py-3 text-sm">前往客户端构建</Link>
@@ -218,13 +219,14 @@ const ClientDeployGuidePage = () => {
             id="activate"
             step={6}
             title="初始化管理帐号并连接 ShuttleITS"
-            description="先创建客户中台的管理员帐号，再使用当前品牌的一次性凭证完成绑定。"
+            description="先用任一品牌凭证完成首次连接，再按需追加其他品牌。"
           >
             <ol className="list-decimal space-y-3 pl-5 text-sm leading-7 text-slate-700">
               <li>打开 <code>https://客户端中台域名/你的管理路径</code>。</li>
               <li>首次访问会进入“初始化管理帐号”，创建仅用于当前客户中台的管理员帐号和密码。</li>
               <li>登录后打开左侧“客户端构建”。</li>
               <li>在“连接 ShuttleITS”中粘贴第 3 步生成的一次性激活凭证，然后点击“连接中台”。</li>
+              <li>需要构建其他品牌时，在 ShuttleITS 为对应品牌生成凭证，再回到这里的“添加构建品牌”输入；已经绑定的品牌不会被覆盖。</li>
               <li>页面显示“已连接 ShuttleITS”和“可构建”后再继续。</li>
             </ol>
             <div className="grid gap-2 sm:grid-cols-[1fr_auto_1fr_auto_1fr] sm:items-center">

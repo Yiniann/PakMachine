@@ -34,9 +34,13 @@ import {
 
 const PLATFORMS = new Set<ClientManifestPlatform>(["macos", "windows", "android"]);
 
-const loadClientBrands = async (userId: number, readyOnly = false) => {
+const loadClientBrands = async (userId: number, readyOnly = false, siteIds?: number[]) => {
   const sites = await prisma.userSite.findMany({
-    where: { userId, clientBuildEnabled: true },
+    where: {
+      userId,
+      clientBuildEnabled: true,
+      ...(siteIds ? { id: { in: siteIds } } : {}),
+    },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   });
   const identities = await prisma.clientAppConfig.findMany({ where: { userId } });
@@ -59,18 +63,22 @@ export const createClientBffActivation = async (req: Request, res: Response, nex
   try {
     const userId = Number((req as any).user?.sub);
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
-    const eligibleSite = await prisma.userSite.findFirst({
-      where: { userId, clientBuildEnabled: true },
-      select: { id: true },
-    });
-    if (!eligibleSite) return res.status(403).json({ error: "当前账号尚未开通客户端构建权限" });
+    const siteId = Number(req.body?.siteId);
+    if (!Number.isSafeInteger(siteId) || siteId < 1) return res.status(400).json({ error: "请选择需要授权的品牌" });
+    const site = await prisma.userSite.findFirst({ where: { id: siteId, userId, clientBuildEnabled: true } });
+    if (!site) return res.status(403).json({ error: "该品牌尚未开通客户端构建权限" });
     const token = crypto.randomBytes(32).toString("base64url");
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
     await prisma.clientBffActivation.create({
-      data: { id: randomUUID(), userId, tokenHash: hashSecret(token), expiresAt },
+      data: { id: randomUUID(), userId, siteId: site.id, tokenHash: hashSecret(token), expiresAt },
     });
     res.setHeader("Cache-Control", "no-store");
-    return res.status(201).json({ activationToken: token, expiresAt: expiresAt.toISOString() });
+    return res.status(201).json({
+      activationToken: token,
+      expiresAt: expiresAt.toISOString(),
+      siteId: site.id,
+      siteName: site.name,
+    });
   } catch (error) {
     next(error);
   }
@@ -88,30 +96,86 @@ export const enrollClientBff = async (req: Request, res: Response, next: NextFun
     } catch (error) {
       return res.status(400).json({ error: (error as Error).message });
     }
-    const activation = await prisma.clientBffActivation.findUnique({ where: { tokenHash: hashSecret(activationToken) } });
-    if (!activation || activation.consumedAt || activation.expiresAt <= new Date()) {
+    const activation = await prisma.clientBffActivation.findUnique({
+      where: { tokenHash: hashSecret(activationToken) },
+      include: { site: true },
+    });
+    if (!activation || !activation.siteId || !activation.site || !activation.site.clientBuildEnabled
+      || activation.consumedAt || activation.expiresAt <= new Date()) {
       return res.status(401).json({ error: "激活凭证无效、已使用或已过期" });
     }
+    const activationSiteId = activation.siteId;
     const accessToken = crypto.randomBytes(48).toString("base64url");
     const instanceId = randomUUID();
     const name = typeof req.body?.name === "string" ? req.body.name.trim().slice(0, 80) : "";
-    await prisma.$transaction([
-      prisma.clientBffActivation.update({ where: { id: activation.id }, data: { consumedAt: new Date() } }),
-      prisma.clientBffInstance.create({
+    const consumedAt = new Date();
+    const enrolled = await prisma.$transaction(async (transaction) => {
+      const consumed = await transaction.clientBffActivation.updateMany({
+        where: { id: activation.id, consumedAt: null, expiresAt: { gt: consumedAt } },
+        data: { consumedAt },
+      });
+      if (consumed.count !== 1) return false;
+      await transaction.clientBffInstance.create({
         data: {
           id: instanceId,
           userId: activation.userId,
-          siteId: activation.siteId,
+          siteId: activationSiteId,
           name: name || null,
           publicKey: instancePublicKey,
           bootstrapPublicProfileBase64,
           accessTokenHash: hashSecret(accessToken),
           lastSeenAt: new Date(),
+          sites: { create: { siteId: activationSiteId } },
         },
-      }),
-    ]);
+      });
+      return true;
+    });
+    if (!enrolled) return res.status(401).json({ error: "激活凭证无效、已使用或已过期" });
     res.setHeader("Cache-Control", "no-store");
     return res.status(201).json({ instanceId, accessToken });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const activateClientBffBrand = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const instance = (req as any).clientBffInstance;
+    const activationToken = String(req.body?.activationToken || "");
+    if (activationToken.length < 32 || activationToken.length > 256) {
+      return res.status(400).json({ error: "激活凭证不合法" });
+    }
+    const activation = await prisma.clientBffActivation.findUnique({
+      where: { tokenHash: hashSecret(activationToken) },
+      include: { site: true },
+    });
+    if (!activation || !activation.siteId || !activation.site
+      || activation.userId !== instance.userId
+      || activation.consumedAt
+      || activation.expiresAt <= new Date()) {
+      return res.status(401).json({ error: "激活凭证无效、已使用或已过期" });
+    }
+    if (!activation.site.clientBuildEnabled) {
+      return res.status(403).json({ error: "该品牌尚未开通客户端构建权限" });
+    }
+    const activationSiteId = activation.siteId;
+    const consumedAt = new Date();
+    const bound = await prisma.$transaction(async (transaction) => {
+      const consumed = await transaction.clientBffActivation.updateMany({
+        where: { id: activation.id, consumedAt: null, expiresAt: { gt: consumedAt } },
+        data: { consumedAt },
+      });
+      if (consumed.count !== 1) return false;
+      await transaction.clientBffInstanceSite.upsert({
+        where: { instanceId_siteId: { instanceId: instance.id, siteId: activationSiteId } },
+        create: { instanceId: instance.id, siteId: activationSiteId },
+        update: {},
+      });
+      return true;
+    });
+    if (!bound) return res.status(401).json({ error: "激活凭证无效、已使用或已过期" });
+    res.setHeader("Cache-Control", "no-store");
+    return res.status(201).json({ siteId: activation.site.id, siteName: activation.site.name });
   } catch (error) {
     next(error);
   }
@@ -120,9 +184,13 @@ export const enrollClientBff = async (req: Request, res: Response, next: NextFun
 export const listClientBffBrands = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const instance = (req as any).clientBffInstance;
+    const bindings = await prisma.clientBffInstanceSite.findMany({
+      where: { instanceId: instance.id },
+      select: { siteId: true },
+    });
     return res.json({
       instanceId: instance.id,
-      brands: await loadClientBrands(instance.userId, true),
+      brands: await loadClientBrands(instance.userId, true, bindings.map((binding) => binding.siteId)),
     });
   } catch (error) {
     next(error);
@@ -302,6 +370,10 @@ export const issueClientBuildManifest = async (req: Request, res: Response, next
     }
     const site = await prisma.userSite.findFirst({ where: { id: siteId, userId: instance.userId } });
     if (!site) return res.status(404).json({ error: "品牌不存在" });
+    const binding = await prisma.clientBffInstanceSite.findUnique({
+      where: { instanceId_siteId: { instanceId: instance.id, siteId: site.id } },
+    });
+    if (!binding) return res.status(403).json({ error: "请先使用该品牌的激活凭证完成授权" });
     if (!site.clientBuildEnabled) return res.status(403).json({ error: "该品牌尚未开通客户端构建权限" });
     const identity = await prisma.clientAppConfig.findUnique({
       where: { userId_brandKey: { userId: instance.userId, brandKey: `site:${site.id}` } },
