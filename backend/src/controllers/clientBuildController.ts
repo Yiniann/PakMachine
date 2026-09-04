@@ -2,7 +2,7 @@ import { NextFunction, Request, Response } from "express";
 import { randomUUID } from "crypto";
 import prisma from "../lib/prisma";
 import { dispatchClientGithubWorkflow } from "../services/githubWorkflowService";
-import { createClientArtifactDownloadUrl } from "../services/clientR2Service";
+import { createStoredClientArtifactDownloadUrl } from "../services/clientR2Service";
 import { getClientGithubTemplate } from "../services/uploadService";
 
 const CLIENT_PLATFORMS = new Set(["macos", "windows", "android"] as const);
@@ -452,7 +452,11 @@ export const createClientDownload = async (req: Request, res: Response, next: Ne
       res.setHeader("Retry-After", "60");
       return res.status(429).json({ error: "下载请求过于频繁，请稍后再试" });
     }
-    const signed = await createClientArtifactDownloadUrl(job.objectKey, job.artifactFilename);
+    const signed = await createStoredClientArtifactDownloadUrl(
+      job.objectKey,
+      job.artifactFilename,
+      parseBuildMode(job.envJson),
+    );
     res.setHeader("Cache-Control", "no-store");
     res.json({ url: signed.url, expiresAt: signed.expiresAt });
   } catch (error) {

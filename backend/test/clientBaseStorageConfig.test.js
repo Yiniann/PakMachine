@@ -11,6 +11,7 @@ const {
   rotateClientBaseReleaseToken,
   saveClientBaseStorageConfig,
 } = require("../src/services/clientBaseStorageConfigService");
+const { createStoredClientArtifactDownloadUrl } = require("../src/services/clientR2Service");
 
 const temporaryDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "pakmachine-client-storage-"));
 const configPath = path.join(temporaryDirectory, "client-base-storage.json");
@@ -96,4 +97,18 @@ test("发布密钥只保存哈希且轮换后旧密钥立即失效", () => {
   assert.notEqual(second.token, first.token);
   assert.deepEqual(checkClientBaseReleaseToken(first.token), { configured: true, valid: false });
   assert.deepEqual(checkClientBaseReleaseToken(second.token), { configured: true, valid: true });
+});
+
+test("部署包下载使用系统设置中加密保存的 R2 凭证", async () => {
+  const result = await createStoredClientArtifactDownloadUrl(
+    "client-runtime-artifacts/amd64/v0.1.1/runtime.tar.gz",
+    "runtime.tar.gz",
+    "client-runtime-package",
+  );
+
+  const url = new URL(result.url);
+  assert.equal(url.hostname, `shuttle-client-base-next.${"b".repeat(32)}.r2.cloudflarestorage.com`);
+  assert.equal(url.pathname, "/client-runtime-artifacts/amd64/v0.1.1/runtime.tar.gz");
+  assert.match(url.searchParams.get("X-Amz-Credential") || "", /^access-key-id-for-client-base-storage\//);
+  assert.equal(url.searchParams.get("response-content-disposition"), "attachment; filename*=UTF-8''runtime.tar.gz");
 });
