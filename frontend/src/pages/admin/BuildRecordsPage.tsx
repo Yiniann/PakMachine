@@ -1,5 +1,5 @@
 import { Fragment, useMemo, useState } from "react";
-import { useAdminBuildJobs } from "../../features/builds/queries";
+import { AdminClientBuild, useAdminBuildJobs, useAdminClientBuilds } from "../../features/builds/queries";
 
 const statusBadgeClass: Record<string, string> = {
   pending: "badge-ghost",
@@ -47,9 +47,92 @@ const EnvBlock = ({ title, description, value }: { title: string; description: s
   );
 };
 
+const clientSourceLabel = (source: AdminClientBuild["source"]) => {
+  if (source === "customer-builder") return "客户中台构建";
+  if (source === "deployment-package") return "部署包下载";
+  return "旧版云端构建";
+};
+
+const formatSize = (size?: number | null) => size ? `${(size / 1024 / 1024).toFixed(1)} MB` : "-";
+
+const formatDuration = (durationMs?: number | null) => {
+  if (durationMs === null || durationMs === undefined) return null;
+  const seconds = Math.max(0, Math.round(durationMs / 1000));
+  if (seconds < 60) return `${seconds} 秒`;
+  return `${Math.floor(seconds / 60)} 分 ${seconds % 60} 秒`;
+};
+
+const ClientBuildRecords = ({ records, isLoading }: { records: AdminClientBuild[]; isLoading: boolean }) => (
+  <div className="workspace-card p-0 sm:p-6">
+    <div className="workspace-table-shell overflow-x-auto">
+      <table className="table table-zebra min-w-[980px]">
+        <thead>
+          <tr>
+            <th>用户</th>
+            <th>品牌 / 应用</th>
+            <th>来源</th>
+            <th>平台</th>
+            <th>状态</th>
+            <th>产物</th>
+            <th>时间</th>
+            <th>消息</th>
+          </tr>
+        </thead>
+        <tbody>
+          {records.map((record) => (
+            <tr key={`${record.source}-${record.id}`}>
+              <td>
+                <div>{record.user.email}</div>
+                <div className="text-xs text-base-content/50">UID: {record.user.id}</div>
+              </td>
+              <td>
+                <div className="font-medium">{record.site.name || record.appName}</div>
+                {record.site.name && record.site.name !== record.appName ? <div className="text-xs text-base-content/60">{record.appName}</div> : null}
+              </td>
+              <td>
+                <span className="badge badge-ghost badge-sm">{clientSourceLabel(record.source)}</span>
+                {record.instance ? (
+                  <div className="mt-1 max-w-40 truncate text-xs text-base-content/50" title={record.instance.id}>
+                    {record.instance.name || record.instance.id}
+                  </div>
+                ) : null}
+              </td>
+              <td>
+                <div>{record.platform || "-"}{record.arch ? ` · ${record.arch}` : ""}</div>
+                <div className="text-xs text-base-content/50">{record.version || "-"}{record.buildNumber ? ` (${record.buildNumber})` : ""}</div>
+              </td>
+              <td>
+                <span className={`badge badge-sm ${statusBadgeClass[record.status] ?? "badge-ghost"}`}>{record.status}</span>
+                {record.status === "running" ? <div className="mt-1 text-xs text-base-content/60">{record.progress}%</div> : null}
+              </td>
+              <td>
+                <div className="max-w-44 truncate" title={record.artifactFilename || undefined}>{record.artifactFilename || "-"}</div>
+                <div className="text-xs text-base-content/50">{formatSize(record.artifactSize)}</div>
+              </td>
+              <td className="whitespace-nowrap">
+                <div>{new Date(record.createdAt).toLocaleString()}</div>
+                {formatDuration(record.durationMs) ? <div className="text-xs text-base-content/50">耗时 {formatDuration(record.durationMs)}</div> : null}
+              </td>
+              <td><div className="max-w-56 truncate" title={record.message || undefined}>{record.message || "-"}</div></td>
+            </tr>
+          ))}
+          {!isLoading && records.length === 0 ? (
+            <tr><td colSpan={8} className="py-10 text-center text-base-content/60">暂无客户端构建记录</td></tr>
+          ) : null}
+        </tbody>
+      </table>
+    </div>
+    {isLoading ? <div className="flex justify-center p-6"><span className="loading loading-spinner loading-md" /></div> : null}
+  </div>
+);
+
 const BuildRecordsPage = () => {
-  const { data, isLoading, error, refetch } = useAdminBuildJobs(200);
+  const webBuilds = useAdminBuildJobs(200);
+  const clientBuilds = useAdminClientBuilds(200);
+  const [recordType, setRecordType] = useState<"web" | "client">("web");
   const [expandedJobIds, setExpandedJobIds] = useState<number[]>([]);
+  const activeQuery = recordType === "web" ? webBuilds : clientBuilds;
+  const { isLoading, error } = activeQuery;
 
   const errorMessage =
     error && (error as any)?.response?.data?.error
@@ -60,12 +143,12 @@ const BuildRecordsPage = () => {
 
   const jobs = useMemo(
     () =>
-      data?.map((j) => ({
+      webBuilds.data?.filter((j) => j.buildKind !== "client").map((j) => ({
         ...j,
         createdAtLabel: new Date(j.createdAt).toLocaleString(),
         envSnapshot: parseEnvSnapshot(j.envJson),
       })) ?? [],
-    [data],
+    [webBuilds.data],
   );
 
   const toggleExpanded = (jobId: number) => {
@@ -80,12 +163,17 @@ const BuildRecordsPage = () => {
           <h2 className="mt-2 text-3xl font-bold tracking-[-0.04em] text-slate-900">构建记录</h2>
           <p className="mt-2 text-[15px] text-slate-500">查看全站用户的构建历史与状态。</p>
         </div>
-        <button className="landing-button-primary rounded-2xl px-5 py-3 text-sm" onClick={() => refetch()} disabled={isLoading}>
+        <button className="landing-button-primary rounded-2xl px-5 py-3 text-sm" onClick={() => activeQuery.refetch()} disabled={isLoading}>
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-4 w-4">
             <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
           </svg>
           {isLoading ? "刷新中..." : "刷新列表"}
         </button>
+      </div>
+
+      <div className="inline-flex w-full max-w-sm rounded-lg bg-slate-100 p-1" role="tablist" aria-label="构建记录类型">
+        <button type="button" role="tab" aria-selected={recordType === "web"} className={`min-h-10 flex-1 rounded-md px-4 text-sm font-semibold transition ${recordType === "web" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800"}`} onClick={() => setRecordType("web")}>前端构建</button>
+        <button type="button" role="tab" aria-selected={recordType === "client"} className={`min-h-10 flex-1 rounded-md px-4 text-sm font-semibold transition ${recordType === "client" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800"}`} onClick={() => setRecordType("client")}>客户端构建</button>
       </div>
 
       {errorMessage && (
@@ -97,7 +185,7 @@ const BuildRecordsPage = () => {
         </div>
       )}
 
-      <div className="workspace-card p-0 sm:p-6">
+      {recordType === "web" ? <div className="workspace-card p-0 sm:p-6">
         <div className="p-0">
           <div className="hidden overflow-x-auto md:block">
             <div className="workspace-table-shell">
@@ -305,7 +393,7 @@ const BuildRecordsPage = () => {
 
           {isLoading && <div className="flex justify-center p-6"><span className="loading loading-spinner loading-md" /></div>}
         </div>
-      </div>
+      </div> : <ClientBuildRecords records={clientBuilds.data ?? []} isLoading={clientBuilds.isLoading} />}
     </div>
   );
 };

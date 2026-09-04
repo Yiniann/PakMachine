@@ -130,34 +130,40 @@ model ClientAppConfig {
 model ClientBffActivation {
   id         String    @id @db.VarChar(36)
   userId     Int
+  siteId     Int?
   tokenHash  String    @unique @db.Char(64)
   expiresAt  DateTime
   consumedAt DateTime?
   createdAt  DateTime  @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  site UserSite? @relation(fields: [siteId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
+  @@index([siteId, createdAt])
   @@index([expiresAt])
 }
 
 /// 客户服务器上的 Client BFF 实例。访问令牌只以哈希形式保存。
 model ClientBffInstance {
-  id                           String   @id @db.VarChar(36)
+  id                           String    @id @db.VarChar(36)
   userId                       Int
+  siteId                       Int?
   name                         String?
-  publicKey                    String   @db.Text
-  bootstrapPublicProfileBase64 String   @db.LongText
-  accessTokenHash              String   @unique @db.Char(64)
-  status                       String   @default("active")
+  publicKey                    String    @db.Text
+  bootstrapPublicProfileBase64 String    @db.LongText
+  accessTokenHash              String    @unique @db.Char(64)
+  status                       String    @default("active")
   lastSeenAt                   DateTime?
-  createdAt                    DateTime @default(now())
-  updatedAt                    DateTime @updatedAt
+  createdAt                    DateTime  @default(now())
+  updatedAt                    DateTime  @updatedAt
 
   user           User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  site           UserSite?             @relation(fields: [siteId], references: [id], onDelete: Cascade)
   buildManifests ClientBuildManifest[]
 
   @@index([userId, createdAt])
+  @@index([siteId, createdAt])
   @@index([status])
 }
 
@@ -212,10 +218,12 @@ model UserSite {
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
-  user             User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  buildJobs        BuildJob[]
-  clientAppConfigs ClientAppConfig[]
-  frontendOrigins  SiteFrontendOrigin[]
+  user                 User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  buildJobs            BuildJob[]
+  clientAppConfigs     ClientAppConfig[]
+  clientBffActivations ClientBffActivation[]
+  clientBffInstances   ClientBffInstance[]
+  frontendOrigins      SiteFrontendOrigin[]
 
   @@unique([userId, name])
   @@index([userId, createdAt])

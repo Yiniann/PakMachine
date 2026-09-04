@@ -17,6 +17,8 @@ import BuildRecordsPage from "./pages/admin/BuildRecordsPage";
 import TemplateBuildPage from "./pages/app/TemplateBuildPage";
 import DownloadPages from "./pages/app/DownloadPages";
 import DeployGuidePage from "./pages/app/DeployGuidePage";
+import DeployGuideThemePage from "./pages/app/DeployGuideThemePage";
+import ClientDeployGuidePage from "./pages/app/ClientDeployGuidePage";
 import DeployGuideBffPage from "./pages/app/DeployGuideBffPage";
 import DeployGuideSpaPage from "./pages/app/DeployGuideSpaPage";
 import DeployGuidePrinciplePage from "./pages/app/DeployGuidePrinciplePage";
@@ -56,6 +58,8 @@ const App = () => {
             <Route path="client-build" element={<ClientBuildPage />} />
             <Route path="downloads" element={<DownloadPages />} />
             <Route path="deploy-guide" element={<DeployGuidePage />} />
+            <Route path="deploy-guide/theme" element={<DeployGuideThemePage />} />
+            <Route path="deploy-guide/client" element={<ClientDeployGuidePage />} />
             <Route path="deploy-guide/bff" element={<DeployGuideBffPage />} />
             <Route path="deploy-guide/spa" element={<DeployGuideSpaPage />} />
             <Route path="deploy-guide/principle" element={<DeployGuidePrinciplePage />} />

@@ -37,6 +37,7 @@ import {
   testClientBaseStorage,
   updateClientBaseStorageConfig,
 } from "../controllers/clientBaseStorageController";
+import { listAdminClientBuilds } from "../controllers/clientBuildController";
 
 const router = Router();
 
@@ -57,6 +58,7 @@ router.patch("/removeFrontendOrigin", adminRemoveFrontendOrigin);
 router.patch("/resetBuildQuota", adminResetBuildQuota);
 router.get("/stats", getAdminStats);
 router.get("/build-jobs", listAllBuildJobs);
+router.get("/client-builds", listAdminClientBuilds);
 router.get("/settings", getSystemSettings);
 router.put("/settings", updateSystemSettings);
 router.get("/client-signing", getClientSigningConfig);

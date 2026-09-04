@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import BuildProgressModal, { BuildProgressStatus } from "../../components/BuildProgressModal";
 import {
   ClientRuntimeArchitecture,
@@ -48,7 +48,6 @@ const ClientBuildPage = () => {
   const [identityMessage, setIdentityMessage] = useState<PageMessage>(null);
   const [activationCopied, setActivationCopied] = useState(false);
   const [runtimeArchitecture, setRuntimeArchitecture] = useState<ClientRuntimeArchitecture>("amd64");
-  const [adminPathPrefix, setAdminPathPrefix] = useState("/admin");
   const [runtimeMessage, setRuntimeMessage] = useState<PageMessage>(null);
   const [runtimeInstallCommand, setRuntimeInstallCommand] = useState("");
   const [runtimeCommandCopied, setRuntimeCommandCopied] = useState(false);
@@ -89,6 +88,8 @@ const ClientBuildPage = () => {
     setBrandIconUrl(selectedControlBrand?.iconUrl || "");
     setForm((current) => ({ ...current, iconUrl: selectedControlBrand?.iconUrl || "" }));
     setIdentityMessage(null);
+    setActivation(null);
+    setActivationMessage(null);
   }, [selectedControlBrand?.appId, selectedControlBrand?.publisher, selectedControlBrand?.iconUrl, selectedSite?.name]);
 
   const activeJob = buildProgress?.jobId
@@ -122,9 +123,10 @@ const ClientBuildPage = () => {
     setForm((current) => ({ ...current, [key]: value }));
 
   const onCreateActivation = () => {
+    if (!selectedSiteId) return;
     setActivationMessage(null);
     setActivationCopied(false);
-    createActivation.mutate(undefined, {
+    createActivation.mutate(selectedSiteId, {
       onSuccess: (result) => {
         setActivation(result);
         setActivationMessage({ tone: "success", text: "一次性激活凭证已生成" });
@@ -137,25 +139,21 @@ const ClientBuildPage = () => {
   };
 
   const onCreateRuntimePackage = () => {
+    if (!selectedSiteId) return;
     setRuntimeMessage(null);
     setRuntimeInstallCommand("");
     setRuntimeCommandCopied(false);
     createRuntimePackage.mutate(
-      { architecture: runtimeArchitecture, adminPathPrefix: adminPathPrefix.trim() },
+      { architecture: runtimeArchitecture, siteId: selectedSiteId },
       {
         onSuccess: (result) => {
-          const anchor = document.createElement("a");
-          anchor.href = result.downloadUrl;
-          anchor.download = result.filename;
-          anchor.rel = "noopener";
-          document.body.appendChild(anchor);
-          anchor.click();
-          anchor.remove();
           setRuntimeInstallCommand(result.installCommand);
           setRuntimeMessage({
             tone: "success",
-            text: "完整部署包已开始下载，下载完成后的文件不会过期。",
+            text: "客户端已生成，可在构建下载中获取。",
           });
+          void jobs.refetch();
+          navigate("/app/downloads?category=client");
         },
         onError: (error) => setRuntimeMessage({
           tone: "error",
@@ -227,10 +225,15 @@ const ClientBuildPage = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="workspace-kicker">Client Control</p>
-        <h2 className="mt-3 text-4xl font-bold tracking-[-0.05em] text-slate-900">客户端构建</h2>
-        <p className="mt-2 text-lg leading-8 text-slate-500">管理客户中台授权、品牌资料与客户端构建。</p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="workspace-kicker">Client Control</p>
+          <h2 className="mt-3 text-4xl font-bold tracking-[-0.05em] text-slate-900">客户端构建</h2>
+          <p className="mt-2 text-lg leading-8 text-slate-500">管理客户中台授权、品牌资料与客户端构建。</p>
+        </div>
+        <Link to="/app/deploy-guide/client" className="landing-button-secondary w-fit rounded-lg px-5 py-3 text-sm">
+          查看部署教程
+        </Link>
       </div>
 
       {siteProfile.isLoading ? (
@@ -240,18 +243,18 @@ const ClientBuildPage = () => {
           当前没有已开通客户端构建权限的品牌，请联系管理员开通。
         </div>
       ) : (
-        <>
-          <section className="workspace-card">
+        <div className="flex flex-col gap-6">
+          <section className="workspace-card order-2">
             <div className="card-body gap-5">
               <div>
                 <p className="workspace-kicker">Server Deployment</p>
                 <h3 className="mt-2 text-xl font-bold text-slate-900">部署客户中台</h3>
                 <p className="mt-2 text-sm leading-6 text-slate-500">
-                  生成适用于客户 Linux 服务器的部署包。安装完成后，再使用下方凭证连接当前账号。
+                  生成适用于客户 Linux 服务器的部署包。安装完成后，使用上方对应品牌的凭证连接当前账号。
                 </p>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="max-w-xl">
                 <label className="form-control">
                   <span className="label-text">服务器架构</span>
                   <select
@@ -262,18 +265,6 @@ const ClientBuildPage = () => {
                     <option value="amd64">Linux x64（Intel / AMD）</option>
                     <option value="arm64">Linux ARM64</option>
                   </select>
-                </label>
-                <label className="form-control">
-                  <span className="label-text">管理路径</span>
-                  <input
-                    required
-                    className="workspace-input input input-bordered"
-                    value={adminPathPrefix}
-                    maxLength={49}
-                    pattern="/[A-Za-z0-9][A-Za-z0-9_-]{2,47}"
-                    onChange={(event) => setAdminPathPrefix(event.target.value)}
-                    placeholder="/admin"
-                  />
                 </label>
               </div>
 
@@ -286,9 +277,9 @@ const ClientBuildPage = () => {
                   className="landing-button-primary rounded-2xl px-5 py-3 text-sm"
                   type="button"
                   onClick={onCreateRuntimePackage}
-                  disabled={createRuntimePackage.isPending || !adminPathPrefix.trim()}
+                  disabled={createRuntimePackage.isPending || !selectedControlBrand?.ready}
                 >
-                  {createRuntimePackage.isPending ? "获取中..." : "下载完整部署包"}
+                  {createRuntimePackage.isPending ? "生成中..." : "生成客户端"}
                 </button>
                 {runtimeMessage ? (
                   <span className={`text-sm ${runtimeMessage.tone === "success" ? "text-emerald-700" : "text-rose-600"}`}>
@@ -313,48 +304,7 @@ const ClientBuildPage = () => {
             </div>
           </section>
 
-          <section className="workspace-card">
-            <div className="card-body gap-5">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <p className="workspace-kicker">BFF Activation</p>
-                  <h3 className="mt-2 text-xl font-bold text-slate-900">连接客户中台</h3>
-                  <p className="mt-2 text-sm leading-6 text-slate-500">凭证仅用于首次连接，生成后 30 分钟内有效。</p>
-                </div>
-                <button
-                  className="landing-button-primary shrink-0 rounded-2xl px-5 py-3 text-sm"
-                  type="button"
-                  onClick={onCreateActivation}
-                  disabled={createActivation.isPending}
-                >
-                  {createActivation.isPending ? "生成中..." : activation ? "重新生成" : "生成激活凭证"}
-                </button>
-              </div>
-
-              {activation ? (
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold text-slate-500">一次性激活凭证</p>
-                      <code className="mt-2 block select-all break-all text-sm text-slate-800">{activation.activationToken}</code>
-                      <p className="mt-2 text-xs text-slate-500">有效期至 {new Date(activation.expiresAt).toLocaleString("zh-CN", { hour12: false })}</p>
-                    </div>
-                    <button className="landing-button-secondary shrink-0 rounded-2xl px-4 py-2 text-sm" type="button" onClick={onCopyActivation}>
-                      {activationCopied ? "已复制" : "复制"}
-                    </button>
-                  </div>
-                </div>
-              ) : null}
-
-              {activationMessage ? (
-                <p className={`text-sm ${activationMessage.tone === "success" ? "text-emerald-700" : "text-rose-600"}`}>
-                  {activationMessage.text}
-                </p>
-              ) : null}
-            </div>
-          </section>
-
-          <form className="workspace-card" onSubmit={onSaveBrandIdentity}>
+          <form className="workspace-card order-1" onSubmit={onSaveBrandIdentity}>
             <div className="card-body gap-5">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
@@ -433,10 +383,53 @@ const ClientBuildPage = () => {
                   </span>
                 ) : null}
               </div>
+
+              <div className="border-t border-slate-200 pt-5">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <h4 className="text-base font-bold text-slate-900">连接客户中台</h4>
+                    <p className="mt-1 text-sm leading-6 text-slate-500">
+                      激活凭证仅适用于当前选择的品牌，生成后 30 分钟内有效。
+                    </p>
+                  </div>
+                  <button
+                    className="landing-button-primary shrink-0 rounded-2xl px-5 py-3 text-sm"
+                    type="button"
+                    onClick={onCreateActivation}
+                    disabled={createActivation.isPending || !selectedControlBrand?.ready}
+                  >
+                    {createActivation.isPending ? "生成中..." : activation ? "重新生成" : "生成激活凭证"}
+                  </button>
+                </div>
+
+                {activation ? (
+                  <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-xs font-semibold text-slate-500">一次性激活凭证</p>
+                          <span className="badge badge-ghost badge-sm">{activation.siteName}</span>
+                        </div>
+                        <code className="mt-2 block select-all break-all text-sm text-slate-800">{activation.activationToken}</code>
+                        <p className="mt-2 text-xs text-slate-500">有效期至 {new Date(activation.expiresAt).toLocaleString("zh-CN", { hour12: false })}</p>
+                      </div>
+                      <button className="landing-button-secondary shrink-0 rounded-2xl px-4 py-2 text-sm" type="button" onClick={onCopyActivation}>
+                        {activationCopied ? "已复制" : "复制"}
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+
+                {activationMessage ? (
+                  <p className={`mt-3 text-sm ${activationMessage.tone === "success" ? "text-emerald-700" : "text-rose-600"}`}>
+                    {activationMessage.text}
+                  </p>
+                ) : null}
+              </div>
             </div>
           </form>
 
-          <details className="workspace-card overflow-hidden">
+          <details className="workspace-card order-4 overflow-hidden">
             <summary className="cursor-pointer list-none px-6 py-5">
               <div className="flex items-center justify-between gap-4">
                 <div>
@@ -499,7 +492,7 @@ const ClientBuildPage = () => {
               </div>
             </form>
           </details>
-        </>
+        </div>
       )}
 
       <BuildProgressModal

@@ -4,7 +4,6 @@ type RuntimePackageInput = {
   artifact: ClientRuntimeArtifact;
   runtimeDownloadUrl: string;
   runtimeDownloadExpiresAt: Date;
-  adminPathPrefix: string;
 };
 
 export type ClientRuntimeDeploymentPackage = {
@@ -18,19 +17,9 @@ export type ClientRuntimeDeploymentPackage = {
   sha256: string;
 };
 
-export const normalizeAdminPathPrefix = (value: unknown) => {
-  const pathPrefix = value === undefined || value === null || value === "" ? "/admin" : String(value).trim();
-  if (!/^\/[A-Za-z0-9][A-Za-z0-9_-]{2,47}$/.test(pathPrefix)
-    || ["/api", "/newapi", "/healthz", "/readyz"].includes(pathPrefix.toLowerCase())) {
-    throw badRequest("管理路径必须是 3 到 48 位字母、数字、下划线或横线，并且不能使用系统保留路径");
-  }
-  return pathPrefix;
-};
-
 export const createClientRuntimeDeploymentPackage = (
   input: RuntimePackageInput,
 ): ClientRuntimeDeploymentPackage => {
-  const adminPathPrefix = normalizeAdminPathPrefix(input.adminPathPrefix);
   const downloadUrl = requireHttpsDownloadUrl(input.runtimeDownloadUrl);
   if (!(input.runtimeDownloadExpiresAt instanceof Date)
     || !Number.isFinite(input.runtimeDownloadExpiresAt.getTime())
@@ -41,7 +30,7 @@ export const createClientRuntimeDeploymentPackage = (
     filename: input.artifact.filename,
     downloadUrl,
     downloadExpiresAt: input.runtimeDownloadExpiresAt.toISOString(),
-    installCommand: `sudo ./install.sh --admin-path ${adminPathPrefix}`,
+    installCommand: "sudo ./install.sh",
     architecture: input.artifact.architecture,
     version: input.artifact.version,
     size: input.artifact.size,
@@ -68,5 +57,4 @@ function serviceError(message: string, status: number) {
   return error;
 }
 
-function badRequest(message: string) { return serviceError(message, 400); }
 function serviceUnavailable(message: string) { return serviceError(message, 503); }

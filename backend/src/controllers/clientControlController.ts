@@ -16,10 +16,7 @@ import {
   normalizeClientRuntimeArchitecture,
   publishClientRuntimeArtifact,
 } from "../services/clientRuntimeArtifactService";
-import {
-  createClientRuntimeDeploymentPackage,
-  normalizeAdminPathPrefix,
-} from "../services/clientRuntimePackageService";
+import { createClientRuntimeDeploymentPackage } from "../services/clientRuntimePackageService";
 import { clientBffBuildEnvironment } from "../services/clientSigningIdentityService";
 import {
   ClientManifestPlatform,
@@ -37,9 +34,9 @@ import {
 
 const PLATFORMS = new Set<ClientManifestPlatform>(["macos", "windows", "android"]);
 
-const loadClientBrands = async (userId: number, readyOnly = false) => {
+const loadClientBrands = async (userId: number, readyOnly = false, siteId?: number) => {
   const sites = await prisma.userSite.findMany({
-    where: { userId, clientBuildEnabled: true },
+    where: { userId, clientBuildEnabled: true, ...(siteId ? { id: siteId } : {}) },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   });
   const identities = await prisma.clientAppConfig.findMany({ where: { userId } });
@@ -62,15 +59,17 @@ export const createClientBffActivation = async (req: Request, res: Response, nex
   try {
     const userId = Number((req as any).user?.sub);
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
-    const enabledSites = await prisma.userSite.count({ where: { userId, clientBuildEnabled: true } });
-    if (enabledSites < 1) return res.status(403).json({ error: "当前没有已开通客户端构建权限的品牌" });
+    const siteId = Number(req.body?.siteId);
+    if (!Number.isSafeInteger(siteId) || siteId < 1) return res.status(400).json({ error: "请选择需要连接的品牌" });
+    const site = await prisma.userSite.findFirst({ where: { id: siteId, userId, clientBuildEnabled: true } });
+    if (!site) return res.status(403).json({ error: "该品牌尚未开通客户端构建权限" });
     const token = crypto.randomBytes(32).toString("base64url");
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
     await prisma.clientBffActivation.create({
-      data: { id: randomUUID(), userId, tokenHash: hashSecret(token), expiresAt },
+      data: { id: randomUUID(), userId, siteId: site.id, tokenHash: hashSecret(token), expiresAt },
     });
     res.setHeader("Cache-Control", "no-store");
-    return res.status(201).json({ activationToken: token, expiresAt: expiresAt.toISOString() });
+    return res.status(201).json({ activationToken: token, expiresAt: expiresAt.toISOString(), siteId: site.id, siteName: site.name });
   } catch (error) {
     next(error);
   }
@@ -89,7 +88,7 @@ export const enrollClientBff = async (req: Request, res: Response, next: NextFun
       return res.status(400).json({ error: (error as Error).message });
     }
     const activation = await prisma.clientBffActivation.findUnique({ where: { tokenHash: hashSecret(activationToken) } });
-    if (!activation || activation.consumedAt || activation.expiresAt <= new Date()) {
+    if (!activation || !activation.siteId || activation.consumedAt || activation.expiresAt <= new Date()) {
       return res.status(401).json({ error: "激活凭证无效、已使用或已过期" });
     }
     const accessToken = crypto.randomBytes(48).toString("base64url");
@@ -101,6 +100,7 @@ export const enrollClientBff = async (req: Request, res: Response, next: NextFun
         data: {
           id: instanceId,
           userId: activation.userId,
+          siteId: activation.siteId,
           name: name || null,
           publicKey: instancePublicKey,
           bootstrapPublicProfileBase64,
@@ -121,7 +121,7 @@ export const listClientBffBrands = async (req: Request, res: Response, next: Nex
     const instance = (req as any).clientBffInstance;
     return res.json({
       instanceId: instance.id,
-      brands: await loadClientBrands(instance.userId, true),
+      brands: await loadClientBrands(instance.userId, true, instance.siteId),
     });
   } catch (error) {
     next(error);
@@ -237,25 +237,48 @@ export const createClientRuntimePackage = async (req: Request, res: Response, ne
     const keys = req.body && typeof req.body === "object" && !Array.isArray(req.body)
       ? Object.keys(req.body)
       : [];
-    if (keys.some((key) => !["adminPathPrefix", "architecture"].includes(key))) {
+    if (keys.some((key) => !["architecture", "siteId"].includes(key))) {
       return res.status(400).json({ error: "部署包配置包含不支持的字段" });
     }
-    const enabledSites = await prisma.userSite.count({ where: { userId, clientBuildEnabled: true } });
-    if (enabledSites < 1) return res.status(403).json({ error: "当前没有已开通客户端构建权限的品牌" });
+    const siteId = Number(req.body?.siteId);
+    if (!Number.isSafeInteger(siteId) || siteId < 1) return res.status(400).json({ error: "请选择需要部署的品牌" });
+    const site = await prisma.userSite.findFirst({ where: { id: siteId, userId, clientBuildEnabled: true } });
+    if (!site) return res.status(403).json({ error: "该品牌尚未开通客户端构建权限" });
+    const identity = await prisma.clientAppConfig.findUnique({
+      where: { userId_brandKey: { userId, brandKey: `site:${site.id}` } },
+    });
+    if (!identity) return res.status(409).json({ error: "请先保存该品牌的客户端资料" });
 
     const architecture = normalizeClientRuntimeArchitecture(req.body?.architecture);
-    const adminPathPrefix = normalizeAdminPathPrefix(req.body?.adminPathPrefix);
     const artifact = getClientRuntimeArtifact(architecture);
     const runtimeDownload = await createClientRuntimeArtifactDownloadUrl(artifact.objectKey, artifact.filename);
     const deployment = createClientRuntimeDeploymentPackage({
       artifact,
       runtimeDownloadUrl: runtimeDownload.url,
       runtimeDownloadExpiresAt: runtimeDownload.expiresAt,
-      adminPathPrefix,
+    });
+    const job = await prisma.buildJob.create({
+      data: {
+        userId,
+        siteId: site.id,
+        siteNameSnapshot: site.name,
+        buildKind: "client",
+        platform: "linux",
+        arch: architecture,
+        version: artifact.version,
+        filename: site.name,
+        status: "success",
+        envJson: JSON.stringify({ buildMode: "client-runtime-package" }),
+        objectKey: artifact.objectKey,
+        artifactFilename: artifact.filename,
+        artifactSize: artifact.size,
+        artifactSha256: artifact.sha256,
+        message: "客户端部署包已生成",
+      },
     });
 
     res.setHeader("Cache-Control", "no-store");
-    return res.status(200).json(deployment);
+    return res.status(200).json({ ...deployment, jobId: job.id });
   } catch (error) {
     const status = Number((error as Error & { status?: number })?.status || 0);
     if (status >= 400 && status <= 599) return res.status(status).json({ error: (error as Error).message });
@@ -278,6 +301,7 @@ export const issueClientBuildManifest = async (req: Request, res: Response, next
     }
     const site = await prisma.userSite.findFirst({ where: { id: siteId, userId: instance.userId } });
     if (!site) return res.status(404).json({ error: "品牌不存在" });
+    if (instance.siteId !== site.id) return res.status(403).json({ error: "当前中台未绑定该品牌" });
     if (!site.clientBuildEnabled) return res.status(403).json({ error: "该品牌尚未开通客户端构建权限" });
     const identity = await prisma.clientAppConfig.findUnique({
       where: { userId_brandKey: { userId: instance.userId, brandKey: `site:${site.id}` } },

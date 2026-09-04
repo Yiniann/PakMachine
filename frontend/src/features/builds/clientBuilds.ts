@@ -1,11 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "../../api/client";
 
-export type ClientPlatform = "macos" | "windows" | "android";
+export type ClientPlatform = "macos" | "windows" | "android" | "linux";
 
 export type ClientBuildJob = {
   id: number | string;
-  source: "legacy" | "customer-builder";
+  source: "legacy" | "deployment-package";
   status: string;
   progress?: number | null;
   message?: string | null;
@@ -20,6 +20,7 @@ export type ClientBuildJob = {
   startedAt?: string | null;
   completedAt?: string | null;
   durationMs?: number | null;
+  installCommand?: string | null;
   expiresAt?: string | null;
   downloadable: boolean;
 };

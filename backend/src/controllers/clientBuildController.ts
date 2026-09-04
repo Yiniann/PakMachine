@@ -286,23 +286,14 @@ export const listClientBuilds = async (req: Request, res: Response, next: NextFu
   try {
     const userId = Number((req as any).user?.sub);
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
-    const [jobs, manifests, sites] = await Promise.all([
-      prisma.buildJob.findMany({
-        where: { userId, buildKind: "client" },
-        orderBy: { id: "desc" },
-        take: 20,
-      }),
-      prisma.clientBuildManifest.findMany({
-        where: { userId },
-        orderBy: { createdAt: "desc" },
-        take: 20,
-      }),
-      prisma.userSite.findMany({ where: { userId }, select: { id: true, name: true } }),
-    ]);
-    const siteNames = new Map(sites.map((site) => [site.id, site.name]));
-    const legacyRecords = jobs.map((job) => ({
+    const jobs = await prisma.buildJob.findMany({
+      where: { userId, buildKind: "client" },
+      orderBy: { id: "desc" },
+      take: 20,
+    });
+    return res.json(jobs.map((job) => ({
       id: job.id,
-      source: "legacy" as const,
+      source: parseBuildMode(job.envJson) === "client-runtime-package" ? "deployment-package" as const : "legacy" as const,
       status: job.status,
       progress: ["success", "failed"].includes(job.status) ? 100 : null,
       message: job.message,
@@ -317,10 +308,45 @@ export const listClientBuilds = async (req: Request, res: Response, next: NextFu
       startedAt: null,
       completedAt: null,
       durationMs: null,
+      installCommand: deploymentInstallCommand(job.envJson),
       expiresAt: job.expiresAt,
       downloadable: job.status === "success" && Boolean(job.objectKey) && (!job.expiresAt || job.expiresAt > new Date()),
-    }));
-    const managedRecords = manifests.map((build) => {
+    })));
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const listAdminClientBuilds = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const requestedLimit = Number(req.query.limit) || 50;
+    const limit = Math.min(Math.max(Math.trunc(requestedLimit), 1), 200);
+    const [builds, packageJobs] = await Promise.all([
+      prisma.clientBuildManifest.findMany({
+        include: {
+          user: { select: { id: true, email: true } },
+          instance: { select: { id: true, name: true, status: true, lastSeenAt: true } },
+        },
+        orderBy: { createdAt: "desc" },
+        take: limit,
+      }),
+      prisma.buildJob.findMany({
+        where: { buildKind: "client" },
+        include: {
+          user: { select: { id: true, email: true } },
+          site: { select: { id: true, name: true } },
+        },
+        orderBy: { createdAt: "desc" },
+        take: limit,
+      }),
+    ]);
+    const siteIds = [...new Set(builds.map((build) => build.siteId))];
+    const sites = siteIds.length
+      ? await prisma.userSite.findMany({ where: { id: { in: siteIds } }, select: { id: true, name: true } })
+      : [];
+    const siteNames = new Map(sites.map((site) => [site.id, site.name]));
+
+    const managedRecords = builds.map((build) => {
       const manifest = parseIssuedClientManifest(build.envelopeJson);
       return {
         id: build.id,
@@ -331,23 +357,47 @@ export const listClientBuilds = async (req: Request, res: Response, next: NextFu
         platform: build.platform,
         arch: manifest.architecture,
         version: manifest.clientVersion,
+        buildNumber: manifest.buildNumber,
         appName: manifest.appName || siteNames.get(build.siteId) || "客户端",
         artifactFilename: build.artifactFilename,
-        size: build.artifactSize === null ? null : Number(build.artifactSize),
-        sha256: build.artifactSha256,
+        artifactSize: build.artifactSize === null ? null : Number(build.artifactSize),
+        artifactSha256: build.artifactSha256,
         createdAt: build.createdAt,
         startedAt: build.startedAt,
         completedAt: build.completedAt,
         durationMs: build.startedAt && build.completedAt
           ? Math.max(0, build.completedAt.getTime() - build.startedAt.getTime())
           : null,
-        expiresAt: null,
-        downloadable: false,
+        user: build.user,
+        site: { id: build.siteId, name: siteNames.get(build.siteId) || null },
+        instance: build.instance,
       };
     });
-    return res.json([...legacyRecords, ...managedRecords]
+    const packageRecords = packageJobs.map((job) => ({
+      id: String(job.id),
+      source: parseBuildMode(job.envJson) === "client-runtime-package" ? "deployment-package" as const : "legacy" as const,
+      status: job.status,
+      progress: ["success", "failed"].includes(job.status) ? 100 : 0,
+      message: job.message,
+      platform: job.platform,
+      arch: job.arch,
+      version: job.version,
+      buildNumber: null,
+      appName: job.siteNameSnapshot || job.site?.name || job.filename,
+      artifactFilename: job.artifactFilename,
+      artifactSize: job.artifactSize,
+      artifactSha256: job.artifactSha256,
+      createdAt: job.createdAt,
+      startedAt: null,
+      completedAt: null,
+      durationMs: null,
+      user: job.user,
+      site: job.site ? { id: job.site.id, name: job.site.name } : { id: job.siteId, name: job.siteNameSnapshot },
+      instance: null,
+    }));
+    return res.json([...managedRecords, ...packageRecords]
       .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
-      .slice(0, 20));
+      .slice(0, limit));
   } catch (error) {
     next(error);
   }
@@ -359,10 +409,30 @@ function parseIssuedClientManifest(envelopeJson: string) {
     return {
       architecture: typeof manifest?.architecture === "string" ? manifest.architecture : null,
       clientVersion: typeof manifest?.clientVersion === "string" ? manifest.clientVersion : null,
+      buildNumber: typeof manifest?.buildNumber === "number" ? manifest.buildNumber : null,
       appName: typeof manifest?.app?.name === "string" ? manifest.app.name : null,
     };
   } catch {
-    return { architecture: null, clientVersion: null, appName: null };
+    return { architecture: null, clientVersion: null, buildNumber: null, appName: null };
+  }
+}
+
+function parseBuildMode(envJson: string) {
+  try {
+    const parsed = JSON.parse(envJson);
+    return typeof parsed?.buildMode === "string" ? parsed.buildMode : null;
+  } catch {
+    return null;
+  }
+}
+
+function deploymentInstallCommand(envJson: string) {
+  try {
+    const parsed = JSON.parse(envJson);
+    if (parsed?.buildMode !== "client-runtime-package") return null;
+    return "sudo ./install.sh";
+  } catch {
+    return null;
   }
 }
 

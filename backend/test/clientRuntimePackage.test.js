@@ -3,7 +3,6 @@ const { test } = require("node:test");
 
 const {
   createClientRuntimeDeploymentPackage,
-  normalizeAdminPathPrefix,
 } = require("../src/services/clientRuntimePackageService");
 
 const runtimeArtifact = {
@@ -25,22 +24,19 @@ test("部署接口返回完整运行包地址和对应的安装命令", () => {
     artifact: runtimeArtifact,
     runtimeDownloadUrl: "https://r2.example.com/runtime.tar.gz?X-Amz-Signature=test",
     runtimeDownloadExpiresAt: new Date(Date.now() + 10 * 60 * 1000),
-    adminPathPrefix: "/client-center",
   });
   assert.equal(deployment.filename, "runtime.tar.gz");
   assert.match(deployment.downloadUrl, /^https:\/\/r2\.example\.com\//);
-  assert.equal(deployment.installCommand, "sudo ./install.sh --admin-path /client-center");
+  assert.equal(deployment.installCommand, "sudo ./install.sh");
   assert.equal(deployment.architecture, "amd64");
   assert.equal(deployment.size, runtimeArtifact.size);
   assert.equal(deployment.sha256, runtimeArtifact.sha256);
 });
 
-test("部署包拒绝保留管理路径和非 HTTPS 运行包地址", () => {
-  assert.throws(() => normalizeAdminPathPrefix("/api"), /管理路径/);
+test("部署包拒绝非 HTTPS 运行包地址", () => {
   assert.throws(() => createClientRuntimeDeploymentPackage({
     artifact: runtimeArtifact,
     runtimeDownloadUrl: "http://r2.example.com/runtime.tar.gz?signature=test",
     runtimeDownloadExpiresAt: new Date(Date.now() + 10 * 60 * 1000),
-    adminPathPrefix: "/admin",
   }), /HTTPS/);
 });

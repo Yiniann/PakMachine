@@ -13,11 +13,14 @@ export type ClientControlBrand = {
 export type ClientBffActivation = {
   activationToken: string;
   expiresAt: string;
+  siteId: number;
+  siteName: string;
 };
 
 export type ClientRuntimeArchitecture = "amd64" | "arm64";
 
 export type ClientRuntimePackage = {
+  jobId: number;
   filename: string;
   downloadUrl: string;
   downloadExpiresAt: string;
@@ -39,15 +42,15 @@ export const useClientControlBrands = () =>
 
 export const useCreateClientBffActivation = () =>
   useMutation({
-    mutationFn: async () => {
-      const response = await api.post<ClientBffActivation>("/client-control/activation", {});
+    mutationFn: async (siteId: number) => {
+      const response = await api.post<ClientBffActivation>("/client-control/activation", { siteId });
       return response.data;
     },
   });
 
 export const useCreateClientRuntimePackage = () =>
   useMutation({
-    mutationFn: async (input: { architecture: ClientRuntimeArchitecture; adminPathPrefix: string }) => {
+    mutationFn: async (input: { architecture: ClientRuntimeArchitecture; siteId: number }) => {
       const response = await api.post<ClientRuntimePackage>("/client-control/runtime-package", input);
       return response.data;
     },
